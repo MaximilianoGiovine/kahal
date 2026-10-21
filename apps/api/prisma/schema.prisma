@@ -1,0 +1,341 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TREASURER
+  PASTOR
+  SECRETARY
+  MEMBER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  DISABLED
+}
+
+enum MemberStatus {
+  VISITOR
+  ATTENDEE
+  MEMBER
+  BAPTIZED
+  INACTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Currency {
+  ARS
+  USD
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum StreamPlatform {
+  YOUTUBE
+  FACEBOOK
+  OTHER
+}
+
+/// Una iglesia es un tenant: todos los datos operativos cuelgan de ella.
+model Church {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  city            String?
+  address         String?
+  phone           String?
+  email           String?
+  logoKey         String?
+  primaryColor    String?
+  timezone        String   @default("America/Argentina/Buenos_Aires")
+  defaultCurrency Currency @default(ARS)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users         User[]
+  members       Member[]
+  families      Family[]
+  ministries    Ministry[]
+  accounts      FinanceAccount[]
+  categories    FinanceCategory[]
+  transactions  Transaction[]
+  announcements Announcement[]
+  events        Event[]
+  streams       LiveStream[]
+  availability  Availability[]
+  appointments  Appointment[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  churchId     String?
+  church       Church?    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  email        String     @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  role         Role       @default(MEMBER)
+  status       UserStatus @default(PENDING)
+  /// Incrementar invalida todos los refresh tokens emitidos.
+  tokenVersion Int        @default(0)
+  consentAt    DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  member              Member?
+  transactions        Transaction[]
+  announcements       Announcement[]
+  events              Event[]
+  availability        Availability[]
+  hostedAppointments  Appointment[]  @relation("AppointmentHost")
+  requestedAppointments Appointment[] @relation("AppointmentRequester")
+
+  @@index([churchId, status])
+}
+
+/// Persona del padrón de la iglesia. Puede o no tener cuenta de usuario.
+model Member {
+  id          String       @id @default(cuid())
+  churchId    String
+  church      Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  userId      String?      @unique
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  documentId  String?
+  birthDate   DateTime?    @db.Date
+  gender      Gender?
+  address     String?
+  status      MemberStatus @default(VISITOR)
+  joinedAt    DateTime?    @db.Date
+  baptismDate DateTime?    @db.Date
+  familyId    String?
+  family      Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  familyRole  String?
+  notes       String?
+  photoKey    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  ministries   MinistryMember[]
+  transactions Transaction[]
+  ledMinistries Ministry[] @relation("MinistryLeader")
+
+  @@index([churchId, lastName])
+  @@index([churchId, status])
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  churchId  String
+  church    Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  members Member[]
+
+  @@index([churchId])
+}
+
+model Ministry {
+  id          String   @id @default(cuid())
+  churchId    String
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  leaderId    String?
+  leader      Member?  @relation("MinistryLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  members MinistryMember[]
+
+  @@unique([churchId, name])
+}
+
+model MinistryMember {
+  ministryId String
+  ministry   Ministry @relation(fields: [ministryId], references: [id], onDelete: Cascade)
+  memberId   String
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  joinedAt   DateTime @default(now())
+
+  @@id([ministryId, memberId])
+}
+
+model FinanceAccount {
+  id             String   @id @default(cuid())
+  churchId       String
+  church         Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  name           String
+  currency       Currency @default(ARS)
+  initialBalance Decimal  @default(0) @db.Decimal(14, 2)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  transactions Transaction[]
+
+  @@unique([churchId, name])
+}
+
+model FinanceCategory {
+  id       String          @id @default(cuid())
+  churchId String
+  church   Church          @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  name     String
+  type     TransactionType
+  color    String?
+  /// Las categorías de diezmo permiten asociar el movimiento a un miembro.
+  isTithe  Boolean         @default(false)
+  active   Boolean         @default(true)
+
+  transactions Transaction[]
+
+  @@unique([churchId, name, type])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  churchId    String
+  church      Church          @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     FinanceAccount  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  categoryId  String
+  category    FinanceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  memberId    String?
+  member      Member?         @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  type        TransactionType
+  amount      Decimal         @db.Decimal(14, 2)
+  date        DateTime        @db.Date
+  description String?
+  reference   String?
+  receiptKey  String?
+  createdById String?
+  createdBy   User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([churchId, date])
+  @@index([accountId, date])
+  @@index([memberId])
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  churchId    String
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  title       String
+  body        String
+  imageKey    String?
+  pinned      Boolean  @default(false)
+  published   Boolean  @default(true)
+  publishedAt DateTime @default(now())
+  authorId    String?
+  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([churchId, publishedAt])
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  churchId    String
+  church      Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  location    String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  imageKey    String?
+  isPublic    Boolean   @default(true)
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([churchId, startsAt])
+}
+
+model LiveStream {
+  id          String         @id @default(cuid())
+  churchId    String
+  church      Church         @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  url         String
+  platform    StreamPlatform
+  scheduledAt DateTime?
+  isLive      Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([churchId, scheduledAt])
+}
+
+/// Franja semanal en la que un pastor/líder recibe citas (hora local de la iglesia).
+model Availability {
+  id          String @id @default(cuid())
+  churchId    String
+  church      Church @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 0 = domingo ... 6 = sábado
+  weekday     Int
+  startTime   String
+  endTime     String
+  slotMinutes Int    @default(30)
+
+  @@index([userId, weekday])
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  churchId    String
+  church      Church            @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  hostId      String
+  host        User              @relation("AppointmentHost", fields: [hostId], references: [id], onDelete: Cascade)
+  requesterId String
+  requester   User              @relation("AppointmentRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  startsAt    DateTime
+  endsAt      DateTime
+  status      AppointmentStatus @default(PENDING)
+  reason      String?
+  hostNotes   String?
+  reminderSentAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([hostId, startsAt])
+  @@index([requesterId, startsAt])
+  @@index([churchId, startsAt])
+}

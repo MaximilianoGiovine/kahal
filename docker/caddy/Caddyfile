@@ -1,0 +1,35 @@
+# SITE_ADDRESS:
+#   - ":80"                     -> solo HTTP por IP (pruebas rápidas)
+#   - "203-0-113-10.sslip.io"   -> HTTPS automático sin comprar dominio
+#   - "app.midominio.com"       -> HTTPS automático con dominio propio
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	request_body {
+		max_size 15MB
+	}
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+	}
+
+	handle /api/* {
+		reverse_proxy api:4000 {
+			health_uri /api/health
+			health_interval 15s
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format console
+		level WARN
+	}
+}

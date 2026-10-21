@@ -1,0 +1,122 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --surface-2: #f2f1ed;
+  --border: #e4e2dc;
+  --fg: #1c1b19;
+  --muted: #6b6963;
+  --subtle: #9a978f;
+  --accent: #4f46e5;
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in oklab, var(--accent) 10%, var(--surface));
+  --accent-ink: var(--accent);
+  --danger: #c4302b;
+  --danger-soft: #fdecea;
+  --success: #15803d;
+  --success-soft: #e8f6ec;
+  --warning: #a16207;
+  --warning-soft: #fdf5e0;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --grid: #ecebe6;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #121211;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --border: #2f2f2c;
+    --fg: #f2f1ec;
+    --muted: #a8a69e;
+    --subtle: #75736c;
+    --accent-soft: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  --accent-ink: color-mix(in oklab, var(--accent) 55%, white);
+    --danger: #f07167;
+    --danger-soft: #3a1d1b;
+    --success: #4ade80;
+    --success-soft: #16301f;
+    --warning: #facc15;
+    --warning-soft: #33290f;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --grid: #2a2a27;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #121211;
+  --surface: #1a1a19;
+  --surface-2: #232321;
+  --border: #2f2f2c;
+  --fg: #f2f1ec;
+  --muted: #a8a69e;
+  --subtle: #75736c;
+  --accent-soft: color-mix(in oklab, var(--accent) 22%, var(--surface));
+  --accent-ink: color-mix(in oklab, var(--accent) 55%, white);
+  --danger: #f07167;
+  --danger-soft: #3a1d1b;
+  --success: #4ade80;
+  --success-soft: #16301f;
+  --warning: #facc15;
+  --warning-soft: #33290f;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --grid: #2a2a27;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-grid: var(--grid);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+::selection {
+  background: var(--accent-soft);
+}
