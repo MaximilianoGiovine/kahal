@@ -2,7 +2,118 @@
 
 Software de gestión para iglesias. Multi-iglesia (multi-tenant): una sola instalación atiende a muchas iglesias, cada una con sus datos aislados.
 
-**Funcionalidades**
+## Subir Kahal a Portainer (paso a paso)
+
+**Necesitás:** un VPS con Docker y Portainer instalados (mínimo **4 GB de RAM**) y este repositorio en GitHub. Nada más: Portainer construye y levanta todo solo.
+
+### Paso 1 · Abrir los puertos del servidor
+
+Por SSH en el VPS:
+
+```bash
+sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw allow 443/udp
+```
+
+> Si otro programa ya usa el puerto 80 o 443 (Nginx, Apache, otro proxy), hay que detenerlo antes, o el stack no va a arrancar.
+
+### Paso 2 · Preparar las variables
+
+Copiá este bloque en un bloc de notas y reemplazá lo que está en `MAYÚSCULAS`:
+
+```env
+SITE_ADDRESS=IP-CON-GUIONES.sslip.io
+POSTGRES_PASSWORD=CLAVE-LARGA-1
+JWT_SECRET=CLAVE-LARGA-2
+SUPERADMIN_EMAIL=TU-EMAIL
+SUPERADMIN_PASSWORD=TU-CONTRASEÑA
+SEED_DEMO=false
+```
+
+- **`SITE_ADDRESS`**: la dirección con la que se va a entrar a la app.
+  - **Sin dominio:** tu IP con guiones + `.sslip.io`. Por ejemplo, si la IP es `203.0.113.10`, poné `203-0-113-10.sslip.io`. Tenés HTTPS gratis y automático.
+  - **Con dominio propio:** el dominio, por ejemplo `app.midominio.com`. Antes creá un registro **A** que apunte a la IP del VPS.
+- **`POSTGRES_PASSWORD`** y **`JWT_SECRET`**: dos claves distintas, largas y al azar. Podés generarlas con `openssl rand -hex 32` (cada vez da una nueva). **No cambies `POSTGRES_PASSWORD` después del primer despliegue**, porque la base ya queda creada con esa clave.
+- **`SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`**: con estos datos vas a entrar como administrador de la plataforma.
+- **`SEED_DEMO`**: `true` carga 3 iglesias de ejemplo (sirve para mostrar la app); `false` arranca vacía, para usarla de verdad.
+
+### Paso 3 · Crear el stack en Portainer
+
+1. Entrá a Portainer → **Stacks** → **+ Add stack**.
+2. **Name**: `kahal`.
+3. **Build method**: **Repository**.
+4. **Repository URL**: la URL del repo en GitHub. Si es privado, activá **Authentication** y poné tu usuario y un *token* de GitHub (Settings → Developer settings → Personal access tokens, con permiso de lectura del repo).
+5. **Repository reference**: `refs/heads/main`.
+6. **Compose path**: `docker-compose.yml`.
+7. En **Environment variables** tocá **Advanced mode** y pegá el bloque del paso 2.
+8. Tocá **Deploy the stack**.
+
+La primera vez tarda varios minutos (entre 5 y 15, según el servidor) porque construye la app. No cierres la página hasta que termine.
+
+### Paso 4 · Entrar
+
+1. Abrí `https://` + tu `SITE_ADDRESS` (por ejemplo `https://203-0-113-10.sslip.io`).
+2. Ingresá con `SUPERADMIN_EMAIL` y `SUPERADMIN_PASSWORD`.
+3. En **Plataforma → Iglesias** creá la primera iglesia y su pastor. Desde ahí mismo descargás o imprimís el **código QR** para que los miembros se registren.
+
+¡Listo!
+
+### Actualizar a una nueva versión
+
+1. Subí los cambios a GitHub (rama `main`).
+2. En Portainer → **Stacks** → `kahal` → **Pull and redeploy**, y confirmá.
+
+La base de datos se actualiza sola al reiniciar; no se pierde nada. Si después de unos minutos no ves los cambios, repetí el redeploy activando la opción de volver a construir las imágenes (*Re-pull image and redeploy* / *rebuild*, según la versión de Portainer).
+
+### Si algo no anda
+
+| Qué pasa | Qué hacer |
+|---|---|
+| El deploy falla con `Definí POSTGRES_PASSWORD` (o otra variable) | Falta esa variable: revisá el paso 2 y que esté en *Environment variables* del stack. |
+| `port is already allocated` | Otro programa usa el puerto 80 o 443. Detenelo, o agregá `HTTP_PORT=8080` y `HTTPS_PORT=8443` (y entrá con ese puerto). |
+| La página no abre o da error de certificado | Revisá que los puertos 80 y 443 estén abiertos (paso 1) y, con dominio propio, que el registro A apunte a la IP. Esperá un par de minutos: el certificado se pide solo. |
+| La página abre pero dice que no se pudo conectar con el servidor | La API todavía está arrancando. En Portainer → **Containers** → `kahal-api-1` → **Logs** tiene que aparecer `Iniciando API`. Si muestra un error, ese mensaje dice qué falta. |
+| El deploy se corta construyendo la web | Falta memoria: el servidor necesita al menos 4 GB de RAM (o agregá swap). |
+
+### Opcional
+
+Se agregan en *Environment variables* del stack y se aplican con **Update the stack**.
+
+| Variable | Para qué |
+|---|---|
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE` | Enviar emails (recordatorios de citas, etc.). Sin esto, los emails solo quedan en el log de la API. |
+| `STORAGE_DRIVER=s3` + `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Guardar archivos en AWS S3 / Cloudflare R2 / Backblaze en vez del disco del servidor. |
+| `DEMO_STREAM_URL` | Link de YouTube/Facebook/Twitch para las transmisiones de la demo. |
+| `HTTP_PORT` / `HTTPS_PORT` | Cambiar los puertos 80 / 443. |
+
+### Usuarios de la demo (`SEED_DEMO=true`)
+
+Con `SEED_DEMO=true` se crean 3 iglesias (`monte-sion`, `nueva-vida`, `emanuel`) con ~1 año de movimientos, miembros, eventos, transmisiones y citas. Contraseña de todos: **`kahal1234`**.
+
+| Rol | Email |
+|---|---|
+| Pastor | `pastor@monte-sion.demo` |
+| Equipo pastoral | `equipo@monte-sion.demo` |
+| Líder | `lider@monte-sion.demo` |
+| Tesorería | `tesoreria@monte-sion.demo` |
+| Secretaría | `secretaria@monte-sion.demo` |
+| Miembro | `miembro@monte-sion.demo` |
+
+(Igual para `nueva-vida` y `emanuel`.) El super admin es el definido en `SUPERADMIN_EMAIL`: desde **Plataforma → Iglesias** crea iglesias nuevas y puede operar sobre cualquiera.
+
+> Para pasar de la demo a datos reales: eliminá el stack **y el volumen `kahal_pgdata`** (Portainer → **Volumes**) y volvé a desplegar con `SEED_DEMO=false`.
+
+### Backups
+
+Se hacen solos todos los días en el volumen `kahal_backups` (se guardan 7 diarios, 4 semanales y 6 mensuales). Conviene copiar ese volumen fuera del servidor cada tanto. Para restaurar el último, por SSH:
+
+```bash
+docker exec -i $(docker ps -qf name=kahal-backup) sh -c 'zcat /backups/last/kahal-latest.sql.gz' \
+  | docker exec -i $(docker ps -qf name=kahal-postgres) psql -U kahal -d kahal
+```
+
+---
+
+## Qué incluye
 
 - **Finanzas**: registro de ingresos y egresos, cuentas (ARS/USD), categorías de ingreso/egreso, diezmos asociados a miembros, comprobantes adjuntos, resumen con gráficos y **exportación a Excel** (resumen, movimientos, por categoría, por mes y diezmos por miembro).
 - **Membresía**: padrón con estados (visitante → asistente → miembro → bautizado), familias, ministerios y export a Excel.
@@ -45,84 +156,6 @@ apps/web      Frontend Next.js
 docker/caddy  Imagen de Caddy con su configuración
 docker-compose.yml
 ```
-
----
-
-## Despliegue en Portainer (VPS Ubuntu)
-
-### 1. Preparar el servidor
-
-Abrí los puertos 80 y 443 (y cerrá el resto salvo SSH y el puerto de Portainer):
-
-```bash
-sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw allow 443/udp
-```
-
-### 2. Elegir la dirección pública (`SITE_ADDRESS`)
-
-| Caso | Valor | Resultado |
-|---|---|---|
-| **Sin dominio (recomendado para la demo)** | `203-0-113-10.sslip.io` (tu IP con guiones) | HTTPS automático y gratuito |
-| Con dominio propio | `app.midominio.com` (registro A apuntando al VPS) | HTTPS automático |
-| Prueba rápida | `:80` | Solo HTTP por IP |
-
-> `sslip.io` resuelve `203-0-113-10.sslip.io` a `203.0.113.10`, así Caddy obtiene un certificado real de Let's Encrypt sin comprar un dominio. **Usá HTTPS para la demo**: la instalación como app (PWA) y las cookies seguras lo necesitan.
-
-### 3. Crear el stack
-
-1. Portainer → **Stacks** → **Add stack** → **Repository**.
-2. **Repository URL**: la URL del repo en GitHub (si es privado, activá *Authentication* con un token de GitHub).
-3. **Compose path**: `docker-compose.yml`.
-4. En **Environment variables** cargá (o subí `.env.example` completado con *Load variables from .env file*):
-
-| Variable | Obligatoria | Descripción |
-|---|---|---|
-| `SITE_ADDRESS` | sí | Ver tabla anterior |
-| `POSTGRES_PASSWORD` | sí | Contraseña de la base (`openssl rand -hex 24`) |
-| `JWT_SECRET` | sí | Cadena aleatoria larga (`openssl rand -hex 32`) |
-| `SUPERADMIN_EMAIL` | sí | Email del super administrador de la plataforma |
-| `SUPERADMIN_PASSWORD` | sí | Su contraseña inicial |
-| `SEED_DEMO` | no | `true` carga 3 iglesias de demostración (solo si la base está vacía) |
-| `DEMO_STREAM_URL` | no | Link de YouTube/Facebook/Twitch para las transmisiones de demo |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE` | no | Envío de emails. Sin SMTP los emails se registran en el log de la API |
-| `STORAGE_DRIVER` + `S3_*` | no | `s3` para guardar archivos en AWS S3 / Cloudflare R2 / Backblaze. Por defecto, volumen local |
-| `HTTP_PORT` / `HTTPS_PORT` | no | Por defecto 80 / 443 |
-
-5. **Deploy the stack**. La primera vez tarda unos minutos porque construye las imágenes. Al arrancar, la API aplica las migraciones y crea el super admin (y la demo si `SEED_DEMO=true`).
-
-### 4. Actualizar
-
-Subí los cambios a GitHub y en Portainer, dentro del stack: **Pull and redeploy**. Las migraciones de base de datos se aplican solas al reiniciar la API. Si los cambios no se reflejan, verificá que el redeploy haya reconstruido las imágenes (opción de *re-pull/rebuild* según tu versión de Portainer).
-
-### Usuarios de la demo
-
-Con `SEED_DEMO=true` se crean 3 iglesias (`monte-sion`, `nueva-vida`, `emanuel`) con ~1 año de movimientos, miembros, eventos, transmisiones y citas. Contraseña de todos: **`kahal1234`**.
-
-| Rol | Email |
-|---|---|
-| Pastor | `pastor@monte-sion.demo` |
-| Equipo pastoral | `equipo@monte-sion.demo` |
-| Líder | `lider@monte-sion.demo` |
-| Tesorería | `tesoreria@monte-sion.demo` |
-| Secretaría | `secretaria@monte-sion.demo` |
-| Miembro | `miembro@monte-sion.demo` |
-
-(Igual para `nueva-vida` y `emanuel`.) El super admin es el definido en `SUPERADMIN_EMAIL`: desde **Plataforma → Iglesias** crea iglesias nuevas y puede operar sobre cualquiera.
-
-> Antes de usarlo con datos reales, desplegá con `SEED_DEMO=false` en una base limpia (o borrá el volumen `pgdata`).
-
-### Backups
-
-El servicio `backup` hace un dump diario en el volumen `backups` (conserva 7 diarios, 4 semanales y 6 mensuales). Para restaurar el último:
-
-```bash
-docker exec -i $(docker ps -qf name=kahal-backup) sh -c 'zcat /backups/last/kahal-latest.sql.gz' \
-  | docker exec -i $(docker ps -qf name=kahal-postgres) psql -U kahal -d kahal
-```
-
-Recomendado: copiar periódicamente el volumen `backups` fuera del servidor.
-
----
 
 ## Desarrollo local
 
