@@ -55,7 +55,7 @@ export function MemberPicker({ name, initial }: { name: string; initial?: Pick |
             aria-label="Buscar miembro"
           />
           {open && query.length >= 2 && (
-            <ul className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-border bg-surface p-1 shadow-lg">
+            <ul className="glass-strong absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl p-1">
               {!data?.length && <li className="px-3 py-2 text-sm text-muted">Sin resultados</li>}
               {data?.map((m) => (
                 <li key={m.id}>
@@ -69,7 +69,7 @@ export function MemberPicker({ name, initial }: { name: string; initial?: Pick |
                     className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-surface-2"
                   >
                     {m.lastName}, {m.firstName}
-                    {m.documentId && <span className="ml-2 text-xs text-muted">DNI {m.documentId}</span>}
+                    {m.documentId && <span className="ml-2 text-xs text-muted">Carnet {m.documentId}</span>}
                   </button>
                 </li>
               ))}

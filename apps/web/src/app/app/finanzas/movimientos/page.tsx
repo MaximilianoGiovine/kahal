@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Download, Paperclip, Pencil, Plus, Receipt, Search, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Download, Paperclip, Pencil, Receipt, Search, Trash2 } from 'lucide-react';
 import { useDeferredValue, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/dialog';
@@ -14,11 +14,11 @@ import { dayLabel, fullName, money } from '@/lib/format';
 import { useAction } from '@/lib/hooks';
 import { can } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
-import type { Account, Category, Paged, Totals, Transaction } from '@/lib/types';
+import type { Account, Category, Paged, Totals, Transaction, TxType } from '@/lib/types';
 
 export default function TransactionsPage() {
   const { me } = useSession();
-  const writer = can.financeWrite(me.role);
+  const writer = can.financeWrite(me);
   const [period, setPeriod] = useState<Period>(() => resolvePeriod('month'));
   const [type, setType] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -26,7 +26,7 @@ export default function TransactionsPage() {
   const [q, setQ] = useState('');
   const search = useDeferredValue(q);
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState<Transaction | 'new' | null>(null);
+  const [editing, setEditing] = useState<Transaction | TxType | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -72,15 +72,11 @@ export default function TransactionsPage() {
         <div className="flex flex-col gap-3 border-b border-border p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <PeriodPicker value={period} onChange={reset(setPeriod)} />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={exportXlsx} loading={exporting}>
                 <Download className="size-4" /> Excel
               </Button>
-              {writer && (
-                <Button onClick={() => setEditing('new')}>
-                  <Plus className="size-4" /> Nuevo movimiento
-                </Button>
-              )}
+              {writer && <RegisterButtons onPick={setEditing} />}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1fr)_10rem_13rem_13rem]">
@@ -142,9 +138,9 @@ export default function TransactionsPage() {
             description="No se encontraron movimientos con estos filtros."
             action={
               writer && (
-                <Button onClick={() => setEditing('new')}>
-                  <Plus className="size-4" /> Registrar movimiento
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <RegisterButtons onPick={setEditing} />
+                </div>
               )
             }
           />
@@ -238,7 +234,13 @@ export default function TransactionsPage() {
         </p>
       )}
 
-      {editing && <TransactionForm item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && (
+        <TransactionForm
+          item={typeof editing === 'string' ? null : editing}
+          type={typeof editing === 'string' ? editing : undefined}
+          onClose={() => setEditing(null)}
+        />
+      )}
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
@@ -249,6 +251,19 @@ export default function TransactionsPage() {
         message={deleting && `¿Eliminar el movimiento de ${money(deleting.amount, deleting.account.currency)} del ${dayLabel(deleting.date)}?`}
         confirmLabel="Eliminar"
       />
+    </>
+  );
+}
+
+function RegisterButtons({ onPick }: { onPick: (type: TxType) => void }) {
+  return (
+    <>
+      <Button onClick={() => onPick('INCOME')}>
+        <ArrowDownLeft className="size-4" /> Registrar ingreso
+      </Button>
+      <Button onClick={() => onPick('EXPENSE')}>
+        <ArrowUpRight className="size-4" /> Registrar egreso
+      </Button>
     </>
   );
 }

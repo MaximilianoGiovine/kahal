@@ -1,35 +1,30 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Download, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, Download, Pencil, Plus, Search, Smartphone, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { MemberForm } from '@/components/member-form';
+import { StatusBadge, StatusBadges, useMemberStatuses } from '@/components/member-statuses';
 import { ActionMenu } from '@/components/menu';
-import { Avatar, Badge, Button, Card, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Pagination, Select, Stat, Tabs, Textarea, td, th } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Pagination, Select, Stat, Tabs, Textarea, td, th } from '@/components/ui';
 import { api, download } from '@/lib/api';
-import { fullName, MEMBER_STATUS_LABEL, number } from '@/lib/format';
+import { fullName, number } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
-import type { Family, Member, MemberStatus, Ministry, Paged } from '@/lib/types';
+import { can } from '@/lib/permissions';
+import { useSession } from '@/lib/session';
+import type { Family, Member, MemberStatus, Ministry, Paged, StatusRef } from '@/lib/types';
 
-const STATUS_TONE: Record<MemberStatus, 'neutral' | 'accent' | 'success' | 'warning'> = {
-  VISITOR: 'warning',
-  ATTENDEE: 'neutral',
-  MEMBER: 'accent',
-  BAPTIZED: 'success',
-  INACTIVE: 'neutral',
-};
-
-type Tab = 'members' | 'families' | 'ministries';
+type Tab = 'members' | 'families' | 'ministries' | 'statuses';
 
 export default function MembersPage() {
   const [tab, setTab] = useState<Tab>('members');
   return (
     <>
-      <PageHeader title="Miembros" description="Padrón de la congregación, familias y ministerios." />
+      <PageHeader title="Miembros" description="Padrón de la congregación, familias, ministerios y estados." />
       <div className="mb-6">
         <Tabs
           value={tab}
@@ -38,27 +33,31 @@ export default function MembersPage() {
             { value: 'members', label: 'Padrón' },
             { value: 'families', label: 'Familias' },
             { value: 'ministries', label: 'Ministerios' },
+            { value: 'statuses', label: 'Estados' },
           ]}
         />
       </div>
       {tab === 'members' && <MembersTab />}
       {tab === 'families' && <FamiliesTab />}
       {tab === 'ministries' && <MinistriesTab />}
+      {tab === 'statuses' && <StatusesTab />}
     </>
   );
 }
 
 function MembersTab() {
   const router = useRouter();
+  const editor = can.editMembers(useSession().me);
   const [q, setQ] = useState('');
   const query = useDeferredValue(q);
   const [status, setStatus] = useState('');
   const [ministryId, setMinistryId] = useState('');
+  const [source, setSource] = useState<'' | 'app' | 'manual'>('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const filters = { q: query, status, ministryId };
+  const filters = { q: query, statusId: status, ministryId, source };
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['members', filters, page],
     queryFn: () => api<Paged<Member>>('/members', { query: { ...filters, page, pageSize: 25 } }),
@@ -66,9 +65,10 @@ function MembersTab() {
   });
   const { data: stats } = useQuery({
     queryKey: ['members', 'stats'],
-    queryFn: () => api<{ total: number; newThisMonth: number; byStatus: Record<MemberStatus, number> }>('/members/stats'),
+    queryFn: () => api<{ total: number; newThisMonth: number; fromApp: number; fromAppThisMonth: number; byStatus: (StatusRef & { count: number })[] }>('/members/stats'),
   });
   const { data: ministries = [] } = useQuery({ queryKey: ['ministries'], queryFn: () => api<Ministry[]>('/ministries') });
+  const { data: statuses = [] } = useMemberStatuses();
 
   async function exportXlsx() {
     setExporting(true);
@@ -84,15 +84,44 @@ function MembersTab() {
   return (
     <>
       {stats && (
-        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Total en padrón" value={number(stats.total)} />
-          <Stat label="Bautizados" value={number(stats.byStatus.BAPTIZED)} />
-          <Stat label="Miembros" value={number(stats.byStatus.MEMBER)} />
-          <Stat label="Visitantes y asistentes" value={number(stats.byStatus.VISITOR + stats.byStatus.ATTENDEE)} hint={`${stats.newThisMonth} nuevos este mes`} />
+        <div className="mb-6 grid gap-3 lg:grid-cols-4">
+          <Stat label="Total en padrón" value={number(stats.total)} hint={`${stats.newThisMonth} nuevos este mes`} />
+          {/* Quienes se registran en la app ya quedan en el padrón con sus datos: no hace falta cargarlos. */}
+          <button
+            type="button"
+            onClick={() => (setSource(source === 'app' ? '' : 'app'), setPage(1))}
+            aria-pressed={source === 'app'}
+            className="rounded-xl border border-border bg-surface p-5 text-left transition hover:bg-surface-2 aria-pressed:border-accent aria-pressed:bg-accent-soft"
+          >
+            <span className="flex items-center justify-between text-sm text-muted">
+              Registrados en la app <Smartphone className="size-4" />
+            </span>
+            <span className="tabular mt-2 block text-2xl font-semibold tracking-tight">{number(stats.fromApp)}</span>
+            <span className="mt-1 block text-xs text-muted">{stats.fromAppThisMonth} este mes · tocá para filtrar</span>
+          </button>
+          {stats.byStatus.length > 0 && (
+            <Card className="p-4 lg:col-span-2">
+              <p className="text-sm text-muted">Por estado</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {stats.byStatus.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => (setStatus(status === s.id ? '' : s.id), setPage(1))}
+                    aria-pressed={status === s.id}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm transition hover:bg-surface-2 aria-pressed:border-accent aria-pressed:bg-accent-soft"
+                  >
+                    <StatusBadge status={s} />
+                    <span className="font-semibold tabular-nums">{number(s.count)}</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       )}
       <Card>
-        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:flex-wrap lg:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
             <Input
@@ -101,21 +130,26 @@ function MembersTab() {
                 setQ(e.target.value);
                 setPage(1);
               }}
-              placeholder="Buscar por nombre, email, documento o teléfono"
+              placeholder="Buscar por nombre, email, carnet o teléfono"
               className="pl-9"
               aria-label="Buscar miembros"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:flex">
-            <Select value={status} onChange={(e) => (setStatus(e.target.value), setPage(1))} aria-label="Estado" className="lg:w-40">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:order-last lg:basis-full">
+            <Select value={source} onChange={(e) => (setSource(e.target.value as typeof source), setPage(1))} aria-label="Origen" className="col-span-2 sm:col-span-1">
+              <option value="">Todos los orígenes</option>
+              <option value="app">Registrados en la app</option>
+              <option value="manual">Cargados por la iglesia</option>
+            </Select>
+            <Select value={status} onChange={(e) => (setStatus(e.target.value), setPage(1))} aria-label="Estado">
               <option value="">Todos los estados</option>
-              {(Object.keys(MEMBER_STATUS_LABEL) as MemberStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {MEMBER_STATUS_LABEL[s]}
+              {statuses.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
                 </option>
               ))}
             </Select>
-            <Select value={ministryId} onChange={(e) => (setMinistryId(e.target.value), setPage(1))} aria-label="Ministerio" className="lg:w-44">
+            <Select value={ministryId} onChange={(e) => (setMinistryId(e.target.value), setPage(1))} aria-label="Ministerio">
               <option value="">Todos los ministerios</option>
               {ministries.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -128,9 +162,11 @@ function MembersTab() {
             <Button variant="secondary" onClick={exportXlsx} loading={exporting} className="flex-1">
               <Download className="size-4" /> Excel
             </Button>
-            <Button onClick={() => setCreating(true)} className="flex-1">
-              <Plus className="size-4" /> Agregar
-            </Button>
+            {editor && (
+              <Button onClick={() => setCreating(true)} className="flex-1">
+                <Plus className="size-4" /> Agregar
+              </Button>
+            )}
           </div>
         </div>
 
@@ -164,12 +200,16 @@ function MembersTab() {
                             <Link href={`/app/miembros/${m.id}`} className="font-medium hover:underline" onClick={(e) => e.stopPropagation()}>
                               {m.lastName}, {m.firstName}
                             </Link>
-                            {m.user && <p className="text-xs text-muted">Con cuenta en Kahal</p>}
+                            {m.user && (
+                              <p className="flex items-center gap-1 text-xs text-muted">
+                                <Smartphone className="size-3" /> Registrado/a en la app
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
                       <td className={td}>
-                        <Badge tone={STATUS_TONE[m.status]}>{MEMBER_STATUS_LABEL[m.status]}</Badge>
+                        <StatusBadges statuses={m.statuses} />
                       </td>
                       <td className={`${td} text-muted`}>
                         <div className="max-w-56 truncate">{m.email ?? '—'}</div>
@@ -194,7 +234,9 @@ function MembersTab() {
                       <p className="truncate font-medium">{fullName(m)}</p>
                       <p className="truncate text-xs text-muted">{m.phone ?? m.email ?? '—'}</p>
                     </div>
-                    <Badge tone={STATUS_TONE[m.status]}>{MEMBER_STATUS_LABEL[m.status]}</Badge>
+                    <span className="max-w-[45%] text-right">
+                      <StatusBadges statuses={m.statuses} empty="" />
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -209,6 +251,7 @@ function MembersTab() {
 }
 
 function FamiliesTab() {
+  const editor = can.editMembers(useSession().me);
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['families'], queryFn: () => api<Family[]>('/families') });
   const [editing, setEditing] = useState<Family | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Family | null>(null);
@@ -231,9 +274,11 @@ function FamiliesTab() {
     <Card>
       <div className="flex gap-3 border-b border-border p-4">
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar familia" aria-label="Buscar familia" />
-        <Button onClick={() => setEditing('new')}>
-          <Plus className="size-4" /> Nueva
-        </Button>
+        {editor && (
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="size-4" /> Nueva
+          </Button>
+        )}
       </div>
       {list.length === 0 ? (
         <EmptyState title="No hay familias" description="Agrupá a los miembros por familia desde aquí o desde su ficha." />
@@ -256,12 +301,14 @@ function FamiliesTab() {
                       ))}
                 </p>
               </div>
-              <ActionMenu
-                items={[
-                  { label: 'Renombrar', icon: Pencil, onClick: () => setEditing(f) },
-                  { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => setDeleting(f) },
-                ]}
-              />
+              {editor && (
+                <ActionMenu
+                  items={[
+                    { label: 'Renombrar', icon: Pencil, onClick: () => setEditing(f) },
+                    { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => setDeleting(f) },
+                  ]}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -323,6 +370,7 @@ function NameDialog({ title, initial, onClose, onSubmit, loading }: { title: str
 }
 
 function MinistriesTab() {
+  const editor = can.editMembers(useSession().me);
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['ministries'], queryFn: () => api<Ministry[]>('/ministries') });
   const [editing, setEditing] = useState<Ministry | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Ministry | null>(null);
@@ -337,11 +385,13 @@ function MinistriesTab() {
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <Button onClick={() => setEditing('new')}>
-          <Plus className="size-4" /> Nuevo ministerio
-        </Button>
-      </div>
+      {editor && (
+        <div className="mb-4 flex justify-end">
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="size-4" /> Nuevo ministerio
+          </Button>
+        </div>
+      )}
       {data.length === 0 ? (
         <Card>
           <EmptyState title="No hay ministerios" />
@@ -352,12 +402,14 @@ function MinistriesTab() {
             <Card key={m.id} className="flex flex-col p-5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold">{m.name}</h3>
-                <ActionMenu
-                  items={[
-                    { label: 'Editar', icon: Pencil, onClick: () => setEditing(m) },
-                    { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => setDeleting(m) },
-                  ]}
-                />
+                {editor && (
+                  <ActionMenu
+                    items={[
+                      { label: 'Editar', icon: Pencil, onClick: () => setEditing(m) },
+                      { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => setDeleting(m) },
+                    ]}
+                  />
+                )}
               </div>
               {m.description && <p className="mt-1 text-sm text-muted">{m.description}</p>}
               <div className="mt-auto flex items-center justify-between pt-4 text-sm">
@@ -432,6 +484,159 @@ function MinistryForm({ item, onClose }: { item: Ministry | null; onClose: () =>
             ))}
           </Select>
         </Field>
+      </form>
+    </Dialog>
+  );
+}
+
+function StatusesTab() {
+  const editor = can.manageMemberStatuses(useSession().me);
+  const { data, isLoading, error, refetch } = useMemberStatuses();
+  const [editing, setEditing] = useState<MemberStatus | 'new' | null>(null);
+  const [deleting, setDeleting] = useState<MemberStatus | null>(null);
+  const invalidate = [['member-statuses'], ['members']];
+  const reorder = useAction((ids: string[]) => api('/member-statuses/order', { method: 'PUT', body: { ids } }), { invalidate });
+  const remove = useAction((id: string) => api(`/member-statuses/${id}`, { method: 'DELETE' }), {
+    success: 'Estado eliminado',
+    invalidate,
+    onSuccess: () => setDeleting(null),
+  });
+
+  if (isLoading) return <Loading />;
+  if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
+
+  function move(index: number, delta: number) {
+    const ids = data!.map((s) => s.id);
+    [ids[index], ids[index + delta]] = [ids[index + delta], ids[index]];
+    reorder.mutate(ids);
+  }
+
+  return (
+    <>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted">Cada persona puede tener varios estados. El orden se usa en filtros y etiquetas.</p>
+        {editor && (
+          <Button onClick={() => setEditing('new')} className="shrink-0">
+            <Plus className="size-4" /> Nuevo estado
+          </Button>
+        )}
+      </div>
+      <Card>
+        {data.length === 0 ? (
+          <EmptyState title="No hay estados" description="Creá estados como Visitante, Miembro o Bautizado para clasificar el padrón." />
+        ) : (
+          <ul className="divide-y divide-border">
+            {data.map((s, i) => (
+              <li key={s.id} className="flex items-center gap-3 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={s} />
+                    {s.isDefault && <Badge tone="accent">Al crear cuenta</Badge>}
+                    {s.inactive && <Badge>No cuenta como activo</Badge>}
+                  </div>
+                  {s.description && <p className="mt-1 text-sm text-muted">{s.description}</p>}
+                </div>
+                <span className="shrink-0 text-sm text-muted tabular-nums">{s._count.members === 1 ? '1 persona' : `${number(s._count.members)} personas`}</span>
+                {editor && (
+                  <div className="flex shrink-0 items-center">
+                    <Button size="sm" variant="ghost" disabled={i === 0 || reorder.isPending} onClick={() => move(i, -1)} aria-label={`Subir ${s.name}`}>
+                      <ArrowUp className="size-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={i === data.length - 1 || reorder.isPending} onClick={() => move(i, 1)} aria-label={`Bajar ${s.name}`}>
+                      <ArrowDown className="size-4" />
+                    </Button>
+                    <ActionMenu
+                      items={[
+                        { label: 'Editar', icon: Pencil, onClick: () => setEditing(s) },
+                        { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => setDeleting(s) },
+                      ]}
+                    />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      {editing && <StatusForm item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        title="Eliminar estado"
+        message={
+          deleting && deleting._count.members > 0
+            ? `Se quita "${deleting.name}" de ${deleting._count.members === 1 ? '1 persona' : `${deleting._count.members} personas`}. Sus fichas no se borran. ¿Continuar?`
+            : `¿Eliminar el estado "${deleting?.name}"?`
+        }
+        confirmLabel="Eliminar"
+        danger
+        loading={remove.isPending}
+      />
+    </>
+  );
+}
+
+function StatusForm({ item, onClose }: { item: MemberStatus | null; onClose: () => void }) {
+  const save = useAction(
+    (body: Record<string, unknown>) => (item ? api(`/member-statuses/${item.id}`, { method: 'PATCH', body }) : api('/member-statuses', { method: 'POST', body })),
+    { success: 'Estado guardado', invalidate: [['member-statuses'], ['members']], onSuccess: onClose },
+  );
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={item ? 'Editar estado' : 'Nuevo estado'}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="status-form" loading={save.isPending}>
+            Guardar
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="status-form"
+        className="grid gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate(formValues(e.currentTarget));
+        }}
+      >
+        <div className="grid grid-cols-[1fr_auto] gap-4">
+          <Field label="Nombre">
+            <Input name="name" required minLength={2} maxLength={40} defaultValue={item?.name ?? ''} placeholder="Ej.: Líder de célula" />
+          </Field>
+          <Field label="Color">
+            <Input name="color" type="color" defaultValue={item?.color ?? '#64748b'} className="h-10 w-20 p-1" />
+          </Field>
+        </div>
+        <Field label="Descripción">
+          <Textarea name="description" rows={2} maxLength={200} defaultValue={item?.description ?? ''} placeholder="Opcional" />
+        </Field>
+        <Checkbox
+          name="isDefault"
+          defaultChecked={item?.isDefault ?? false}
+          label={
+            <>
+              <span className="font-medium">Asignar al crear cuenta</span>
+              <span className="block text-xs text-muted">Se agrega a quienes se registran en la app o reciben un usuario nuevo.</span>
+            </>
+          }
+        />
+        <Checkbox
+          name="inactive"
+          defaultChecked={item?.inactive ?? false}
+          label={
+            <>
+              <span className="font-medium">No cuenta como activo</span>
+              <span className="block text-xs text-muted">Quienes lo tengan no suman en el total de miembros del inicio.</span>
+            </>
+          }
+        />
       </form>
     </Dialog>
   );

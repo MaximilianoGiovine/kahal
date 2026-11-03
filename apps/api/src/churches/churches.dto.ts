@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
@@ -6,12 +6,17 @@ import {
   IsHexColor,
   IsOptional,
   IsString,
+  IsUrl,
   Matches,
+  ValidateIf,
   MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
 import { Currency } from '@prisma/client';
+
+const emptyToNull = ({ value }: { value: unknown }) => (value === '' ? null : value);
+const CHANNEL_URL = { protocols: ['https'], require_protocol: true };
 
 export class UpdateChurchDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(120) name?: string;
@@ -24,6 +29,9 @@ export class UpdateChurchDto {
   @IsOptional() @IsString() timezone?: string;
   @IsOptional() @IsEnum(Currency) defaultCurrency?: Currency;
   @IsOptional() @IsString() logoKey?: string;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Link de YouTube inválido' }) youtubeUrl?: string | null;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Link de Facebook inválido' }) facebookUrl?: string | null;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Link de Twitch inválido' }) twitchUrl?: string | null;
 }
 
 class ChurchAdminDto {

@@ -1,13 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppointmentStatus, Prisma, Role, UserStatus } from '@prisma/client';
-import { AuthUser, FINANCE_READ_ROLES, HOST_ROLES, PEOPLE_ROLES } from '../common/auth-user';
+import { AppointmentStatus, Permission, Prisma } from '@prisma/client';
+import { AuthUser, can } from '../common/auth-user';
 import { ChurchId, CurrentUser } from '../common/decorators';
 import { todayIn } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
 
-const has = (u: AuthUser, roles: Role[]) => u.role === Role.SUPER_ADMIN || roles.includes(u.role);
-
-/** Datos agregados para la pantalla de inicio, según el rol. */
+/** Datos agregados para la pantalla de inicio, según los permisos. */
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,16 +35,15 @@ export class DashboardController {
 
     const result: Record<string, unknown> = { announcements, events, live, myAppointments };
 
-    if (has(user, PEOPLE_ROLES) || user.role === Role.ADMIN) {
-      const [members, newMembers, pending] = await Promise.all([
-        this.prisma.member.count({ where: { churchId, status: { not: 'INACTIVE' } } }),
+    if (can(user, Permission.MEMBERS_VIEW)) {
+      const [members, newMembers] = await Promise.all([
+        this.prisma.member.count({ where: { churchId, statuses: { none: { status: { inactive: true } } } } }),
         this.prisma.member.count({ where: { churchId, createdAt: { gte: monthStart } } }),
-        this.prisma.user.count({ where: { churchId, status: UserStatus.PENDING } }),
       ]);
-      result.people = { members, newMembers, pending };
+      result.people = { members, newMembers };
     }
 
-    if (has(user, FINANCE_READ_ROLES)) {
+    if (can(user, Permission.FINANCE_VIEW)) {
       const rows = await this.prisma.$queryRaw<{ currency: string; type: string; total: Prisma.Decimal }[]>`
         SELECT a."currency", t."type", SUM(t."amount") AS total
         FROM "Transaction" t JOIN "FinanceAccount" a ON a."id" = t."accountId"
@@ -55,7 +52,7 @@ export class DashboardController {
       result.finance = { month: today.slice(0, 7), rows };
     }
 
-    if (has(user, HOST_ROLES)) {
+    if (can(user, Permission.APPOINTMENTS_HOST)) {
       result.hosting = await this.prisma.appointment.findMany({
         where: { churchId, hostId: user.id, endsAt: { gte: now }, status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] } },
         include: { requester: { select: { firstName: true, lastName: true } } },

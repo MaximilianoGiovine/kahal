@@ -16,7 +16,7 @@ import type { Announcement, Paged } from '@/lib/types';
 
 export default function AnnouncementsPage() {
   const { me } = useSession();
-  const editor = can.content(me.role);
+  const editor = can.content(me);
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Announcement | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Announcement | null>(null);

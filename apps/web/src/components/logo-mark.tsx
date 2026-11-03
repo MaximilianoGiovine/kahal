@@ -2,7 +2,7 @@
 export function LogoMark({ size }: { size: number }) {
   const s = size;
   return (
-    <div style={{ width: s, height: s, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#4f46e5' }}>
+    <div style={{ width: s, height: s, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #8b5cf6, #c84bd8)' }}>
       <svg width={s * 0.56} height={s * 0.56} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2v5M9.5 4.5h5" />
         <path d="M4 21V12l8-5 8 5v9" />

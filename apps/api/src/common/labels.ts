@@ -1,12 +1,4 @@
-import { AppointmentStatus, MemberStatus, TransactionType } from '@prisma/client';
-
-export const MEMBER_STATUS_LABEL: Record<MemberStatus, string> = {
-  VISITOR: 'Visitante',
-  ATTENDEE: 'Asistente',
-  MEMBER: 'Miembro',
-  BAPTIZED: 'Bautizado',
-  INACTIVE: 'Inactivo',
-};
+import { AppointmentStatus, TransactionType } from '@prisma/client';
 
 export const TRANSACTION_TYPE_LABEL: Record<TransactionType, string> = {
   INCOME: 'Ingreso',

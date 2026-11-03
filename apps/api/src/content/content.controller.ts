@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { AuthUser, CONTENT_ROLES } from '../common/auth-user';
-import { ChurchId, CurrentUser, Roles } from '../common/decorators';
+import { Permission } from '@prisma/client';
+import { AuthUser } from '../common/auth-user';
+import { ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
 import { PageQuery } from '../common/pagination';
 import { AnnouncementDto, EventDto, EventsQuery, LiveDto, StreamDto } from './content.dto';
 import { ContentService } from './content.service';
@@ -14,22 +15,22 @@ export class ContentController {
     return this.content.announcements(churchId, user, q);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Post('announcements')
   createAnnouncement(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: AnnouncementDto) {
     return this.content.createAnnouncement(churchId, user.id, dto);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Patch('announcements/:id')
-  updateAnnouncement(@ChurchId() churchId: string, @Param('id') id: string, @Body() dto: AnnouncementDto) {
-    return this.content.updateAnnouncement(churchId, id, dto);
+  updateAnnouncement(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: AnnouncementDto) {
+    return this.content.updateAnnouncement(churchId, user.id, id, dto);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Delete('announcements/:id')
-  removeAnnouncement(@ChurchId() churchId: string, @Param('id') id: string) {
-    return this.content.removeAnnouncement(churchId, id);
+  removeAnnouncement(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.content.removeAnnouncement(churchId, user.id, id);
   }
 
   @Get('events')
@@ -37,22 +38,22 @@ export class ContentController {
     return this.content.events(churchId, q);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Post('events')
   createEvent(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: EventDto) {
     return this.content.createEvent(churchId, user.id, dto);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Patch('events/:id')
-  updateEvent(@ChurchId() churchId: string, @Param('id') id: string, @Body() dto: EventDto) {
-    return this.content.updateEvent(churchId, id, dto);
+  updateEvent(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: EventDto) {
+    return this.content.updateEvent(churchId, user.id, id, dto);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Delete('events/:id')
-  removeEvent(@ChurchId() churchId: string, @Param('id') id: string) {
-    return this.content.removeEvent(churchId, id);
+  removeEvent(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.content.removeEvent(churchId, user.id, id);
   }
 
   @Get('streams')
@@ -60,27 +61,27 @@ export class ContentController {
     return this.content.streams(churchId);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Post('streams')
-  createStream(@ChurchId() churchId: string, @Body() dto: StreamDto) {
-    return this.content.createStream(churchId, dto);
+  createStream(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: StreamDto) {
+    return this.content.createStream(churchId, user.id, dto);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Patch('streams/:id')
-  updateStream(@ChurchId() churchId: string, @Param('id') id: string, @Body() dto: StreamDto) {
-    return this.content.updateStream(churchId, id, dto);
+  updateStream(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: StreamDto) {
+    return this.content.updateStream(churchId, user.id, id, dto);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Post('streams/:id/live')
-  setLive(@ChurchId() churchId: string, @Param('id') id: string, @Body() dto: LiveDto) {
-    return this.content.setLive(churchId, id, dto.isLive);
+  setLive(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: LiveDto) {
+    return this.content.setLive(churchId, user.id, id, dto.isLive);
   }
 
-  @Roles(...CONTENT_ROLES)
+  @RequirePermissions(Permission.CONTENT_MANAGE)
   @Delete('streams/:id')
-  removeStream(@ChurchId() churchId: string, @Param('id') id: string) {
-    return this.content.removeStream(churchId, id);
+  removeStream(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.content.removeStream(churchId, user.id, id);
   }
 }

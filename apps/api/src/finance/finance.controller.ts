@@ -1,13 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { AuthUser, FINANCE_READ_ROLES, FINANCE_ROLES } from '../common/auth-user';
-import { ChurchId, CurrentUser, Roles } from '../common/decorators';
+import { Permission } from '@prisma/client';
+import { AuthUser } from '../common/auth-user';
+import { ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
 import { sendWorkbook } from '../common/excel';
 import { AccountDto, CategoryDto, RangeQuery, TransactionDto, TransactionsQuery } from './finance.dto';
 import { FinanceExportService } from './finance-export.service';
 import { FinanceService } from './finance.service';
 
-@Roles(...FINANCE_READ_ROLES)
+@RequirePermissions(Permission.FINANCE_VIEW)
 @Controller('finance')
 export class FinanceController {
   constructor(
@@ -20,13 +21,13 @@ export class FinanceController {
     return this.finance.accounts(churchId);
   }
 
-  @Roles(...FINANCE_ROLES)
+  @RequirePermissions(Permission.FINANCE_EDIT)
   @Post('accounts')
   createAccount(@ChurchId() churchId: string, @Body() dto: AccountDto) {
     return this.finance.createAccount(churchId, dto);
   }
 
-  @Roles(...FINANCE_ROLES)
+  @RequirePermissions(Permission.FINANCE_EDIT)
   @Patch('accounts/:id')
   updateAccount(@ChurchId() churchId: string, @Param('id') id: string, @Body() dto: AccountDto) {
     return this.finance.updateAccount(churchId, id, dto);
@@ -37,13 +38,13 @@ export class FinanceController {
     return this.finance.categories(churchId);
   }
 
-  @Roles(...FINANCE_ROLES)
+  @RequirePermissions(Permission.FINANCE_EDIT)
   @Post('categories')
   createCategory(@ChurchId() churchId: string, @Body() dto: CategoryDto) {
     return this.finance.createCategory(churchId, dto);
   }
 
-  @Roles(...FINANCE_ROLES)
+  @RequirePermissions(Permission.FINANCE_EDIT)
   @Patch('categories/:id')
   updateCategory(@ChurchId() churchId: string, @Param('id') id: string, @Body() dto: CategoryDto) {
     return this.finance.updateCategory(churchId, id, dto);
@@ -54,19 +55,19 @@ export class FinanceController {
     return this.finance.transactions(churchId, q);
   }
 
-  @Roles(...FINANCE_ROLES)
+  @RequirePermissions(Permission.FINANCE_EDIT)
   @Post('transactions')
   createTransaction(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: TransactionDto) {
     return this.finance.createTransaction(churchId, user.id, dto);
   }
 
-  @Roles(...FINANCE_ROLES)
+  @RequirePermissions(Permission.FINANCE_EDIT)
   @Patch('transactions/:id')
   updateTransaction(@ChurchId() churchId: string, @Param('id') id: string, @Body() dto: TransactionDto) {
     return this.finance.updateTransaction(churchId, id, dto);
   }
 
-  @Roles(...FINANCE_ROLES)
+  @RequirePermissions(Permission.FINANCE_EDIT)
   @Delete('transactions/:id')
   removeTransaction(@ChurchId() churchId: string, @Param('id') id: string) {
     return this.finance.removeTransaction(churchId, id);

@@ -5,11 +5,13 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ActivityModule } from './activity/activity.module';
 import { AppointmentsModule } from './appointments/appointments.module';
+import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { ChurchesModule } from './churches/churches.module';
 import { AuthGuard } from './common/auth.guard';
-import { RolesGuard } from './common/roles.guard';
+import { PermissionsGuard } from './common/permissions.guard';
 import { ContentModule } from './content/content.module';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { FilesModule } from './files/files.module';
@@ -18,6 +20,7 @@ import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
 import { MembersModule } from './members/members.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -50,19 +53,22 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     MailModule,
     FilesModule,
+    ActivityModule,
     AuthModule,
     ChurchesModule,
+    RolesModule,
     UsersModule,
     MembersModule,
     FinanceModule,
     ContentModule,
     AppointmentsModule,
+    ArticlesModule,
   ],
   controllers: [HealthController, DashboardController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
-    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule {}

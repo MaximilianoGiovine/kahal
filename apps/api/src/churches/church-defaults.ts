@@ -1,4 +1,4 @@
-import { Currency, Prisma, TransactionType } from '@prisma/client';
+import { Currency, Permission, Prisma, TransactionType } from '@prisma/client';
 
 export const DEFAULT_CATEGORIES: { name: string; type: TransactionType; color: string; isTithe?: boolean }[] = [
   { name: 'Diezmos', type: 'INCOME', color: '#16a34a', isTithe: true },
@@ -23,10 +23,53 @@ export const DEFAULT_ACCOUNTS: { name: string; currency: Currency }[] = [
   { name: 'Banco', currency: 'ARS' },
 ];
 
-/** Crea categorías y cuentas iniciales para una iglesia nueva. */
+/** Roles iniciales; cada iglesia puede editarlos, borrarlos o crear otros. */
+export const DEFAULT_ROLES = {
+  pastor: { name: 'Pastor', description: 'Acceso total a la iglesia', isAdmin: true, permissions: [] },
+  equipo: {
+    name: 'Equipo pastoral',
+    description: 'Miembros, usuarios, contenido, artículos y recibe citas',
+    permissions: ['MEMBERS_VIEW', 'MEMBERS_EDIT', 'MEMBERS_DELETE', 'USERS_VIEW', 'CONTENT_MANAGE', 'ARTICLES_MANAGE', 'APPOINTMENTS_HOST'],
+  },
+  lider: {
+    name: 'Líder',
+    description: 'Miembros, contenido, artículos y recibe citas',
+    permissions: ['MEMBERS_VIEW', 'MEMBERS_EDIT', 'CONTENT_MANAGE', 'ARTICLES_MANAGE', 'APPOINTMENTS_HOST'],
+  },
+  tesoreria: { name: 'Tesorería', description: 'Carga y reportes de finanzas', permissions: ['FINANCE_VIEW', 'FINANCE_EDIT'] },
+  secretaria: {
+    name: 'Secretaría',
+    description: 'Miembros, usuarios, contenido y artículos',
+    permissions: ['MEMBERS_VIEW', 'MEMBERS_EDIT', 'MEMBERS_DELETE', 'USERS_VIEW', 'CONTENT_MANAGE', 'ARTICLES_MANAGE'],
+  },
+} satisfies Record<string, { name: string; description: string; isAdmin?: boolean; permissions: Permission[] }>;
+
+export type DefaultRoleKey = keyof typeof DEFAULT_ROLES;
+
+/** Estados iniciales de miembros; cada iglesia puede editarlos, borrarlos o crear otros. */
+export const DEFAULT_MEMBER_STATUSES = {
+  visitante: { name: 'Visitante', color: '#d97706' },
+  asistente: { name: 'Asistente', color: '#64748b', isDefault: true },
+  miembro: { name: 'Miembro', color: '#4f46e5' },
+  bautizado: { name: 'Bautizado', color: '#16a34a' },
+  inactivo: { name: 'Inactivo', color: '#94a3b8', inactive: true },
+} satisfies Record<string, { name: string; color: string; isDefault?: boolean; inactive?: boolean }>;
+
+export type DefaultStatusKey = keyof typeof DEFAULT_MEMBER_STATUSES;
+
+/** Crea roles, estados, categorías y cuentas iniciales para una iglesia nueva. Devuelve sus ids. */
 export async function setupChurchDefaults(tx: Prisma.TransactionClient, churchId: string) {
   await tx.financeCategory.createMany({
     data: DEFAULT_CATEGORIES.map((c) => ({ ...c, isTithe: c.isTithe ?? false, churchId })),
   });
   await tx.financeAccount.createMany({ data: DEFAULT_ACCOUNTS.map((a) => ({ ...a, churchId })) });
+  const roles = {} as Record<DefaultRoleKey, string>;
+  for (const [key, def] of Object.entries(DEFAULT_ROLES)) {
+    roles[key as DefaultRoleKey] = (await tx.churchRole.create({ data: { ...def, churchId } })).id;
+  }
+  const statuses = {} as Record<DefaultStatusKey, string>;
+  for (const [position, [key, def]] of Object.entries(DEFAULT_MEMBER_STATUSES).entries()) {
+    statuses[key as DefaultStatusKey] = (await tx.memberStatus.create({ data: { ...def, position, churchId } })).id;
+  }
+  return { roles, statuses };
 }

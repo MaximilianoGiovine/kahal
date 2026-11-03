@@ -8,7 +8,7 @@ import { ActionMenu } from '@/components/menu';
 import { Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
 import { dateTime, fromLocalInput, toLocalInput } from '@/lib/format';
-import { embedUrl } from '@/lib/embed';
+import { embedUrl, PLATFORM_LABEL, STREAM_CHANNELS, type StreamChannels } from '@/lib/embed';
 import { formValues, useAction } from '@/lib/hooks';
 import { can } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
@@ -20,11 +20,21 @@ interface Streams {
   past: Stream[];
 }
 
-const PLATFORM = { YOUTUBE: 'YouTube', FACEBOOK: 'Facebook', OTHER: 'Otro' } as const;
+/** Canales de transmisión configurados por la iglesia (Configuración → Iglesia). */
+function useChurchChannels() {
+  const { church } = useSession();
+  const { data } = useQuery({
+    queryKey: ['public-church', church?.slug],
+    queryFn: () => api<StreamChannels>(`/public/churches/${church!.slug}`),
+    enabled: !!church,
+  });
+  return STREAM_CHANNELS.flatMap((c) => (data?.[c.key] ? [{ ...c, url: data[c.key]! }] : []));
+}
 
 export default function LivePage() {
   const { me } = useSession();
-  const editor = can.content(me.role);
+  const channels = useChurchChannels();
+  const editor = can.content(me);
   const [editing, setEditing] = useState<Stream | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Stream | null>(null);
   const [watching, setWatching] = useState<Stream | null>(null);
@@ -83,7 +93,7 @@ export default function LivePage() {
                 ) : (
                   <Badge>Grabación</Badge>
                 )}
-                <span className="text-xs text-muted">{PLATFORM[current.platform]}</span>
+                <span className="text-xs text-muted">{PLATFORM_LABEL[current.platform]}</span>
               </div>
               <h2 className="mt-1.5 text-lg font-semibold">{current.title}</h2>
               {current.description && <p className="mt-1 text-sm text-muted">{current.description}</p>}
@@ -103,6 +113,15 @@ export default function LivePage() {
             title="No hay ninguna transmisión en vivo"
             description={data.upcoming[0] ? `Próxima: ${data.upcoming[0].title}, ${dateTime(data.upcoming[0].scheduledAt)}` : 'Cuando la iglesia esté en vivo la vas a ver acá.'}
           />
+          {channels.length > 0 && (
+            <div className="-mt-4 flex flex-wrap justify-center gap-2 px-5 pb-8">
+              {channels.map((c) => (
+                <a key={c.key} href={c.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-surface-2">
+                  Seguinos en {c.label} <ExternalLink className="size-3.5" />
+                </a>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
@@ -111,7 +130,7 @@ export default function LivePage() {
         <StreamList title="Anteriores" items={data.past} empty="Todavía no hay grabaciones" onPlay={setWatching} actions={editor ? actions : undefined} />
       </div>
 
-      {editing && <StreamForm item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <StreamForm item={editing === 'new' ? null : editing} channels={channels} onClose={() => setEditing(null)} />}
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
@@ -193,7 +212,8 @@ function StreamList({
   );
 }
 
-function StreamForm({ item, onClose }: { item: Stream | null; onClose: () => void }) {
+function StreamForm({ item, channels, onClose }: { item: Stream | null; channels: ReturnType<typeof useChurchChannels>; onClose: () => void }) {
+  const [url, setUrl] = useState(item?.url ?? '');
   const save = useAction(
     (body: Record<string, unknown>) => (item ? api(`/streams/${item.id}`, { method: 'PATCH', body }) : api('/streams', { method: 'POST', body })),
     { success: 'Transmisión guardada', invalidate: [['streams'], ['dashboard']], onSuccess: onClose },
@@ -225,9 +245,19 @@ function StreamForm({ item, onClose }: { item: Stream | null; onClose: () => voi
         <Field label="Título">
           <Input name="title" required minLength={2} defaultValue={item?.title} placeholder="Culto dominical" />
         </Field>
-        <Field label="Link de la transmisión" hint="Pegá el link del video o del vivo de YouTube o Facebook.">
-          <Input name="url" type="url" required defaultValue={item?.url} placeholder="https://www.youtube.com/watch?v=…" />
+        <Field label="Link de la transmisión" hint="Pegá el link del video o del vivo de YouTube, Facebook o Twitch. En Twitch alcanza con el link del canal.">
+          <Input name="url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
         </Field>
+        {channels.length > 0 && (
+          <div className="-mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+            Usar canal de la iglesia:
+            {channels.map((c) => (
+              <button key={c.key} type="button" onClick={() => setUrl(c.url)} className="rounded-full border border-border px-2.5 py-1 hover:bg-surface-2 hover:text-fg">
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
         <Field label="Fecha y hora">
           <Input name="scheduledAt" type="datetime-local" defaultValue={toLocalInput(item?.scheduledAt)} />
         </Field>

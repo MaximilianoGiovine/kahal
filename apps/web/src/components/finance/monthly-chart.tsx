@@ -149,7 +149,7 @@ export function MonthlyChart({ data, currency }: { data: MonthPoint[]; currency:
           </svg>
           {hovered && hover !== null && (
             <div
-              className="pointer-events-none absolute top-2 z-10 w-52 rounded-lg border border-border bg-surface p-3 text-sm shadow-lg"
+              className="glass-strong pointer-events-none absolute top-2 z-10 w-52 rounded-xl p-3 text-sm"
               style={{ left: Math.min(Math.max(PAD.left + band * hover + band / 2 - 104, 0), width - 208) }}
             >
               <p className="mb-2 font-medium capitalize">{monthLabel(hovered.month, 'long')}</p>

@@ -8,11 +8,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Role, User, UserStatus } from '@prisma/client';
+import { User, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { AccessPayload } from '../common/auth.guard';
+import { AuthUser } from '../common/auth-user';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ROLE_NAMES_SELECT } from '../roles/roles.service';
+import { linkMember } from '../users/users.service';
+import { parseDay } from '../common/time';
 import { ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';
 
 interface RefreshPayload {
@@ -21,7 +25,11 @@ interface RefreshPayload {
 }
 
 export const ACCESS_TTL_SECONDS = 15 * 60;
-export const REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
+/**
+ * Sesión "recordada": cada renovación emite un refresh nuevo, así que solo se pierde
+ * tras 180 días sin abrir la app (o al cambiar la contraseña / deshabilitar la cuenta).
+ */
+export const REFRESH_TTL_SECONDS = 180 * 24 * 60 * 60;
 
 const STATUS_MESSAGES: Record<UserStatus, string | null> = {
   ACTIVE: null,
@@ -69,33 +77,56 @@ export class AuthService {
       throw new ConflictException('Ya existe una cuenta con ese email');
     }
 
-    await this.prisma.user.create({
-      data: {
-        churchId: church.id,
+    const birthDate = parseDay(dto.birthDate.slice(0, 10));
+    if (birthDate > new Date()) throw new BadRequestException('La fecha de nacimiento no puede ser futura');
+    const firstName = dto.firstName.trim();
+    const lastName = dto.lastName.trim();
+    const phone = dto.phone.trim();
+    // El registro es libre: la cuenta queda activa, sin roles, y vinculada al padrón con los estados por defecto.
+    const user = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          churchId: church.id,
+          email,
+          passwordHash: await bcrypt.hash(dto.password, 10),
+          firstName,
+          lastName,
+          phone,
+          status: UserStatus.ACTIVE,
+          consentAt: new Date(),
+        },
+      });
+      await linkMember(tx, church.id, user.id, {
+        firstName,
+        lastName,
         email,
-        passwordHash: await bcrypt.hash(dto.password, 10),
-        firstName: dto.firstName.trim(),
-        lastName: dto.lastName.trim(),
-        phone: dto.phone?.trim() || null,
-        role: Role.MEMBER,
-        status: UserStatus.PENDING,
-        consentAt: new Date(),
-      },
+        phone,
+        documentId: dto.documentId.trim(),
+        birthDate,
+        baptized: dto.baptized,
+        address: dto.address.trim(),
+      });
+      return user;
     });
 
-    const admins = await this.prisma.user.findMany({
-      where: { churchId: church.id, status: UserStatus.ACTIVE, role: { in: [Role.ADMIN, Role.SECRETARY] } },
-      select: { email: true },
+    await this.mail.send({
+      to: email,
+      subject: `Bienvenido/a a ${church.name}`,
+      html: mailLayout(
+        church.name,
+        '¡Tu cuenta está lista!',
+        `Hola ${escapeHtml(firstName)}, ya podés ingresar a Kahal para ver las novedades, conectarte a las transmisiones y agendar citas.`,
+      ),
     });
-    const name = escapeHtml(`${dto.firstName} ${dto.lastName}`);
-    for (const admin of admins) {
-      await this.mail.send({
-        to: admin.email,
-        subject: 'Nueva solicitud de registro',
-        html: mailLayout(church.name, 'Nueva solicitud de registro', `${name} (${escapeHtml(email)}) se registró y espera aprobación.`),
-      });
-    }
-    return { ok: true };
+    // Queda con la sesión iniciada: quien se registra desde el QR entra directo a la app.
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    return this.issueTokens(user);
+  }
+
+  /** Primer paso del registro: avisa antes de pedir los datos personales si el email ya está en uso. */
+  async emailAvailable(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase().trim() }, select: { id: true } });
+    return { available: !user };
   }
 
   async refresh(token: string | undefined) {
@@ -113,23 +144,24 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  async me(userId: string) {
+  async me(auth: AuthUser) {
     const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: auth.id },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
         phone: true,
-        role: true,
+        isSuperAdmin: true,
         status: true,
+        ...ROLE_NAMES_SELECT,
         church: { select: { id: true, name: true, slug: true, logoKey: true, primaryColor: true, timezone: true, defaultCurrency: true } },
-        member: { select: { id: true } },
+        member: { select: { id: true, documentId: true, birthDate: true, baptized: true, address: true } },
       },
     });
     if (!user) throw new UnauthorizedException();
-    return user;
+    return { ...user, permissions: auth.permissions };
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
@@ -145,7 +177,7 @@ export class AuthService {
   }
 
   private async issueTokens(user: User) {
-    const access: AccessPayload = { sub: user.id, role: user.role, churchId: user.churchId };
+    const access: AccessPayload = { sub: user.id };
     const refresh: RefreshPayload = { sub: user.id, tv: user.tokenVersion };
     return {
       accessToken: await this.jwt.signAsync(access, { expiresIn: ACCESS_TTL_SECONDS }),

@@ -1,6 +1,33 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TREASURER' | 'PASTOR' | 'SECRETARY' | 'MEMBER';
+export type Permission =
+  | 'MEMBERS_VIEW'
+  | 'MEMBERS_EDIT'
+  | 'MEMBERS_DELETE'
+  | 'MEMBER_STATUSES_MANAGE'
+  | 'FINANCE_VIEW'
+  | 'FINANCE_EDIT'
+  | 'CONTENT_MANAGE'
+  | 'ARTICLES_MANAGE'
+  | 'APPOINTMENTS_HOST'
+  | 'APPOINTMENTS_ALL'
+  | 'USERS_VIEW'
+  | 'USERS_MANAGE'
+  | 'ROLES_MANAGE'
+  | 'CHURCH_SETTINGS'
+  | 'ACTIVITY_VIEW';
+
+/** Roles asignados a un usuario, tal como los devuelve la API. */
+export type UserRoles = { role: { id: string; name: string } }[];
+
+export interface ChurchRole {
+  id: string;
+  name: string;
+  description: string | null;
+  permissions: Permission[];
+  /** Rol de administración: tiene todos los permisos y no se puede eliminar. */
+  isAdmin: boolean;
+  _count: { users: number };
+}
 export type UserStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'DISABLED';
-export type MemberStatus = 'VISITOR' | 'ATTENDEE' | 'MEMBER' | 'BAPTIZED' | 'INACTIVE';
 export type Currency = 'ARS' | 'USD';
 export type TxType = 'INCOME' | 'EXPENSE';
 export type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
@@ -28,10 +55,14 @@ export interface Me {
   firstName: string;
   lastName: string;
   phone: string | null;
-  role: Role;
+  isSuperAdmin: boolean;
+  roles: UserRoles;
+  /** Permisos efectivos (unión de todos sus roles). */
+  permissions: Permission[];
   status: UserStatus;
   church: ChurchBrief | null;
-  member: { id: string } | null;
+  /** Ficha del padrón vinculada a la cuenta (los datos que se piden al registrarse). */
+  member: { id: string; documentId: string | null; birthDate: string | null; baptized: boolean | null; address: string | null } | null;
 }
 
 export interface Church extends ChurchBrief {
@@ -41,6 +72,9 @@ export interface Church extends ChurchBrief {
   phone: string | null;
   email: string | null;
   active: boolean;
+  youtubeUrl: string | null;
+  facebookUrl: string | null;
+  twitchUrl: string | null;
 }
 
 export interface UserRow {
@@ -49,11 +83,29 @@ export interface UserRow {
   firstName: string;
   lastName: string;
   phone: string | null;
-  role: Role;
+  roles: UserRoles;
   status: UserStatus;
   createdAt: string;
   lastLoginAt: string | null;
   member: { id: string } | null;
+}
+
+/** Estado de miembro tal como se muestra junto a cada persona. */
+export interface StatusRef {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+/** Estado de miembro definido por la iglesia. */
+export interface MemberStatus extends StatusRef {
+  description: string | null;
+  position: number;
+  /** Se asigna automáticamente a quienes crean su cuenta. */
+  isDefault: boolean;
+  /** No cuenta como miembro activo en el inicio. */
+  inactive: boolean;
+  _count: { members: number };
 }
 
 export interface Member {
@@ -66,9 +118,10 @@ export interface Member {
   birthDate: string | null;
   gender: 'MALE' | 'FEMALE' | null;
   address: string | null;
-  status: MemberStatus;
+  statuses?: { status: StatusRef }[];
   joinedAt: string | null;
   baptismDate: string | null;
+  baptized: boolean | null;
   familyId: string | null;
   familyRole: string | null;
   notes: string | null;
@@ -76,7 +129,7 @@ export interface Member {
   createdAt: string;
   family?: { id: string; name: string } | null;
   ministries?: { ministry: { id: string; name: string } }[];
-  user?: { id: string; role: Role; status: UserStatus; email?: string; lastLoginAt?: string | null } | null;
+  user?: { id: string; roles: UserRoles; status: UserStatus; email?: string; lastLoginAt?: string | null } | null;
 }
 
 export interface MemberDetail extends Member {
@@ -175,7 +228,7 @@ export interface Stream {
   title: string;
   description: string | null;
   url: string;
-  platform: 'YOUTUBE' | 'FACEBOOK' | 'OTHER';
+  platform: 'YOUTUBE' | 'FACEBOOK' | 'TWITCH' | 'OTHER';
   scheduledAt: string | null;
   isLive: boolean;
 }
@@ -213,6 +266,36 @@ export interface Host {
   id: string;
   firstName: string;
   lastName: string;
-  role: Role;
+  roles: UserRoles;
   _count: { availability: number };
+}
+
+export interface ArticleSummary {
+  id: string;
+  title: string;
+  summary: string | null;
+  coverKey: string | null;
+  published: boolean;
+  publishedAt: string;
+  updatedAt: string;
+  author: { id: string; firstName: string; lastName: string } | null;
+}
+
+export interface Article extends ArticleSummary {
+  /** HTML saneado por la API. */
+  body: string;
+}
+
+export type ActivityAction = 'CREATE' | 'UPDATE' | 'DELETE';
+export type ActivityEntity = 'ANNOUNCEMENT' | 'EVENT' | 'STREAM' | 'ARTICLE';
+
+export interface ActivityLog {
+  id: string;
+  action: ActivityAction;
+  entity: ActivityEntity;
+  entityId: string;
+  title: string;
+  detail: string | null;
+  createdAt: string;
+  user: { id: string; firstName: string; lastName: string; roles: UserRoles } | null;
 }

@@ -12,10 +12,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Role } from '@prisma/client';
+import { Permission } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { Response } from 'express';
-import { AuthUser, FINANCE_READ_ROLES } from '../common/auth-user';
+import { AuthUser, can } from '../common/auth-user';
 import { ChurchId, CurrentUser, Public } from '../common/decorators';
 import { StorageService } from './storage.service';
 
@@ -62,9 +62,9 @@ export class FilesController {
   ) {
     if (kind !== 'logo') {
       if (!user) throw new ForbiddenException();
-      const sameChurch = user.role === Role.SUPER_ADMIN || user.churchId === churchId;
+      const sameChurch = user.isSuperAdmin || user.churchId === churchId;
       if (!sameChurch) throw new ForbiddenException();
-      if (kind === 'receipt' && user.role !== Role.SUPER_ADMIN && !FINANCE_READ_ROLES.includes(user.role)) {
+      if (kind === 'receipt' && !can(user, Permission.FINANCE_VIEW)) {
         throw new ForbiddenException();
       }
     }

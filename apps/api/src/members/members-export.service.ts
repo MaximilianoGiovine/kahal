@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { addTableSheet, DATE_FMT, newWorkbook } from '../common/excel';
-import { MEMBER_STATUS_LABEL } from '../common/labels';
 import { MembersQuery } from './members.dto';
 import { MembersService } from './members.service';
 
@@ -17,7 +16,7 @@ export class MembersExportService {
     const rows = await this.prisma.member.findMany({
       where: this.members.buildWhere(churchId, query),
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      include: { family: true, ministries: { include: { ministry: true } } },
+      include: { family: true, ministries: { include: { ministry: true } }, statuses: { include: { status: true } } },
     });
     const wb = newWorkbook();
     addTableSheet(
@@ -26,12 +25,13 @@ export class MembersExportService {
       [
         { header: 'Apellido', key: 'lastName', width: 18 },
         { header: 'Nombre', key: 'firstName', width: 18 },
-        { header: 'Estado', key: 'status', width: 14 },
+        { header: 'Estados', key: 'statuses', width: 22 },
         { header: 'Email', key: 'email', width: 28 },
         { header: 'Teléfono', key: 'phone', width: 16 },
-        { header: 'Documento', key: 'documentId', width: 14 },
+        { header: 'Carnet', key: 'documentId', width: 14 },
         { header: 'Nacimiento', key: 'birthDate', width: 13, numFmt: DATE_FMT },
         { header: 'Ingreso', key: 'joinedAt', width: 13, numFmt: DATE_FMT },
+        { header: 'Bautizado/a', key: 'baptized', width: 12 },
         { header: 'Bautismo', key: 'baptismDate', width: 13, numFmt: DATE_FMT },
         { header: 'Familia', key: 'family', width: 18 },
         { header: 'Ministerios', key: 'ministries', width: 30 },
@@ -39,7 +39,8 @@ export class MembersExportService {
       ],
       rows.map((m) => ({
         ...m,
-        status: MEMBER_STATUS_LABEL[m.status],
+        statuses: m.statuses.map((x) => x.status.name).join(', '),
+        baptized: m.baptized === null ? '' : m.baptized ? 'Sí' : 'No',
         family: m.family?.name ?? '',
         ministries: m.ministries.map((x) => x.ministry.name).join(', '),
       })),

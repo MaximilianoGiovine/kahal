@@ -3,9 +3,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Badge, Button, Card, CardHeader, Field, Input, PageHeader } from '@/components/ui';
+import { Badge, Button, Card, CardHeader, Field, Input, PageHeader, Select } from '@/components/ui';
 import { api } from '@/lib/api';
-import { ROLE_LABEL } from '@/lib/format';
+import { roleNames } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
 import { useSession } from '@/lib/session';
 
@@ -29,8 +29,20 @@ export default function ProfilePage() {
 
   const profile = useAction((body: Record<string, unknown>) => api('/users/me', { method: 'PATCH', body }), {
     success: 'Perfil actualizado',
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['me'] });
+      qc.invalidateQueries({ queryKey: ['members'] });
+      qc.invalidateQueries({ queryKey: ['member'] });
+    },
   });
+  const m = me.member;
+
+  function onProfile(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const v = formValues(e.currentTarget);
+    if (!m) return profile.mutate({ firstName: v.firstName, lastName: v.lastName, phone: v.phone });
+    profile.mutate({ ...v, birthDate: v.birthDate || undefined, baptized: v.baptized === 'yes' ? true : v.baptized === 'no' ? false : undefined });
+  }
   const password = useAction((body: Record<string, unknown>) => api('/auth/change-password', { method: 'POST', body }), { success: 'Contraseña actualizada' });
 
   function onPassword(e: FormEvent<HTMLFormElement>) {
@@ -46,17 +58,11 @@ export default function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Mi perfil" description={church ? `${church.name} · ${ROLE_LABEL[me.role]}` : ROLE_LABEL[me.role]} />
+      <PageHeader title="Mi perfil" description={church ? `${church.name} · ${roleNames(me)}` : roleNames(me)} />
       <div className="grid max-w-4xl gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader title="Datos personales" />
-          <form
-            className="flex flex-col gap-4 p-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              profile.mutate(formValues(e.currentTarget));
-            }}
-          >
+          <form className="flex flex-col gap-4 p-5" onSubmit={onProfile}>
             <Field label="Email">
               <Input value={me.email} disabled />
             </Field>
@@ -68,9 +74,36 @@ export default function ProfilePage() {
                 <Input name="lastName" required minLength={2} defaultValue={me.lastName} />
               </Field>
             </div>
+            {m && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Número de carnet">
+                  <Input name="documentId" maxLength={30} defaultValue={m.documentId ?? ''} />
+                </Field>
+                <Field label="Fecha de nacimiento">
+                  <Input name="birthDate" type="date" defaultValue={m.birthDate?.slice(0, 10) ?? ''} />
+                </Field>
+              </div>
+            )}
+            {m && (
+              <Field label="¿Estás bautizado/a?">
+                <Select name="baptized" defaultValue={m.baptized == null ? '' : m.baptized ? 'yes' : 'no'}>
+                  <option value="" disabled>
+                    Elegí una opción
+                  </option>
+                  <option value="yes">Sí</option>
+                  <option value="no">No</option>
+                </Select>
+              </Field>
+            )}
             <Field label="Teléfono">
               <Input name="phone" type="tel" defaultValue={me.phone ?? ''} />
             </Field>
+            {m && (
+              <Field label="Dirección del domicilio">
+                <Input name="address" maxLength={200} defaultValue={m.address ?? ''} />
+              </Field>
+            )}
+            {m && <p className="text-xs text-muted">Estos datos son los de tu ficha en la iglesia: al guardarlos se actualizan también ahí.</p>}
             <div className="flex justify-end">
               <Button type="submit" loading={profile.isPending}>
                 Guardar

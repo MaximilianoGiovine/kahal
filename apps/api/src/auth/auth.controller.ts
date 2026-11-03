@@ -1,10 +1,10 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { CookieOptions, Request, Response } from 'express';
 import { AuthUser } from '../common/auth-user';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '../common/auth.guard';
 import { CurrentUser, Public } from '../common/decorators';
-import { ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';
+import { ChangePasswordDto, EmailQuery, LoginDto, RegisterDto } from './auth.dto';
 import { ACCESS_TTL_SECONDS, AuthService, REFRESH_TTL_SECONDS } from './auth.service';
 
 @Controller('auth')
@@ -24,8 +24,16 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+  async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    this.setCookies(req, res, await this.auth.register(dto));
+    return { ok: true };
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('email-available')
+  emailAvailable(@Query() q: EmailQuery) {
+    return this.auth.emailAvailable(q.email);
   }
 
   @Public()
@@ -35,7 +43,8 @@ export class AuthController {
     try {
       this.setCookies(req, res, await this.auth.refresh(req.cookies?.[REFRESH_COOKIE]));
     } catch (err) {
-      this.clearCookies(req, res);
+      // Solo una sesión inválida cierra la sesión; un error transitorio (DB caída, etc.) no.
+      if (err instanceof UnauthorizedException) this.clearCookies(req, res);
       throw err;
     }
     return { ok: true };
@@ -51,7 +60,7 @@ export class AuthController {
 
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
-    return this.auth.me(user.id);
+    return this.auth.me(user);
   }
 
   @Post('change-password')

@@ -1,4 +1,4 @@
-import type { AppointmentStatus, Currency, MemberStatus, Role, UserStatus } from './types';
+import type { ActivityAction, ActivityEntity, AppointmentStatus, Currency, UserRoles, UserStatus } from './types';
 
 let tz = 'America/Argentina/Buenos_Aires';
 export const setTimezone = (t: string) => (tz = t);
@@ -66,14 +66,9 @@ export const monthLabel = (ym: string, style: 'short' | 'long' = 'short') =>
 export const fullName = (p?: { firstName: string; lastName: string } | null) => (p ? `${p.firstName} ${p.lastName}` : '—');
 export const initials = (p: { firstName: string; lastName: string }) => `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase();
 
-export const ROLE_LABEL: Record<Role, string> = {
-  SUPER_ADMIN: 'Super admin',
-  ADMIN: 'Administrador',
-  TREASURER: 'Tesorería',
-  PASTOR: 'Pastor / Líder',
-  SECRETARY: 'Secretaría',
-  MEMBER: 'Miembro',
-};
+/** Nombres de los roles de un usuario; sin roles es un miembro con acceso básico. */
+export const roleNames = (u?: { isSuperAdmin?: boolean; roles?: UserRoles } | null) =>
+  u?.isSuperAdmin ? 'Super admin' : u?.roles?.length ? u.roles.map((r) => r.role.name).join(', ') : 'Miembro';
 
 export const USER_STATUS_LABEL: Record<UserStatus, string> = {
   PENDING: 'Pendiente',
@@ -82,19 +77,24 @@ export const USER_STATUS_LABEL: Record<UserStatus, string> = {
   DISABLED: 'Deshabilitado',
 };
 
-export const MEMBER_STATUS_LABEL: Record<MemberStatus, string> = {
-  VISITOR: 'Visitante',
-  ATTENDEE: 'Asistente',
-  MEMBER: 'Miembro',
-  BAPTIZED: 'Bautizado',
-  INACTIVE: 'Inactivo',
-};
-
 export const APPOINTMENT_STATUS_LABEL: Record<AppointmentStatus, string> = {
   PENDING: 'Pendiente',
   CONFIRMED: 'Confirmada',
   CANCELLED: 'Cancelada',
   COMPLETED: 'Realizada',
+};
+
+export const ACTIVITY_ACTION_LABEL: Record<ActivityAction, string> = {
+  CREATE: 'Creó',
+  UPDATE: 'Modificó',
+  DELETE: 'Eliminó',
+};
+
+export const ACTIVITY_ENTITY_LABEL: Record<ActivityEntity, string> = {
+  ANNOUNCEMENT: 'Novedad',
+  EVENT: 'Evento',
+  STREAM: 'Transmisión',
+  ARTICLE: 'Artículo',
 };
 
 export const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];

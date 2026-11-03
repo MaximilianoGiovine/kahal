@@ -1,9 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Building2, ExternalLink, Plus } from 'lucide-react';
+import { Building2, ExternalLink, Plus, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { ChurchQrDialog } from '@/components/church-qr';
 import { Dialog } from '@/components/dialog';
 import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Loading, PageHeader, td, th } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -17,6 +18,7 @@ type AdminChurch = Church & { createdAt: string; _count: { members: number; user
 export default function AdminChurchesPage() {
   const { isSuperAdmin, selectChurch } = useSession();
   const [creating, setCreating] = useState(false);
+  const [qrFor, setQrFor] = useState<AdminChurch | null>(null);
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin', 'churches'],
     queryFn: () => api<AdminChurch[]>('/admin/churches'),
@@ -78,6 +80,9 @@ export default function AdminChurchesPage() {
                     </td>
                     <td className={`${td} text-right`}>
                       <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setQrFor(c)} className="rounded-md p-1.5 text-muted hover:bg-surface-2" aria-label="Código QR de registro" title="Código QR de registro">
+                          <QrCode className="size-4" />
+                        </button>
                         <Link href={`/i/${c.slug}`} target="_blank" className="rounded-md p-1.5 text-muted hover:bg-surface-2" aria-label="Página pública">
                           <ExternalLink className="size-4" />
                         </Link>
@@ -97,6 +102,7 @@ export default function AdminChurchesPage() {
         )}
       </Card>
       {creating && <CreateChurch onClose={() => setCreating(false)} />}
+      {qrFor && <ChurchQrDialog church={qrFor} onClose={() => setQrFor(null)} />}
     </>
   );
 }
@@ -123,7 +129,7 @@ function CreateChurch({ onClose }: { onClose: () => void }) {
       open
       onClose={onClose}
       title="Nueva iglesia"
-      description="Se crea con categorías y cuentas por defecto y un usuario administrador."
+      description="Se crea con categorías y cuentas por defecto y el usuario del pastor."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -158,7 +164,7 @@ function CreateChurch({ onClose }: { onClose: () => void }) {
         <Field label="Ciudad">
           <Input name="city" />
         </Field>
-        <p className="pt-2 text-sm font-semibold sm:col-span-2">Administrador de la iglesia</p>
+        <p className="pt-2 text-sm font-semibold sm:col-span-2">Pastor de la iglesia</p>
         <Field label="Nombre">
           <Input name="adminFirstName" required minLength={2} />
         </Field>

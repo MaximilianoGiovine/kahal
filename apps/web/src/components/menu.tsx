@@ -41,14 +41,14 @@ export function ActionMenu({ items, label = 'Acciones' }: { items: MenuItem[]; l
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-fg"
+        className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg"
         aria-label={label}
         aria-expanded={open}
       >
         <MoreHorizontal className="size-5" />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-20 mt-1 min-w-44 rounded-lg border border-border bg-surface p-1 shadow-lg">
+        <div role="menu" className="glass-strong absolute right-0 z-20 mt-1 min-w-44 rounded-xl p-1">
           {visible.map((it) => (
             <button
               key={it.label}
@@ -60,8 +60,8 @@ export function ActionMenu({ items, label = 'Acciones' }: { items: MenuItem[]; l
                 it.onClick();
               }}
               className={clsx(
-                'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm whitespace-nowrap',
-                it.danger ? 'text-danger hover:bg-danger-soft' : 'hover:bg-surface-2',
+                'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap',
+                it.danger ? 'text-danger hover:bg-danger-soft' : 'hover:bg-surface-3',
               )}
             >
               {it.icon && <it.icon className="size-4" />}

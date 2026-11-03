@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { AppointmentStatus, Prisma, Role, UserStatus } from '@prisma/client';
-import { AuthUser } from '../common/auth-user';
+import { AppointmentStatus, Permission, Prisma, UserStatus } from '@prisma/client';
+import { AuthUser, can } from '../common/auth-user';
 import { APPOINTMENT_STATUS_LABEL } from '../common/labels';
 import { addDays, minutesToTime, timeToMinutes, todayIn, weekdayOf, zonedToUtc } from '../common/time';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
@@ -143,7 +143,7 @@ export class AppointmentsService {
 
   list(churchId: string, user: AuthUser, q: AppointmentsQuery) {
     const scope = q.scope ?? 'mine';
-    const canSeeAll = user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN;
+    const canSeeAll = can(user, Permission.APPOINTMENTS_ALL);
     if (scope === 'all' && !canSeeAll) throw new ForbiddenException();
     const now = new Date();
     return this.prisma.appointment.findMany({
@@ -168,7 +168,7 @@ export class AppointmentsService {
     });
     if (!appt) throw new NotFoundException('Cita no encontrada');
 
-    const isHost = appt.hostId === user.id || user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN;
+    const isHost = appt.hostId === user.id || can(user, Permission.APPOINTMENTS_ALL);
     const isRequester = appt.requesterId === user.id;
     if (!isHost && !(isRequester && dto.status === AppointmentStatus.CANCELLED)) {
       throw new ForbiddenException('No podés realizar esta acción sobre la cita');

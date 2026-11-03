@@ -13,8 +13,9 @@ import { todayISO } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
 import type { Account, Category, Transaction, TxType } from '@/lib/types';
 
-export function TransactionForm({ item, onClose }: { item: Transaction | null; onClose: () => void }) {
-  const [type, setType] = useState<TxType>(item?.type ?? 'INCOME');
+/** Edita un movimiento existente o registra uno nuevo del tipo indicado. */
+export function TransactionForm({ item, type: initialType = 'INCOME', onClose }: { item: Transaction | null; type?: TxType; onClose: () => void }) {
+  const [type, setType] = useState<TxType>(item?.type ?? initialType);
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? '');
   const [receipt, setReceipt] = useState(item?.receiptKey ?? '');
   const [uploading, setUploading] = useState(false);
@@ -27,7 +28,7 @@ export function TransactionForm({ item, onClose }: { item: Transaction | null; o
 
   const save = useAction(
     (body: Record<string, unknown>) => (item ? api(`/finance/transactions/${item.id}`, { method: 'PATCH', body }) : api('/finance/transactions', { method: 'POST', body })),
-    { success: item ? 'Movimiento actualizado' : 'Movimiento registrado', invalidate: [['finance'], ['dashboard'], ['member']], onSuccess: onClose },
+    { success: item ? 'Movimiento actualizado' : type === 'INCOME' ? 'Ingreso registrado' : 'Egreso registrado', invalidate: [['finance'], ['dashboard'], ['member']], onSuccess: onClose },
   );
 
   async function onFile(file?: File) {
@@ -57,7 +58,7 @@ export function TransactionForm({ item, onClose }: { item: Transaction | null; o
     <Dialog
       open
       onClose={onClose}
-      title={item ? 'Editar movimiento' : 'Nuevo movimiento'}
+      title={item ? 'Editar movimiento' : type === 'INCOME' ? 'Registrar ingreso' : 'Registrar egreso'}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -70,23 +71,26 @@ export function TransactionForm({ item, onClose }: { item: Transaction | null; o
       }
     >
       <form id="tx-form" onSubmit={onSubmit} className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-2 p-1" role="radiogroup" aria-label="Tipo de movimiento">
-          {(['INCOME', 'EXPENSE'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={type === t}
-              onClick={() => {
-                setType(t);
-                setCategoryId('');
-              }}
-              className={clsx('rounded-md py-2 text-sm font-medium transition', type === t ? 'bg-surface text-fg shadow-sm' : 'text-muted')}
-            >
-              {t === 'INCOME' ? 'Ingreso' : 'Egreso'}
-            </button>
-          ))}
-        </div>
+        {/* Al registrar, el tipo lo define el botón elegido; al editar se puede corregir. */}
+        {item && (
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-2 p-1" role="radiogroup" aria-label="Tipo de movimiento">
+            {(['INCOME', 'EXPENSE'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="radio"
+                aria-checked={type === t}
+                onClick={() => {
+                  setType(t);
+                  setCategoryId('');
+                }}
+                className={clsx('rounded-md py-2 text-sm font-medium transition', type === t ? 'bg-surface text-fg shadow-sm' : 'text-muted')}
+              >
+                {t === 'INCOME' ? 'Ingreso' : 'Egreso'}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Monto">

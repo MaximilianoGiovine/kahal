@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Role, UserStatus } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { setupChurchDefaults } from './church-defaults';
@@ -17,6 +17,9 @@ const PUBLIC_FIELDS = {
   logoKey: true,
   primaryColor: true,
   timezone: true,
+  youtubeUrl: true,
+  facebookUrl: true,
+  twitchUrl: true,
 } as const;
 
 @Injectable()
@@ -77,7 +80,7 @@ export class ChurchesService {
     const passwordHash = await bcrypt.hash(dto.admin.password, 10);
     return this.prisma.$transaction(async (tx) => {
       const church = await tx.church.create({ data: { name: dto.name, slug: dto.slug, city: dto.city } });
-      await setupChurchDefaults(tx, church.id);
+      const { roles, statuses } = await setupChurchDefaults(tx, church.id);
       const admin = await tx.user.create({
         data: {
           churchId: church.id,
@@ -85,8 +88,8 @@ export class ChurchesService {
           passwordHash,
           firstName: dto.admin.firstName,
           lastName: dto.admin.lastName,
-          role: Role.ADMIN,
           status: UserStatus.ACTIVE,
+          roles: { create: { roleId: roles.pastor } },
         },
       });
       await tx.member.create({
@@ -96,7 +99,7 @@ export class ChurchesService {
           firstName: admin.firstName,
           lastName: admin.lastName,
           email,
-          status: 'MEMBER',
+          statuses: { create: { statusId: statuses.miembro } },
         },
       });
       return church;

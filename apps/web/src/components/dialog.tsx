@@ -37,7 +37,7 @@ export function Dialog({
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
       className={clsx(
-        'm-auto w-[calc(100%-2rem)] rounded-2xl border border-border bg-surface p-0 text-fg shadow-2xl',
+        'glass-strong m-auto w-[calc(100%-2rem)] rounded-3xl p-0 text-fg',
         size === 'sm' ? 'max-w-md' : size === 'lg' ? 'max-w-3xl' : 'max-w-xl',
       )}
     >
@@ -45,10 +45,10 @@ export function Dialog({
         <div className="flex max-h-[85vh] flex-col">
           <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
             <div>
-              <h2 className="text-lg font-semibold">{title}</h2>
+              <h2 className="font-display text-lg font-semibold">{title}</h2>
               {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
             </div>
-            <button onClick={onClose} className="rounded-md p-1 text-muted hover:bg-surface-2 hover:text-fg" aria-label="Cerrar">
+            <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg" aria-label="Cerrar">
               <X className="size-5" />
             </button>
           </div>
@@ -87,12 +87,12 @@ export function ConfirmDialog({
       size="sm"
       footer={
         <>
-          <button className="h-10 rounded-lg border border-border px-4 text-sm font-medium hover:bg-surface-2" onClick={onClose}>
+          <button className="h-10 rounded-xl border border-border bg-surface-2 px-4 text-sm font-medium hover:bg-surface-3" onClick={onClose}>
             Cancelar
           </button>
           <button
             disabled={loading}
-            className={clsx('h-10 rounded-lg px-4 text-sm font-medium text-white disabled:opacity-60', danger ? 'bg-danger' : 'bg-accent')}
+            className={clsx('h-10 rounded-xl px-4 text-sm font-medium text-white disabled:opacity-60', danger ? 'bg-danger' : 'bg-accent-gradient')}
             onClick={onConfirm}
           >
             {confirmLabel}

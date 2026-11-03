@@ -8,13 +8,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  SUPER_ADMIN
-  ADMIN
-  TREASURER
-  PASTOR
-  SECRETARY
-  MEMBER
+/// Acciones habilitables en un rol. Un usuario sin roles solo accede a lo básico
+/// (novedades, eventos, artículos, en vivo y pedir citas).
+enum Permission {
+  MEMBERS_VIEW
+  MEMBERS_EDIT
+  MEMBERS_DELETE
+  MEMBER_STATUSES_MANAGE
+  FINANCE_VIEW
+  FINANCE_EDIT
+  CONTENT_MANAGE
+  ARTICLES_MANAGE
+  APPOINTMENTS_HOST
+  APPOINTMENTS_ALL
+  USERS_VIEW
+  USERS_MANAGE
+  ROLES_MANAGE
+  CHURCH_SETTINGS
+  ACTIVITY_VIEW
 }
 
 enum UserStatus {
@@ -22,14 +33,6 @@ enum UserStatus {
   ACTIVE
   REJECTED
   DISABLED
-}
-
-enum MemberStatus {
-  VISITOR
-  ATTENDEE
-  MEMBER
-  BAPTIZED
-  INACTIVE
 }
 
 enum Gender {
@@ -57,7 +60,21 @@ enum AppointmentStatus {
 enum StreamPlatform {
   YOUTUBE
   FACEBOOK
+  TWITCH
   OTHER
+}
+
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum ActivityEntity {
+  ANNOUNCEMENT
+  EVENT
+  STREAM
+  ARTICLE
 }
 
 /// Una iglesia es un tenant: todos los datos operativos cuelgan de ella.
@@ -65,6 +82,10 @@ model Church {
   id              String   @id @default(cuid())
   name            String
   slug            String   @unique
+  /// Canales de transmisión de la iglesia (links a YouTube, Facebook y Twitch).
+  youtubeUrl      String?
+  facebookUrl     String?
+  twitchUrl       String?
   description     String?
   city            String?
   address         String?
@@ -78,18 +99,22 @@ model Church {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  users         User[]
-  members       Member[]
-  families      Family[]
-  ministries    Ministry[]
-  accounts      FinanceAccount[]
-  categories    FinanceCategory[]
-  transactions  Transaction[]
-  announcements Announcement[]
-  events        Event[]
-  streams       LiveStream[]
-  availability  Availability[]
-  appointments  Appointment[]
+  users          User[]
+  roles          ChurchRole[]
+  members        Member[]
+  memberStatuses MemberStatus[]
+  families       Family[]
+  ministries     Ministry[]
+  accounts       FinanceAccount[]
+  categories     FinanceCategory[]
+  transactions   Transaction[]
+  announcements  Announcement[]
+  events         Event[]
+  streams        LiveStream[]
+  availability   Availability[]
+  appointments   Appointment[]
+  articles       Article[]
+  activity       ActivityLog[]
 }
 
 model User {
@@ -101,7 +126,8 @@ model User {
   firstName    String
   lastName     String
   phone        String?
-  role         Role       @default(MEMBER)
+  /// Administrador de la plataforma: opera sobre cualquier iglesia con todos los permisos.
+  isSuperAdmin Boolean    @default(false)
   status       UserStatus @default(PENDING)
   /// Incrementar invalida todos los refresh tokens emitidos.
   tokenVersion Int        @default(0)
@@ -110,49 +136,114 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  member              Member?
-  transactions        Transaction[]
-  announcements       Announcement[]
-  events              Event[]
-  availability        Availability[]
-  hostedAppointments  Appointment[]  @relation("AppointmentHost")
-  requestedAppointments Appointment[] @relation("AppointmentRequester")
+  roles                 UserRole[]
+  member                Member?
+  transactions          Transaction[]
+  announcements         Announcement[]
+  events                Event[]
+  availability          Availability[]
+  hostedAppointments    Appointment[]  @relation("AppointmentHost")
+  requestedAppointments Appointment[]  @relation("AppointmentRequester")
+  articles              Article[]
+  activity              ActivityLog[]
 
   @@index([churchId, status])
 }
 
-/// Persona del padrón de la iglesia. Puede o no tener cuenta de usuario.
-model Member {
+/// Rol definido por cada iglesia con los permisos que elija.
+model ChurchRole {
   id          String       @id @default(cuid())
   churchId    String
   church      Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  userId      String?      @unique
-  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name        String
+  description String?
+  permissions Permission[]
+  /// Rol de administración: tiene siempre todos los permisos y no se puede eliminar.
+  isAdmin     Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  users UserRole[]
+
+  @@unique([churchId, name])
+}
+
+model UserRole {
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId     String
+  role       ChurchRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime   @default(now())
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+/// Persona del padrón de la iglesia. Puede o no tener cuenta de usuario.
+model Member {
+  id          String    @id @default(cuid())
+  churchId    String
+  church      Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  userId      String?   @unique
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   firstName   String
   lastName    String
   email       String?
   phone       String?
   documentId  String?
-  birthDate   DateTime?    @db.Date
+  birthDate   DateTime? @db.Date
   gender      Gender?
   address     String?
-  status      MemberStatus @default(VISITOR)
-  joinedAt    DateTime?    @db.Date
-  baptismDate DateTime?    @db.Date
+  joinedAt    DateTime? @db.Date
+  baptismDate DateTime? @db.Date
+  /// Si dice estar bautizado/a (null = no informado).
+  baptized    Boolean?
   familyId    String?
-  family      Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  family      Family?   @relation(fields: [familyId], references: [id], onDelete: SetNull)
   familyRole  String?
   notes       String?
   photoKey    String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  ministries   MinistryMember[]
-  transactions Transaction[]
-  ledMinistries Ministry[] @relation("MinistryLeader")
+  statuses      MemberStatusAssignment[]
+  ministries    MinistryMember[]
+  transactions  Transaction[]
+  ledMinistries Ministry[]               @relation("MinistryLeader")
 
   @@index([churchId, lastName])
-  @@index([churchId, status])
+}
+
+/// Estado definido por cada iglesia (visitante, bautizado, etc.). Un miembro puede tener varios.
+model MemberStatus {
+  id          String   @id @default(cuid())
+  churchId    String
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String?
+  /// Orden en listas y filtros.
+  position    Int      @default(0)
+  /// Se asigna automáticamente a quienes crean su cuenta.
+  isDefault   Boolean  @default(false)
+  /// Quienes lo tienen no cuentan como miembros activos en el inicio.
+  inactive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  members MemberStatusAssignment[]
+
+  @@unique([churchId, name])
+}
+
+model MemberStatusAssignment {
+  memberId   String
+  member     Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  statusId   String
+  status     MemberStatus @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  assignedAt DateTime     @default(now())
+
+  @@id([memberId, statusId])
+  @@index([statusId])
 }
 
 model Family {
@@ -319,23 +410,61 @@ model Availability {
 }
 
 model Appointment {
-  id          String            @id @default(cuid())
-  churchId    String
-  church      Church            @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  hostId      String
-  host        User              @relation("AppointmentHost", fields: [hostId], references: [id], onDelete: Cascade)
-  requesterId String
-  requester   User              @relation("AppointmentRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  startsAt    DateTime
-  endsAt      DateTime
-  status      AppointmentStatus @default(PENDING)
-  reason      String?
-  hostNotes   String?
+  id             String            @id @default(cuid())
+  churchId       String
+  church         Church            @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  hostId         String
+  host           User              @relation("AppointmentHost", fields: [hostId], references: [id], onDelete: Cascade)
+  requesterId    String
+  requester      User              @relation("AppointmentRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  startsAt       DateTime
+  endsAt         DateTime
+  status         AppointmentStatus @default(PENDING)
+  reason         String?
+  hostNotes      String?
   reminderSentAt DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([hostId, startsAt])
   @@index([requesterId, startsAt])
   @@index([churchId, startsAt])
+}
+
+/// Artículo de interés escrito por la iglesia. `body` es HTML ya saneado en el servidor.
+model Article {
+  id          String   @id @default(cuid())
+  churchId    String
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  title       String
+  summary     String?
+  body        String
+  coverKey    String?
+  published   Boolean  @default(true)
+  publishedAt DateTime @default(now())
+  authorId    String?
+  author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([churchId, publishedAt])
+}
+
+/// Registro de cambios sobre el contenido de la iglesia (quién, qué y cuándo).
+model ActivityLog {
+  id        String         @id @default(cuid())
+  churchId  String
+  church    Church         @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    ActivityAction
+  entity    ActivityEntity
+  entityId  String
+  /// Título del elemento al momento del cambio (se conserva aunque luego se borre).
+  title     String
+  /// Campos modificados, separados por coma.
+  detail    String?
+  createdAt DateTime       @default(now())
+
+  @@index([churchId, createdAt])
 }

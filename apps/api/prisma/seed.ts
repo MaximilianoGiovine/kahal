@@ -3,9 +3,9 @@
  *  1. Crea el SUPER_ADMIN definido por SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD si no existe.
  *  2. Si SEED_DEMO=true y no hay iglesias, carga 3 iglesias de demostración.
  */
-import { Currency, MemberStatus, Prisma, PrismaClient, Role, TransactionType, UserStatus } from '@prisma/client';
+import { Currency, Prisma, PrismaClient, TransactionType, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { setupChurchDefaults } from '../src/churches/church-defaults';
+import { DefaultRoleKey, DefaultStatusKey, setupChurchDefaults } from '../src/churches/church-defaults';
 
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = 'kahal1234';
@@ -90,7 +90,7 @@ async function ensureSuperAdmin() {
       passwordHash: await bcrypt.hash(password, 10),
       firstName: 'Super',
       lastName: 'Admin',
-      role: Role.SUPER_ADMIN,
+      isSuperAdmin: true,
       status: UserStatus.ACTIVE,
     },
   });
@@ -110,20 +110,22 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       description: def.description,
     },
   });
-  await setupChurchDefaults(prisma, church.id);
+  const { roles, statuses } = await setupChurchDefaults(prisma, church.id);
+  const statusLinks = (keys: DefaultStatusKey[]) => ({ create: keys.map((k) => ({ statusId: statuses[k] })) });
   await prisma.financeAccount.create({ data: { churchId: church.id, name: 'Fondo en dólares', currency: Currency.USD, initialBalance: 1500 } });
   await prisma.financeAccount.updateMany({ where: { churchId: church.id, name: 'Caja general' }, data: { initialBalance: roundTo(350000 * def.scale, 1000) } });
   await prisma.financeAccount.updateMany({ where: { churchId: church.id, name: 'Banco' }, data: { initialBalance: roundTo(2500000 * def.scale, 1000) } });
 
   // Usuarios del staff y miembros con cuenta.
-  const staffDefs: { role: Role; first: string; last: string; key: string }[] = [
-    { role: Role.ADMIN, first: 'Ricardo', last: pick(LAST), key: 'admin' },
-    { role: Role.PASTOR, first: 'Daniel', last: pick(LAST), key: 'pastor' },
-    { role: Role.PASTOR, first: 'Raquel', last: pick(LAST), key: 'lider' },
-    { role: Role.TREASURER, first: 'Silvia', last: pick(LAST), key: 'tesoreria' },
-    { role: Role.SECRETARY, first: 'Paula', last: pick(LAST), key: 'secretaria' },
-    { role: Role.MEMBER, first: 'Lucas', last: pick(LAST), key: 'miembro' },
-    { role: Role.MEMBER, first: 'Camila', last: pick(LAST), key: 'miembro2' },
+  // Sin rol = miembro con acceso básico.
+  const staffDefs: { role?: DefaultRoleKey; first: string; last: string; key: string }[] = [
+    { role: 'pastor', first: 'Ricardo', last: pick(LAST), key: 'pastor' },
+    { role: 'equipo', first: 'Daniel', last: pick(LAST), key: 'equipo' },
+    { role: 'lider', first: 'Raquel', last: pick(LAST), key: 'lider' },
+    { role: 'tesoreria', first: 'Silvia', last: pick(LAST), key: 'tesoreria' },
+    { role: 'secretaria', first: 'Paula', last: pick(LAST), key: 'secretaria' },
+    { first: 'Lucas', last: pick(LAST), key: 'miembro' },
+    { first: 'Camila', last: pick(LAST), key: 'miembro2' },
   ];
   const users: Record<string, { id: string; firstName: string; lastName: string }> = {};
   for (const s of staffDefs) {
@@ -135,8 +137,8 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
         passwordHash,
         firstName: s.first,
         lastName: s.last,
-        role: s.role,
         status: UserStatus.ACTIVE,
+        ...(s.role && { roles: { create: { roleId: roles[s.role] } } }),
         consentAt: new Date(),
         member: {
           create: {
@@ -145,32 +147,13 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
             lastName: s.last,
             email,
             phone: `+54 9 11 ${between(4000, 6999)}-${between(1000, 9999)}`,
-            status: s.role === Role.MEMBER ? MemberStatus.MEMBER : MemberStatus.BAPTIZED,
+            statuses: statusLinks(s.role ? ['miembro', 'bautizado'] : ['miembro']),
             joinedAt: addDays(new Date(), -between(400, 4000)),
           },
         },
       },
     });
     users[s.key] = user;
-  }
-
-  // Solicitudes pendientes de aprobación.
-  for (let i = 0; i < 3; i++) {
-    const female = rand() < 0.5;
-    const first = pick(female ? FIRST_F : FIRST_M);
-    const last = pick(LAST);
-    await prisma.user.create({
-      data: {
-        churchId: church.id,
-        email: `${first}.${last}.${i}@${def.slug}.demo`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''),
-        passwordHash,
-        firstName: first,
-        lastName: last,
-        role: Role.MEMBER,
-        status: UserStatus.PENDING,
-        consentAt: new Date(),
-      },
-    });
   }
 
   // Ministerios, familias y padrón.
@@ -190,9 +173,9 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       const female = i === 1 ? true : i === 0 ? rand() < 0.4 : rand() < 0.5;
       const first = pick(female ? FIRST_F : FIRST_M);
       const age = isChild ? between(3, 17) : between(20, 75);
-      const status: MemberStatus = isChild
-        ? pick([MemberStatus.ATTENDEE, MemberStatus.MEMBER])
-        : pick([MemberStatus.VISITOR, MemberStatus.ATTENDEE, MemberStatus.MEMBER, MemberStatus.MEMBER, MemberStatus.BAPTIZED, MemberStatus.BAPTIZED, MemberStatus.BAPTIZED, MemberStatus.INACTIVE]);
+      const keys: DefaultStatusKey[] = isChild
+        ? pick([['asistente'], ['miembro']])
+        : pick([['visitante'], ['asistente'], ['miembro'], ['miembro'], ['miembro', 'bautizado'], ['miembro', 'bautizado'], ['bautizado'], ['bautizado', 'inactivo']]);
       const joined = addDays(today, -between(10, 5000));
       const member = await prisma.member.create({
         data: {
@@ -205,9 +188,10 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
           birthDate: day(new Date(today.getFullYear() - age, between(0, 11), between(1, 28))),
           gender: female ? 'FEMALE' : 'MALE',
           address,
-          status,
+          statuses: statusLinks(keys),
           joinedAt: day(joined),
-          baptismDate: status === MemberStatus.BAPTIZED ? day(addDays(joined, between(30, 700))) : null,
+          baptismDate: keys.includes('bautizado') ? day(addDays(joined, between(30, 700))) : null,
+          baptized: keys.includes('bautizado'),
           familyId: family?.id,
           familyRole: family ? (i === 0 ? 'Jefe/a de familia' : i === 1 ? 'Cónyuge' : 'Hijo/a') : null,
           createdAt: rand() < 0.08 ? addDays(today, -between(0, 20)) : joined,
@@ -221,7 +205,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       created++;
     }
   }
-  const leaders = await prisma.member.findMany({ where: { churchId: church.id, status: MemberStatus.BAPTIZED }, take: ministries.length });
+  const leaders = await prisma.member.findMany({ where: { churchId: church.id, statuses: { some: { statusId: statuses.bautizado } } }, take: ministries.length });
   for (const [i, m] of ministries.entries()) {
     if (leaders[i]) await prisma.ministry.update({ where: { id: m.id }, data: { leaderId: leaders[i].id } });
   }
@@ -318,6 +302,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       { churchId: church.id, userId: users.pastor.id, weekday: 2, startTime: '18:00', endTime: '21:00', slotMinutes: 30 },
       { churchId: church.id, userId: users.pastor.id, weekday: 4, startTime: '18:00', endTime: '21:00', slotMinutes: 30 },
       { churchId: church.id, userId: users.pastor.id, weekday: 6, startTime: '10:00', endTime: '13:00', slotMinutes: 45 },
+      { churchId: church.id, userId: users.equipo.id, weekday: 3, startTime: '17:00', endTime: '19:00', slotMinutes: 30 },
       { churchId: church.id, userId: users.lider.id, weekday: 1, startTime: '19:00', endTime: '21:00', slotMinutes: 30 },
       { churchId: church.id, userId: users.lider.id, weekday: 5, startTime: '17:00', endTime: '20:00', slotMinutes: 60 },
     ],
@@ -327,8 +312,42 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
     data: [
       { churchId: church.id, hostId: users.pastor.id, requesterId: users.miembro.id, startsAt: at(nextWeekday(2), 18), endsAt: at(nextWeekday(2), 18, 30), status: 'CONFIRMED', reason: 'Consejería familiar' },
       { churchId: church.id, hostId: users.pastor.id, requesterId: users.miembro2.id, startsAt: at(nextWeekday(4), 19), endsAt: at(nextWeekday(4), 19, 30), status: 'PENDING', reason: 'Quiero hablar sobre el bautismo' },
+      { churchId: church.id, hostId: users.equipo.id, requesterId: users.miembro2.id, startsAt: at(nextWeekday(3), 17), endsAt: at(nextWeekday(3), 17, 30), status: 'CONFIRMED', reason: 'Acompañamiento en duelo' },
       { churchId: church.id, hostId: users.lider.id, requesterId: users.miembro.id, startsAt: at(nextWeekday(5, 1), 17), endsAt: at(nextWeekday(5, 1), 18), status: 'PENDING', reason: 'Sumarme al ministerio de jóvenes' },
       { churchId: church.id, hostId: users.pastor.id, requesterId: users.miembro.id, startsAt: at(-6, 18), endsAt: at(-6, 18, 30), status: 'COMPLETED', reason: 'Oración' },
+    ],
+  });
+
+  // Artículos de interés.
+  await prisma.article.createMany({
+    data: [
+      {
+        churchId: church.id,
+        authorId: users.pastor.id,
+        title: 'La oración como hábito diario',
+        summary: 'Cinco claves prácticas para sostener un tiempo de oración en medio de la rutina.',
+        publishedAt: addDays(today, -3),
+        body:
+          '<p>Muchas veces sabemos que orar es importante, pero nos cuesta sostenerlo en el tiempo. La buena noticia es que la oración no depende de grandes momentos, sino de pequeños pasos fieles.</p>' +
+          '<h2>1. Elegí un momento fijo</h2><p>Puede ser temprano a la mañana o antes de dormir. Lo importante es que sea <strong>el mismo todos los días</strong>, así se vuelve parte de tu rutina.</p>' +
+          '<h2>2. Empezá con poco</h2><p>Diez minutos con el corazón atento valen más que una hora distraída. Con el tiempo, vas a querer quedarte más.</p>' +
+          '<h2>3. Usá una guía</h2><ul><li>Adoración: reconocé quién es Dios.</li><li>Confesión: poné delante de Él lo que pesa.</li><li>Gratitud: nombrá tres cosas por las que agradecer.</li><li>Pedidos: orá por otros y por vos.</li></ul>' +
+          '<blockquote>"Oren sin cesar. Den gracias a Dios en toda situación." — 1 Tesalonicenses 5:17-18</blockquote>' +
+          '<h2>4. Escribí</h2><p>Anotar tus oraciones te ayuda a enfocarte y, con el tiempo, a ver cómo Dios fue respondiendo.</p>' +
+          '<h2>5. Orá en comunidad</h2><p>Te esperamos los miércoles en la reunión de oración. Orar juntos fortalece la fe de todos.</p>',
+      },
+      {
+        churchId: church.id,
+        authorId: users.equipo.id,
+        title: 'Cómo acompañar a alguien que atraviesa un duelo',
+        summary: 'Orientaciones del equipo pastoral para estar cerca sin palabras de más.',
+        publishedAt: addDays(today, -12),
+        body:
+          '<p>Cuando alguien que queremos pierde a un ser querido, solemos sentir que no sabemos qué decir. Muchas veces, lo más valioso es simplemente <em>estar</em>.</p>' +
+          '<h3>Lo que ayuda</h3><ul><li>Escuchar sin apurarse a dar respuestas.</li><li>Ofrecer ayuda concreta: una comida, un traslado, una tarde de compañía.</li><li>Recordar fechas significativas y volver a escribir semanas después.</li></ul>' +
+          '<h3>Lo que conviene evitar</h3><ul><li>Frases hechas que minimizan el dolor.</li><li>Comparar pérdidas.</li><li>Poner plazos para "estar bien".</li></ul>' +
+          '<p>Si necesitás acompañamiento, podés pedir una cita con el equipo pastoral desde la sección <strong>Citas</strong> de la app.</p>',
+      },
     ],
   });
 
@@ -344,7 +363,7 @@ async function main() {
   }
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   for (const def of DEMO_CHURCHES) await seedChurch(def, passwordHash);
-  console.log(`[seed] Demo lista. Usuarios: admin|pastor|tesoreria|secretaria|miembro@<iglesia>.demo  Contraseña: ${DEMO_PASSWORD}`);
+  console.log(`[seed] Demo lista. Usuarios: pastor|equipo|lider|tesoreria|secretaria|miembro@<iglesia>.demo  Contraseña: ${DEMO_PASSWORD}`);
 }
 
 main()

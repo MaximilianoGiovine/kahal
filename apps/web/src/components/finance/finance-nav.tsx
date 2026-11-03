@@ -12,7 +12,7 @@ export function FinanceNav() {
   const items = [
     { href: '/app/finanzas', label: 'Resumen' },
     { href: '/app/finanzas/movimientos', label: 'Movimientos' },
-    ...(can.financeWrite(me.role) ? [{ href: '/app/finanzas/configuracion', label: 'Cuentas y categorías' }] : []),
+    ...(can.financeWrite(me) ? [{ href: '/app/finanzas/configuracion', label: 'Cuentas y categorías' }] : []),
   ];
   return (
     <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-border">

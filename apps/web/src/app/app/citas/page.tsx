@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@/components/dialog';
 import { Avatar, Badge, Button, Card, CardHeader, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Select, Tabs, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
-import { APPOINTMENT_STATUS_LABEL, dateTime, fullName, ROLE_LABEL, WEEKDAYS } from '@/lib/format';
+import { APPOINTMENT_STATUS_LABEL, dateTime, fullName, roleNames, WEEKDAYS } from '@/lib/format';
 import { useAction } from '@/lib/hooks';
 import { can } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
@@ -24,19 +24,19 @@ const STATUS_TONE: Record<AppointmentStatus, 'warning' | 'success' | 'neutral' |
 
 export default function AppointmentsPage() {
   const { me } = useSession();
-  const isHost = can.host(me.role);
+  const isHost = can.host(me);
   const [tab, setTab] = useState<Tab>(isHost ? 'hosting' : 'book');
 
   const items: { value: Tab; label: string }[] = [
     ...(isHost ? [{ value: 'hosting' as Tab, label: 'Mi agenda' }, { value: 'availability' as Tab, label: 'Disponibilidad' }] : []),
     { value: 'book', label: 'Agendar' },
     { value: 'mine', label: 'Mis citas' },
-    ...(can.allAppointments(me.role) ? [{ value: 'all' as Tab, label: 'Todas' }] : []),
+    ...(can.allAppointments(me) ? [{ value: 'all' as Tab, label: 'Todas' }] : []),
   ];
 
   return (
     <>
-      <PageHeader title="Citas" description="Reservá un horario con un pastor o líder de la iglesia." />
+      <PageHeader title="Citas" description="Reservá un horario con el pastor, el equipo pastoral o un líder de la iglesia." />
       <div className="-mx-4 mb-6 overflow-x-auto px-4">
         <Tabs value={tab} onChange={setTab} items={items} />
       </div>
@@ -101,7 +101,7 @@ function BookTab({ onBooked }: { onBooked: () => void }) {
               <Avatar name={h} />
               <div>
                 <p className="text-sm font-medium">{fullName(h)}</p>
-                <p className="text-xs text-muted">{ROLE_LABEL[h.role]}</p>
+                <p className="text-xs text-muted">{roleNames(h)}</p>
               </div>
             </button>
           ))}
@@ -289,7 +289,7 @@ function CompleteDialog({ appt, onClose, onSubmit, loading }: { appt: Appointmen
         </>
       }
     >
-      <Field label="Notas privadas (opcional)" hint="Solo visibles para pastores y administradores.">
+      <Field label="Notas privadas (opcional)" hint="Solo visibles para quien atiende la cita y el pastor.">
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} />
       </Field>
     </Dialog>

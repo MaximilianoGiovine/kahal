@@ -16,7 +16,7 @@ import type { ChurchEvent } from '@/lib/types';
 
 export default function EventsPage() {
   const { me } = useSession();
-  const editor = can.content(me.role);
+  const editor = can.content(me);
   const [editing, setEditing] = useState<ChurchEvent | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ChurchEvent | null>(null);
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['events'], queryFn: () => api<ChurchEvent[]>('/events') });

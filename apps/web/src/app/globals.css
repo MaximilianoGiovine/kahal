@@ -3,79 +3,85 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 :root {
-  --bg: #f7f6f3;
-  --surface: #ffffff;
-  --surface-2: #f2f1ed;
-  --border: #e4e2dc;
-  --fg: #1c1b19;
-  --muted: #6b6963;
-  --subtle: #9a978f;
-  --accent: #4f46e5;
+  /* Liquid glass oscuro: fondo profundo con luces de color y superficies translúcidas. */
+  --bg: #06080d;
+  --surface: rgb(255 255 255 / 0.045);
+  --surface-2: rgb(255 255 255 / 0.07);
+  --surface-3: rgb(255 255 255 / 0.11);
+  /* Superficie opaca para lo que flota sobre contenido (diálogos, menús, tooltips). */
+  --surface-solid: #10131b;
+  --border: rgb(255 255 255 / 0.09);
+  --fg: #eef1f8;
+  --muted: #9aa1b2;
+  --subtle: #687083;
+  --accent: #8b5cf6;
+  --accent-2: color-mix(in oklab, var(--accent) 45%, #e14bd8);
   --accent-fg: #ffffff;
-  --accent-soft: color-mix(in oklab, var(--accent) 10%, var(--surface));
-  --accent-ink: var(--accent);
-  --danger: #c4302b;
-  --danger-soft: #fdecea;
-  --success: #15803d;
-  --success-soft: #e8f6ec;
-  --warning: #a16207;
-  --warning-soft: #fdf5e0;
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --grid: #ecebe6;
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #121211;
-    --surface: #1a1a19;
-    --surface-2: #232321;
-    --border: #2f2f2c;
-    --fg: #f2f1ec;
-    --muted: #a8a69e;
-    --subtle: #75736c;
-    --accent-soft: color-mix(in oklab, var(--accent) 22%, var(--surface));
-  --accent-ink: color-mix(in oklab, var(--accent) 55%, white);
-    --danger: #f07167;
-    --danger-soft: #3a1d1b;
-    --success: #4ade80;
-    --success-soft: #16301f;
-    --warning: #facc15;
-    --warning-soft: #33290f;
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --grid: #2a2a27;
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme='dark'] {
-  --bg: #121211;
-  --surface: #1a1a19;
-  --surface-2: #232321;
-  --border: #2f2f2c;
-  --fg: #f2f1ec;
-  --muted: #a8a69e;
-  --subtle: #75736c;
-  --accent-soft: color-mix(in oklab, var(--accent) 22%, var(--surface));
-  --accent-ink: color-mix(in oklab, var(--accent) 55%, white);
-  --danger: #f07167;
-  --danger-soft: #3a1d1b;
+  --accent-soft: color-mix(in oklab, var(--accent) 24%, transparent);
+  --accent-ink: color-mix(in oklab, var(--accent) 50%, white);
+  --accent-gradient: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 100%);
+  --info: #22d3ee;
+  --danger: #f2767a;
+  --danger-soft: rgb(242 118 122 / 0.14);
   --success: #4ade80;
-  --success-soft: #16301f;
-  --warning: #facc15;
-  --warning-soft: #33290f;
+  --success-soft: rgb(74 222 128 / 0.13);
+  --warning: #fbbf24;
+  --warning-soft: rgb(251 191 36 / 0.13);
   --series-1: #3987e5;
   --series-2: #d95926;
-  --grid: #2a2a27;
+  --grid: rgb(255 255 255 / 0.07);
+  /* Vidrio */
+  --glass-bg: linear-gradient(160deg, rgb(255 255 255 / 0.08) 0%, rgb(255 255 255 / 0.025) 55%, rgb(255 255 255 / 0.04) 100%);
+  --glass-border: rgb(255 255 255 / 0.1);
+  --glass-highlight: rgb(255 255 255 / 0.14);
+  --shadow: inset 0 1px 0 var(--glass-highlight), 0 24px 48px -28px rgb(0 0 0 / 0.85);
+  --glow: 0 0 22px -2px color-mix(in oklab, var(--accent) 65%, transparent);
+  /* Luces del fondo */
+  --light-1: color-mix(in oklab, var(--accent) 38%, transparent);
+  --light-2: rgb(249 115 22 / 0.2);
+  --light-3: color-mix(in oklab, var(--accent-2) 20%, transparent);
   color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #e8ecf4;
+  --surface: rgb(255 255 255 / 0.5);
+  --surface-2: rgb(15 23 42 / 0.045);
+  --surface-3: rgb(15 23 42 / 0.08);
+  --surface-solid: #ffffff;
+  --border: rgb(15 23 42 / 0.09);
+  --fg: #141824;
+  --muted: #565d70;
+  --subtle: #8c92a3;
+  --accent-soft: color-mix(in oklab, var(--accent) 14%, transparent);
+  --accent-ink: color-mix(in oklab, var(--accent) 80%, black);
+  --info: #0891b2;
+  --danger: #c4302b;
+  --danger-soft: rgb(196 48 43 / 0.1);
+  --success: #15803d;
+  --success-soft: rgb(21 128 61 / 0.1);
+  --warning: #a16207;
+  --warning-soft: rgb(161 98 7 / 0.1);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --grid: rgb(15 23 42 / 0.07);
+  --glass-bg: linear-gradient(160deg, rgb(255 255 255 / 0.78) 0%, rgb(255 255 255 / 0.5) 60%, rgb(255 255 255 / 0.6) 100%);
+  --glass-border: rgb(255 255 255 / 0.85);
+  --glass-highlight: rgb(255 255 255 / 0.95);
+  --shadow: inset 0 1px 0 var(--glass-highlight), 0 1px 2px rgb(20 30 60 / 0.05), 0 22px 44px -26px rgb(20 30 60 / 0.3);
+  --glow: 0 0 18px -4px color-mix(in oklab, var(--accent) 55%, transparent);
+  --light-1: color-mix(in oklab, var(--accent) 30%, transparent);
+  --light-2: rgb(251 146 60 / 0.22);
+  --light-3: color-mix(in oklab, #38bdf8 25%, transparent);
+  color-scheme: light;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-solid: var(--surface-solid);
   --color-border: var(--border);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
@@ -84,6 +90,8 @@
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-2: var(--accent-2);
+  --color-info: var(--info);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
@@ -94,13 +102,44 @@
   --color-series-2: var(--series-2);
   --color-grid: var(--grid);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-display: var(--font-poppins), var(--font-inter), ui-sans-serif, sans-serif;
+  --shadow-card: var(--shadow);
+  --shadow-glow: var(--glow);
 }
 
-html,
-body {
+html {
   background: var(--bg);
   color: var(--fg);
+}
+
+/* Luces de color fijas detrás de todo (como un fondo de pantalla): le dan vida al vidrio. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(55rem 42rem at 100% -5%, var(--light-1), transparent 70%),
+    radial-gradient(38rem 38rem at 108% 62%, var(--light-2), transparent 70%),
+    radial-gradient(48rem 36rem at -12% 105%, var(--light-3), transparent 70%);
+}
+
+/* Material de vidrio: translúcido, desenfoca lo de atrás, borde claro y brillo superior. */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+/* Vidrio casi opaco para lo que flota sobre otro contenido. */
+.glass-strong {
+  background: color-mix(in oklab, var(--surface-solid) 84%, transparent);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow), 0 30px 60px -24px rgb(0 0 0 / 0.55);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
 }
 
 body {
@@ -113,10 +152,120 @@ body {
 }
 
 dialog::backdrop {
-  background: rgb(0 0 0 / 0.45);
-  backdrop-filter: blur(2px);
+  background: rgb(4 6 10 / 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
+
+/* Degradé del acento (botones primarios, banners, indicadores). */
+.bg-accent-gradient {
+  background-image: var(--accent-gradient);
+}
+.text-accent-gradient {
+  background-image: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Banner protagonista: degradé con esferas de luz, como portada del inicio. */
+.hero-glow {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image:
+    radial-gradient(circle at 85% 30%, color-mix(in oklab, var(--accent-2) 75%, white 10%) 0 9%, transparent 30%),
+    radial-gradient(circle at 12% 110%, color-mix(in oklab, var(--accent) 70%, #38bdf8) 0 14%, transparent 42%),
+    radial-gradient(120% 140% at 100% 0%, color-mix(in oklab, var(--accent-2) 80%, transparent), transparent 60%),
+    linear-gradient(115deg, color-mix(in oklab, var(--accent) 85%, black) 0%, var(--accent) 45%, var(--accent-2) 100%);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), inset 0 0 0 1px rgb(255 255 255 / 0.12), 0 24px 60px -24px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+.hero-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(115deg, transparent 0 22px, rgb(255 255 255 / 0.035) 22px 23px);
+}
+
 
 ::selection {
   background: var(--accent-soft);
+}
+
+/* Cuerpo de los artículos (lectura y editor). */
+.article-body {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+.article-body > * + * {
+  margin-top: 1em;
+}
+.article-body h2,
+.article-body h3,
+.article-body h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin-top: 1.6em;
+}
+.article-body h2 {
+  font-size: 1.5rem;
+}
+.article-body h3 {
+  font-size: 1.25rem;
+}
+.article-body h4 {
+  font-size: 1.075rem;
+}
+.article-body > :first-child {
+  margin-top: 0;
+}
+.article-body ul,
+.article-body ol {
+  padding-left: 1.5em;
+}
+.article-body ul {
+  list-style: disc;
+}
+.article-body ol {
+  list-style: decimal;
+}
+.article-body li + li {
+  margin-top: 0.35em;
+}
+.article-body blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1em;
+  color: var(--muted);
+  font-style: italic;
+}
+.article-body a {
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.article-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin-inline: auto;
+}
+.article-body hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin-block: 2em;
+}
+
+.rich-editor:focus {
+  outline: none;
+}
+.rich-editor[data-empty='true']::before {
+  content: attr(data-placeholder);
+  color: var(--subtle);
+  pointer-events: none;
+  position: absolute;
 }

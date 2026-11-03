@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { MemberStatus, Prisma, Role, UserStatus } from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Permission, Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { HOST_ROLES } from '../common/auth-user';
+import { AuthUser, coversAll, effectivePermissions } from '../common/auth-user';
 import { paginate } from '../common/pagination';
-import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
+import { parseDay } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
+import { ROLE_NAMES_SELECT } from '../roles/roles.service';
 import { CreateUserDto, UpdateProfileDto, UpdateUserDto, UsersQuery } from './users.dto';
 
 export const USER_PUBLIC_SELECT = {
@@ -13,25 +14,22 @@ export const USER_PUBLIC_SELECT = {
   firstName: true,
   lastName: true,
   phone: true,
-  role: true,
   status: true,
   createdAt: true,
   lastLoginAt: true,
   member: { select: { id: true } },
+  ...ROLE_NAMES_SELECT,
 } satisfies Prisma.UserSelect;
 
 @Injectable()
 export class UsersService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly mail: MailService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async list(churchId: string, query: UsersQuery) {
     const where: Prisma.UserWhereInput = {
       churchId,
       status: query.status,
-      role: query.role,
+      ...(query.roleId && { roles: { some: { roleId: query.roleId } } }),
       ...(query.q && {
         OR: [
           { firstName: { contains: query.q, mode: 'insensitive' } },
@@ -52,24 +50,24 @@ export class UsersService {
     return { items, total, page: query.page, pageSize: query.pageSize };
   }
 
-  pendingCount(churchId: string) {
-    return this.prisma.user.count({ where: { churchId, status: UserStatus.PENDING } });
-  }
-
   /** Pastores/líderes que reciben citas. */
   hosts(churchId: string) {
     return this.prisma.user.findMany({
       where: {
         churchId,
         status: UserStatus.ACTIVE,
-        OR: [{ role: { in: HOST_ROLES } }, { availability: { some: {} } }],
+        OR: [
+          { roles: { some: { role: { OR: [{ isAdmin: true }, { permissions: { has: Permission.APPOINTMENTS_HOST } }] } } } },
+          { availability: { some: {} } },
+        ],
       },
-      select: { id: true, firstName: true, lastName: true, role: true, _count: { select: { availability: true } } },
+      select: { id: true, firstName: true, lastName: true, ...ROLE_NAMES_SELECT, _count: { select: { availability: true } } },
       orderBy: { firstName: 'asc' },
     });
   }
 
-  async create(churchId: string, dto: CreateUserDto) {
+  async create(churchId: string, actor: AuthUser, dto: CreateUserDto) {
+    await this.assertAssignable(churchId, actor, dto.roleIds);
     const email = dto.email.toLowerCase().trim();
     if (await this.prisma.user.findUnique({ where: { email } })) {
       throw new ConflictException('Ya existe una cuenta con ese email');
@@ -84,90 +82,148 @@ export class UsersService {
           firstName: dto.firstName,
           lastName: dto.lastName,
           phone: dto.phone,
-          role: dto.role,
           status: UserStatus.ACTIVE,
+          roles: { create: dto.roleIds.map((roleId) => ({ roleId })) },
         },
         select: USER_PUBLIC_SELECT,
       });
-      await this.linkMember(tx, churchId, user.id, { ...dto, email }, MemberStatus.MEMBER);
+      await linkMember(tx, churchId, user.id, { ...dto, email });
       return user;
     });
   }
 
-  async approve(churchId: string, id: string) {
-    const user = await this.find(churchId, id);
-    if (user.status !== UserStatus.PENDING) throw new BadRequestException('La solicitud ya fue procesada');
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const u = await tx.user.update({ where: { id }, data: { status: UserStatus.ACTIVE }, select: USER_PUBLIC_SELECT });
-      await this.linkMember(tx, churchId, id, user, MemberStatus.ATTENDEE);
-      return u;
-    });
-    const church = await this.prisma.church.findUniqueOrThrow({ where: { id: churchId } });
-    await this.mail.send({
-      to: user.email,
-      subject: `Bienvenido/a a ${church.name}`,
-      html: mailLayout(
-        church.name,
-        '¡Tu cuenta fue aprobada!',
-        `Hola ${escapeHtml(user.firstName)}, ya podés ingresar a Kahal para ver las novedades, conectarte a las transmisiones y agendar citas.`,
-      ),
-    });
-    return updated;
-  }
+  async update(churchId: string, actor: AuthUser, id: string, dto: UpdateUserDto) {
+    const target = await this.find(churchId, id);
+    if (id === actor.id) throw new BadRequestException('No podés modificar tus propios roles o estado');
+    if (!coversAll(actor, effectivePermissions(target.roles.map((r) => r.role)))) {
+      throw new ForbiddenException('No podés modificar a un usuario con más permisos que los tuyos');
+    }
+    if (dto.roleIds) await this.assertAssignable(churchId, actor, dto.roleIds);
 
-  async reject(churchId: string, id: string) {
-    const user = await this.find(churchId, id);
-    if (user.status !== UserStatus.PENDING) throw new BadRequestException('La solicitud ya fue procesada');
-    return this.prisma.user.update({ where: { id }, data: { status: UserStatus.REJECTED }, select: USER_PUBLIC_SELECT });
-  }
+    const removesAdmin =
+      target.roles.some((r) => r.role.isAdmin) &&
+      (dto.status === UserStatus.DISABLED || (dto.roleIds && !(await this.hasAdminRole(churchId, dto.roleIds))));
+    if (removesAdmin) await this.assertAnotherAdmin(churchId, id);
 
-  async update(churchId: string, actorId: string, id: string, dto: UpdateUserDto) {
-    await this.find(churchId, id);
-    if (id === actorId) throw new BadRequestException('No podés modificar tu propio rol o estado');
-    return this.prisma.user.update({
-      where: { id },
-      // Cambiar rol o estado invalida las sesiones abiertas del usuario.
-      data: { ...dto, tokenVersion: { increment: 1 } },
-      select: USER_PUBLIC_SELECT,
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.roleIds) {
+        await tx.userRole.deleteMany({ where: { userId: id } });
+        await tx.userRole.createMany({ data: dto.roleIds.map((roleId) => ({ userId: id, roleId })) });
+      }
+      return tx.user.update({
+        where: { id },
+        // Deshabilitar invalida las sesiones abiertas; los cambios de roles aplican al instante.
+        data: { status: dto.status, ...(dto.status === UserStatus.DISABLED && { tokenVersion: { increment: 1 } }) },
+        select: USER_PUBLIC_SELECT,
+      });
     });
   }
 
+  /** El perfil propio actualiza la cuenta y la ficha del padrón a la vez, para que coincidan. */
   updateProfile(userId: string, dto: UpdateProfileDto) {
-    return this.prisma.user.update({ where: { id: userId }, data: dto, select: USER_PUBLIC_SELECT });
+    const { documentId, birthDate, baptized, address, ...account } = dto;
+    const empty = (v?: string) => (v === undefined ? undefined : v.trim() || null);
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({ where: { id: userId }, data: account, select: USER_PUBLIC_SELECT });
+      await tx.member.updateMany({
+        where: { userId },
+        data: {
+          ...account,
+          phone: empty(account.phone),
+          documentId: empty(documentId),
+          birthDate: birthDate === undefined ? undefined : birthDate ? parseDay(birthDate.slice(0, 10)) : null,
+          baptized,
+          address: empty(address),
+        },
+      });
+      return user;
+    });
   }
 
   private async find(churchId: string, id: string) {
-    const user = await this.prisma.user.findFirst({ where: { id, churchId } });
+    const user = await this.prisma.user.findFirst({
+      where: { id, churchId },
+      include: { roles: { include: { role: true } } },
+    });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;
   }
 
-  /** Vincula la cuenta a una ficha del padrón (por email) o crea una nueva. */
-  private async linkMember(
-    tx: Prisma.TransactionClient,
-    churchId: string,
-    userId: string,
-    data: { firstName: string; lastName: string; email: string; phone?: string | null },
-    status: MemberStatus,
-  ) {
-    const existing = await tx.member.findFirst({
-      where: { churchId, userId: null, email: { equals: data.email, mode: 'insensitive' } },
-    });
-    if (existing) {
-      await tx.member.update({ where: { id: existing.id }, data: { userId } });
-      return;
+  /** Los roles deben ser de la iglesia y no dar más permisos que los del actor. */
+  private async assertAssignable(churchId: string, actor: AuthUser, roleIds: string[]) {
+    const roles = await this.prisma.churchRole.findMany({ where: { churchId, id: { in: roleIds } } });
+    if (roles.length !== roleIds.length) throw new BadRequestException('Rol inválido');
+    if (!coversAll(actor, effectivePermissions(roles))) {
+      throw new ForbiddenException('No podés asignar roles con permisos que no tenés');
     }
-    await tx.member.create({
-      data: {
-        churchId,
-        userId,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone,
-        status,
-        joinedAt: new Date(),
-      },
-    });
   }
+
+  private async hasAdminRole(churchId: string, roleIds: string[]) {
+    return (await this.prisma.churchRole.count({ where: { churchId, id: { in: roleIds }, isAdmin: true } })) > 0;
+  }
+
+  /** Evita que la iglesia se quede sin ningún administrador activo. */
+  private async assertAnotherAdmin(churchId: string, exceptUserId: string) {
+    const others = await this.prisma.user.count({
+      where: { churchId, id: { not: exceptUserId }, status: UserStatus.ACTIVE, roles: { some: { role: { isAdmin: true } } } },
+    });
+    if (!others) throw new BadRequestException('La iglesia debe tener al menos un usuario activo con el rol de administración');
+  }
+}
+
+/** Vincula la cuenta a una ficha del padrón (por email) o crea una nueva con los estados por defecto. */
+export async function linkMember(
+  tx: Prisma.TransactionClient,
+  churchId: string,
+  userId: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    documentId?: string;
+    birthDate?: Date;
+    baptized?: boolean;
+    address?: string;
+  },
+) {
+  const existing = await tx.member.findFirst({
+    where: { churchId, userId: null, email: { equals: data.email, mode: 'insensitive' } },
+  });
+  if (existing) {
+    // La ficha cargada por la iglesia manda: solo se completan los datos que faltan.
+    const missing = Object.fromEntries(
+      (['phone', 'documentId', 'birthDate', 'baptized', 'address'] as const)
+        .filter((k) => (existing[k] === null || existing[k] === '') && data[k] != null)
+        .map((k) => [k, data[k]]),
+    );
+    const member = await tx.member.update({ where: { id: existing.id }, data: { userId, email: data.email, ...missing } });
+    // La cuenta toma el nombre y teléfono de la ficha para que ambos coincidan.
+    await tx.user.update({ where: { id: userId }, data: { firstName: member.firstName, lastName: member.lastName, phone: member.phone } });
+    return;
+  }
+  // Estados por defecto, más "Bautizado" si la persona dice estarlo y la iglesia conserva ese estado.
+  const defaults = await tx.memberStatus.findMany({
+    where: {
+      churchId,
+      OR: [{ isDefault: true }, ...(data.baptized ? [{ name: { equals: 'Bautizado', mode: 'insensitive' as const } }] : [])],
+    },
+    select: { id: true },
+  });
+  await tx.member.create({
+    data: {
+      churchId,
+      userId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      documentId: data.documentId,
+      birthDate: data.birthDate,
+      baptized: data.baptized,
+      address: data.address,
+      joinedAt: new Date(),
+      statuses: { create: defaults.map((s) => ({ statusId: s.id })) },
+    },
+  });
 }

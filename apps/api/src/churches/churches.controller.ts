@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { Role } from '@prisma/client';
-import { STAFF_ROLES } from '../common/auth-user';
-import { ChurchId, Public, Roles } from '../common/decorators';
+import { Permission } from '@prisma/client';
+import { ChurchId, Public, RequirePermissions, SuperAdminOnly } from '../common/decorators';
 import { AdminUpdateChurchDto, CreateChurchDto, UpdateChurchDto } from './churches.dto';
 import { ChurchesService } from './churches.service';
 
@@ -21,31 +20,31 @@ export class ChurchesController {
     return this.churches.getPublic(slug);
   }
 
-  @Roles(...STAFF_ROLES)
+  @RequirePermissions(Permission.CHURCH_SETTINGS)
   @Get('church')
   get(@ChurchId() churchId: string) {
     return this.churches.get(churchId);
   }
 
-  @Roles(Role.ADMIN)
+  @RequirePermissions(Permission.CHURCH_SETTINGS)
   @Patch('church')
   update(@ChurchId() churchId: string, @Body() dto: UpdateChurchDto) {
     return this.churches.update(churchId, dto);
   }
 
-  @Roles(Role.SUPER_ADMIN)
+  @SuperAdminOnly()
   @Get('admin/churches')
   adminList() {
     return this.churches.adminList();
   }
 
-  @Roles(Role.SUPER_ADMIN)
+  @SuperAdminOnly()
   @Post('admin/churches')
   adminCreate(@Body() dto: CreateChurchDto) {
     return this.churches.adminCreate(dto);
   }
 
-  @Roles(Role.SUPER_ADMIN)
+  @SuperAdminOnly()
   @Patch('admin/churches/:id')
   adminUpdate(@Param('id') id: string, @Body() dto: AdminUpdateChurchDto) {
     return this.churches.adminUpdate(id, dto);

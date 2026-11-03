@@ -20,7 +20,7 @@ export function ChurchDirectory() {
   return (
     <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {data.map((c) => (
-        <Link key={c.slug} href={`/i/${c.slug}`} className="group flex items-center gap-4 rounded-xl border border-border bg-surface p-4 transition hover:border-accent/50">
+        <Link key={c.slug} href={`/i/${c.slug}`} className="glass group flex items-center gap-4 rounded-2xl p-4 transition hover:bg-surface-3">
           {c.logoKey ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={fileUrl(c.logoKey)} alt="" className="size-12 rounded-lg object-cover" />
@@ -28,7 +28,7 @@ export function ChurchDirectory() {
             <span className="font-display flex size-12 items-center justify-center rounded-lg bg-accent-soft text-lg font-semibold text-accent-ink">{c.name[0]}</span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{c.name}</p>
+            <p className="font-display truncate font-medium">{c.name}</p>
             {c.city && (
               <p className="mt-0.5 flex items-center gap-1 text-sm text-muted">
                 <MapPin className="size-3.5" /> {c.city}

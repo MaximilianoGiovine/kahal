@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
-import { AuthUser, HOST_ROLES } from '../common/auth-user';
-import { ChurchId, CurrentUser, Roles } from '../common/decorators';
+import { Permission } from '@prisma/client';
+import { AuthUser } from '../common/auth-user';
+import { ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
 import { AppointmentsQuery, BookDto, SetAvailabilityDto, SlotsQuery, UpdateStatusDto } from './appointments.dto';
 import { AppointmentsService } from './appointments.service';
 
@@ -13,7 +14,7 @@ export class AppointmentsController {
     return this.appointments.availability(churchId, user.id);
   }
 
-  @Roles(...HOST_ROLES)
+  @RequirePermissions(Permission.APPOINTMENTS_HOST)
   @Put('availability/me')
   setAvailability(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: SetAvailabilityDto) {
     return this.appointments.setAvailability(churchId, user.id, dto);

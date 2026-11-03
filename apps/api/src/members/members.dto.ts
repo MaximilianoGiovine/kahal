@@ -1,6 +1,10 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayUnique,
   IsArray,
+  IsBoolean,
+  IsHexColor,
+  IsIn,
   IsDateString,
   IsEmail,
   IsEnum,
@@ -10,15 +14,17 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import { Gender, MemberStatus } from '@prisma/client';
+import { Gender } from '@prisma/client';
 import { PageQuery } from '../common/pagination';
 
 const emptyToNull = ({ value }: { value: unknown }) => (value === '' ? null : value);
 
 export class MembersQuery extends PageQuery {
-  @IsOptional() @IsEnum(MemberStatus) status?: MemberStatus;
+  @IsOptional() @IsString() statusId?: string;
   @IsOptional() @IsString() ministryId?: string;
   @IsOptional() @IsString() familyId?: string;
+  /** app: se registró (tiene cuenta) · manual: cargado por la iglesia. */
+  @IsOptional() @IsIn(['app', 'manual']) source?: 'app' | 'manual';
 }
 
 export class MemberDto {
@@ -33,15 +39,16 @@ export class MemberDto {
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsDateString() birthDate?: string | null;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsEnum(Gender) gender?: Gender | null;
   @IsOptional() @Transform(emptyToNull) @IsString() @MaxLength(200) address?: string | null;
-  @IsOptional() @IsEnum(MemberStatus) status?: MemberStatus;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsDateString() joinedAt?: string | null;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsDateString() baptismDate?: string | null;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsBoolean() baptized?: boolean | null;
   @IsOptional() @Transform(emptyToNull) @IsString() familyId?: string | null;
   @IsOptional() @Transform(emptyToNull) @IsString() @MaxLength(40) familyRole?: string | null;
   @IsOptional() @Transform(emptyToNull) @IsString() @MaxLength(2000) notes?: string | null;
   @IsOptional() @Transform(emptyToNull) @IsString() photoKey?: string | null;
 
   @IsOptional() @IsArray() @IsString({ each: true }) ministryIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsString({ each: true }) statusIds?: string[];
 }
 
 export class FamilyDto {
@@ -52,4 +59,16 @@ export class MinistryDto {
   @IsString() @MinLength(2) @MaxLength(80) name: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
   @IsOptional() @Transform(emptyToNull) @IsString() leaderId?: string | null;
+}
+
+export class MemberStatusDto {
+  @IsString() @MinLength(2) @MaxLength(40) name: string;
+  @IsOptional() @Transform(emptyToNull) @IsString() @MaxLength(200) description?: string | null;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsHexColor() color?: string | null;
+  @IsOptional() @IsBoolean() isDefault?: boolean;
+  @IsOptional() @IsBoolean() inactive?: boolean;
+}
+
+export class ReorderDto {
+  @IsArray() @ArrayUnique() @IsString({ each: true }) ids: string[];
 }

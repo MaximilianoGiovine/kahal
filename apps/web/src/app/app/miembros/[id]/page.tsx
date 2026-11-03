@@ -7,9 +7,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/dialog';
 import { MemberForm } from '@/components/member-form';
+import { StatusBadges } from '@/components/member-statuses';
 import { Avatar, Badge, Button, Card, CardHeader, ErrorState, Loading, td, th } from '@/components/ui';
 import { api } from '@/lib/api';
-import { dayLabel, fullName, MEMBER_STATUS_LABEL, money, ROLE_LABEL } from '@/lib/format';
+import { dayLabel, fullName, money, roleNames } from '@/lib/format';
 import { useAction } from '@/lib/hooks';
 import { can } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
@@ -50,20 +51,22 @@ export default function MemberPage() {
         <div className="flex-1">
           <h1 className="font-display text-2xl font-semibold sm:text-3xl">{fullName(m)}</h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <Badge tone="accent">{MEMBER_STATUS_LABEL[m.status]}</Badge>
-            {m.user && <Badge>{ROLE_LABEL[m.user.role]}</Badge>}
+            <StatusBadges statuses={m.statuses} empty="Sin estado" />
+            {m.user && <Badge>{roleNames(m.user)}</Badge>}
             {m.family && <span className="text-sm text-muted">{m.family.name}</span>}
           </div>
         </div>
         <div className="flex gap-2">
-          {can.deleteMember(me.role) && !m.user && (
+          {can.deleteMember(me) && !m.user && (
             <Button variant="ghost" onClick={() => setDeleting(true)}>
               <Trash2 className="size-4" /> Eliminar
             </Button>
           )}
-          <Button variant="secondary" onClick={() => setEditing(true)}>
-            <Pencil className="size-4" /> Editar
-          </Button>
+          {can.editMembers(me) && (
+            <Button variant="secondary" onClick={() => setEditing(true)}>
+              <Pencil className="size-4" /> Editar
+            </Button>
+          )}
         </div>
       </div>
 
@@ -73,11 +76,15 @@ export default function MemberPage() {
           <dl className="grid gap-x-6 gap-y-5 p-5 sm:grid-cols-2">
             <Item icon={<Mail />} label="Email" value={m.email} />
             <Item icon={<Phone />} label="Teléfono" value={m.phone} />
-            <Item icon={<IdCard />} label="Documento" value={m.documentId} />
+            <Item icon={<IdCard />} label="Número de carnet" value={m.documentId} />
             <Item icon={<Cake />} label="Nacimiento" value={m.birthDate && `${dayLabel(m.birthDate, 'long')} (${age(m.birthDate)} años)`} />
             <Item icon={<MapPin />} label="Dirección" value={m.address} />
             <Item icon={<UserPlus />} label="Ingreso a la iglesia" value={m.joinedAt && dayLabel(m.joinedAt, 'long')} />
-            <Item icon={<Droplets />} label="Bautismo" value={m.baptismDate && dayLabel(m.baptismDate, 'long')} />
+            <Item
+              icon={<Droplets />}
+              label="Bautismo"
+              value={m.baptismDate ? dayLabel(m.baptismDate, 'long') : m.baptized === true ? 'Bautizado/a' : m.baptized === false ? 'No bautizado/a' : null}
+            />
           </dl>
           {m.notes && (
             <div className="border-t border-border p-5">

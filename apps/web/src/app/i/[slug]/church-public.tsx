@@ -4,12 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, Mail, MapPin, Phone, Radio } from 'lucide-react';
 import { useEffect } from 'react';
 import { Brand } from '@/components/brand';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ButtonLink, Card, ErrorState, Loading } from '@/components/ui';
 import { api, fileUrl } from '@/lib/api';
+import { STREAM_CHANNELS, type StreamChannels } from '@/lib/embed';
 import { dateTime, setTimezone } from '@/lib/format';
 import type { ChurchEvent } from '@/lib/types';
 
-interface PublicChurch {
+interface PublicChurch extends StreamChannels {
   name: string;
   slug: string;
   description: string | null;
@@ -44,9 +46,12 @@ export function ChurchPublic({ slug }: { slug: string }) {
     <div className="min-h-dvh">
       <header className="mx-auto flex max-w-4xl items-center justify-between px-4 py-5 sm:px-6">
         <Brand />
-        <ButtonLink href="/login" variant="secondary" size="sm">
-          Ingresar
-        </ButtonLink>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <ButtonLink href="/login" variant="secondary">
+            Ingresar
+          </ButtonLink>
+        </div>
       </header>
       <main className="mx-auto max-w-4xl px-4 pb-16 sm:px-6">
         <section className="py-10">
@@ -54,9 +59,9 @@ export function ChurchPublic({ slug }: { slug: string }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={fileUrl(data.logoKey)} alt="" className="mb-6 size-20 rounded-2xl object-cover" />
           ) : (
-            <span className="font-display mb-6 flex size-20 items-center justify-center rounded-2xl bg-accent text-3xl font-semibold text-accent-fg">{data.name[0]}</span>
+            <span className="font-display bg-accent-gradient mb-6 flex size-20 items-center justify-center rounded-2xl text-3xl font-semibold text-accent-fg">{data.name[0]}</span>
           )}
-          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-5xl">{data.name}</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-5xl">{data.name}</h1>
           {data.description && <p className="mt-4 max-w-2xl text-lg text-muted">{data.description}</p>}
           <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
             {data.address && (
@@ -74,9 +79,14 @@ export function ChurchPublic({ slug }: { slug: string }) {
                 <Mail className="size-4" /> {data.email}
               </span>
             )}
+            {STREAM_CHANNELS.filter((c) => data[c.key]).map((c) => (
+              <a key={c.key} href={data[c.key]!} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-fg">
+                <Radio className="size-4" /> {c.label}
+              </a>
+            ))}
           </div>
           <div className="mt-8 flex flex-wrap gap-3">
-            <ButtonLink href={`/registro?iglesia=${data.slug}`}>Quiero ser parte</ButtonLink>
+            <ButtonLink href={`/r/${data.slug}`}>Quiero ser parte</ButtonLink>
             <ButtonLink href="/login" variant="secondary">
               Ya soy miembro
             </ButtonLink>
@@ -84,13 +94,13 @@ export function ChurchPublic({ slug }: { slug: string }) {
         </section>
 
         {data.live && (
-          <Card className="mb-8 flex items-center gap-4 border-danger/30 bg-danger-soft p-5">
-            <Radio className="size-6 shrink-0 animate-pulse text-danger" />
+          <div className="hero-glow mb-8 flex items-center gap-4 rounded-3xl p-6">
+            <Radio className="size-6 shrink-0 animate-pulse" />
             <div className="flex-1">
-              <p className="font-medium">Estamos en vivo: {data.live.title}</p>
-              <p className="text-sm text-muted">Ingresá con tu cuenta para ver la transmisión.</p>
+              <p className="font-display text-lg font-semibold">Estamos en vivo: {data.live.title}</p>
+              <p className="text-sm text-white/80">Ingresá con tu cuenta para ver la transmisión.</p>
             </div>
-          </Card>
+          </div>
         )}
 
         <h2 className="font-display text-xl font-semibold">Próximas actividades</h2>

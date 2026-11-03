@@ -4,15 +4,30 @@ Software de gestión para iglesias. Multi-iglesia (multi-tenant): una sola insta
 
 **Funcionalidades**
 
-- **Finanzas**: cuentas (ARS/USD), categorías de ingreso/egreso, diezmos asociados a miembros, comprobantes adjuntos, resumen con gráficos y **exportación a Excel** (resumen, movimientos, por categoría, por mes y diezmos por miembro).
+- **Finanzas**: registro de ingresos y egresos, cuentas (ARS/USD), categorías de ingreso/egreso, diezmos asociados a miembros, comprobantes adjuntos, resumen con gráficos y **exportación a Excel** (resumen, movimientos, por categoría, por mes y diezmos por miembro).
 - **Membresía**: padrón con estados (visitante → asistente → miembro → bautizado), familias, ministerios y export a Excel.
-- **Registro de miembros** con aprobación de la iglesia y consentimiento de datos personales.
+- **Registro de miembros** libre (sin aprobación) en dos pasos —cuenta (email y contraseña) y luego datos personales (nombre completo, carnet, nacimiento, si está bautizado/a, teléfono y domicilio)— con consentimiento de datos personales, que deja la sesión iniciada. La ficha del padrón se crea con esos datos y queda sincronizada con la cuenta: lo que la persona edita en *Mi perfil* y lo que la iglesia edita en la ficha es lo mismo; el padrón permite filtrar por origen (registrados en la app / cargados por la iglesia). Cada iglesia tiene un **código QR fijo** (`/r/<slug>`) que lleva al registro con la iglesia ya elegida; se descarga (PNG/SVG) o se imprime como cartel A4 desde *Configuración → Iglesia* o desde el panel de Iglesias del super admin.
+- **Sesión persistente**: la sesión se renueva sola mientras se usa la app y solo vence tras 180 días sin abrirla (o al cambiar la contraseña / deshabilitar la cuenta).
 - **Novedades y agenda** de actividades.
-- **En vivo**: transmisiones de YouTube/Facebook embebidas en la app.
-- **Citas** con pastores/líderes: disponibilidad semanal, reserva de turnos, confirmación y recordatorios por email.
+- **Artículos de interés**: la iglesia redacta artículos en un editor o los genera desde un `.docx` o PDF; se exportan a PDF con marca de agua con el nombre de la iglesia.
+- **Registro** (con permiso de registro de actividad): quién creó, modificó o eliminó novedades, artículos, eventos y transmisiones, y las citas de cada persona.
+- **En vivo**: transmisiones de YouTube, Facebook y Twitch embebidas en la app. Cada iglesia configura sus canales (*Configuración → Iglesia*), que se muestran en la página pública y se pueden elegir al crear una transmisión. Twitch solo se embebe sobre HTTPS.
+- **Citas** con el pastor, el equipo pastoral y los líderes: disponibilidad semanal, reserva de turnos, confirmación y recordatorios por email.
 - **PWA**: se instala en el celular como una app.
 
-Roles: Super admin (plataforma), Administrador, Pastor/Líder, Tesorería, Secretaría y Miembro.
+**Roles y permisos configurables**: cada iglesia arma sus propios roles desde *Configuración → Roles y permisos* y elige qué puede hacer cada uno (ver/editar miembros, finanzas, contenido, artículos, recibir citas, gestionar usuarios y roles, datos de la iglesia, registro de actividad). Un usuario puede tener varios roles y sus permisos son la suma de todos; sin roles accede a novedades, eventos, artículos, en vivo y citas. Nadie puede otorgar permisos que no tiene, y siempre debe quedar al menos un usuario activo con el rol de administración. El Super admin es un rol de plataforma aparte.
+
+**Estados de miembros configurables**: cada iglesia define sus estados (nombre, color y descripción) desde *Miembros → Estados*, y cada persona puede tener varios a la vez (por ejemplo, Miembro y Bautizado). Un estado puede marcarse para asignarse automáticamente a quienes crean su cuenta, o para que quienes lo tengan no cuenten como miembros activos. Gestionarlos requiere el permiso *Gestionar estados*. Cada iglesia nueva arranca con Visitante, Asistente (se asigna al crear cuenta), Miembro, Bautizado e Inactivo.
+
+Cada iglesia nueva arranca con estos roles, que se pueden editar o eliminar:
+
+| Rol | Permisos iniciales |
+|---|---|
+| Pastor | Acceso total (rol de administración, no se puede eliminar) |
+| Equipo pastoral | Miembros, usuarios (ver), contenido, artículos; recibe citas |
+| Líder | Miembros, contenido y artículos; recibe citas |
+| Tesorería | Finanzas |
+| Secretaría | Miembros, usuarios (ver), contenido y artículos |
 
 ## Stack
 
@@ -68,7 +83,7 @@ sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw allow 443/udp
 | `SUPERADMIN_EMAIL` | sí | Email del super administrador de la plataforma |
 | `SUPERADMIN_PASSWORD` | sí | Su contraseña inicial |
 | `SEED_DEMO` | no | `true` carga 3 iglesias de demostración (solo si la base está vacía) |
-| `DEMO_STREAM_URL` | no | Link de YouTube/Facebook para las transmisiones de demo |
+| `DEMO_STREAM_URL` | no | Link de YouTube/Facebook/Twitch para las transmisiones de demo |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE` | no | Envío de emails. Sin SMTP los emails se registran en el log de la API |
 | `STORAGE_DRIVER` + `S3_*` | no | `s3` para guardar archivos en AWS S3 / Cloudflare R2 / Backblaze. Por defecto, volumen local |
 | `HTTP_PORT` / `HTTPS_PORT` | no | Por defecto 80 / 443 |
@@ -85,8 +100,8 @@ Con `SEED_DEMO=true` se crean 3 iglesias (`monte-sion`, `nueva-vida`, `emanuel`)
 
 | Rol | Email |
 |---|---|
-| Administrador | `admin@monte-sion.demo` |
 | Pastor | `pastor@monte-sion.demo` |
+| Equipo pastoral | `equipo@monte-sion.demo` |
 | Líder | `lider@monte-sion.demo` |
 | Tesorería | `tesoreria@monte-sion.demo` |
 | Secretaría | `secretaria@monte-sion.demo` |

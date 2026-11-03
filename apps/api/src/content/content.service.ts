@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Role, StreamPlatform } from '@prisma/client';
-import { AuthUser, CONTENT_ROLES } from '../common/auth-user';
+import { ActivityAction, ActivityEntity, Permission, StreamPlatform } from '@prisma/client';
+import { ActivityService, changedFields } from '../activity/activity.service';
+import { AuthUser, can } from '../common/auth-user';
 import { PageQuery, paginate } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnnouncementDto, EventDto, EventsQuery, StreamDto } from './content.dto';
@@ -10,15 +11,19 @@ const AUTHOR = { select: { id: true, firstName: true, lastName: true } };
 export function detectPlatform(url: string): StreamPlatform {
   const host = new URL(url).hostname.replace(/^www\.|^m\./, '');
   if (['youtube.com', 'youtu.be', 'youtube-nocookie.com'].includes(host)) return StreamPlatform.YOUTUBE;
-  if (['facebook.com', 'fb.watch', 'fb.com'].includes(host)) return StreamPlatform.FACEBOOK;
+  if (['facebook.com', 'web.facebook.com', 'fb.watch', 'fb.com'].includes(host)) return StreamPlatform.FACEBOOK;
+  if (['twitch.tv', 'player.twitch.tv', 'clips.twitch.tv'].includes(host)) return StreamPlatform.TWITCH;
   return StreamPlatform.OTHER;
 }
 
-const isEditor = (u: AuthUser) => u.role === Role.SUPER_ADMIN || CONTENT_ROLES.includes(u.role);
+const isEditor = (u: AuthUser) => can(u, Permission.CONTENT_MANAGE);
 
 @Injectable()
 export class ContentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityService,
+  ) {}
 
   // Novedades
 
@@ -36,21 +41,27 @@ export class ContentService {
     return { items, total, page: q.page, pageSize: q.pageSize };
   }
 
-  createAnnouncement(churchId: string, userId: string, dto: AnnouncementDto) {
-    return this.prisma.announcement.create({ data: { ...dto, churchId, authorId: userId }, include: { author: AUTHOR } });
+  async createAnnouncement(churchId: string, userId: string, dto: AnnouncementDto) {
+    const item = await this.prisma.announcement.create({ data: { ...dto, churchId, authorId: userId }, include: { author: AUTHOR } });
+    await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.ANNOUNCEMENT, item);
+    return item;
   }
 
-  async updateAnnouncement(churchId: string, id: string, dto: AnnouncementDto) {
+  async updateAnnouncement(churchId: string, userId: string, id: string, dto: AnnouncementDto) {
     const current = await this.prisma.announcement.findFirst({ where: { id, churchId } });
     if (!current) throw new NotFoundException('Novedad no encontrada');
     // Al publicar un borrador, la fecha de publicación pasa a ser ahora.
     const publishedAt = dto.published && !current.published ? new Date() : undefined;
-    return this.prisma.announcement.update({ where: { id }, data: { ...dto, publishedAt }, include: { author: AUTHOR } });
+    const item = await this.prisma.announcement.update({ where: { id }, data: { ...dto, publishedAt }, include: { author: AUTHOR } });
+    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.ANNOUNCEMENT, item, changedFields(current, dto));
+    return item;
   }
 
-  async removeAnnouncement(churchId: string, id: string) {
-    const { count } = await this.prisma.announcement.deleteMany({ where: { id, churchId } });
-    if (!count) throw new NotFoundException('Novedad no encontrada');
+  async removeAnnouncement(churchId: string, userId: string, id: string) {
+    const current = await this.prisma.announcement.findFirst({ where: { id, churchId } });
+    if (!current) throw new NotFoundException('Novedad no encontrada');
+    await this.prisma.announcement.delete({ where: { id } });
+    await this.track(churchId, userId, ActivityAction.DELETE, ActivityEntity.ANNOUNCEMENT, current);
     return { ok: true };
   }
 
@@ -65,20 +76,27 @@ export class ContentService {
     });
   }
 
-  createEvent(churchId: string, userId: string, dto: EventDto) {
+  async createEvent(churchId: string, userId: string, dto: EventDto) {
     this.checkRange(dto);
-    return this.prisma.event.create({ data: { ...dto, churchId, createdById: userId } });
+    const item = await this.prisma.event.create({ data: { ...dto, churchId, createdById: userId } });
+    await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.EVENT, item);
+    return item;
   }
 
-  async updateEvent(churchId: string, id: string, dto: EventDto) {
+  async updateEvent(churchId: string, userId: string, id: string, dto: EventDto) {
     this.checkRange(dto);
-    if (!(await this.prisma.event.findFirst({ where: { id, churchId } }))) throw new NotFoundException('Evento no encontrado');
-    return this.prisma.event.update({ where: { id }, data: dto });
+    const current = await this.prisma.event.findFirst({ where: { id, churchId } });
+    if (!current) throw new NotFoundException('Evento no encontrado');
+    const item = await this.prisma.event.update({ where: { id }, data: dto });
+    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.EVENT, item, changedFields(current, dto));
+    return item;
   }
 
-  async removeEvent(churchId: string, id: string) {
-    const { count } = await this.prisma.event.deleteMany({ where: { id, churchId } });
-    if (!count) throw new NotFoundException('Evento no encontrado');
+  async removeEvent(churchId: string, userId: string, id: string) {
+    const current = await this.prisma.event.findFirst({ where: { id, churchId } });
+    if (!current) throw new NotFoundException('Evento no encontrado');
+    await this.prisma.event.delete({ where: { id } });
+    await this.track(churchId, userId, ActivityAction.DELETE, ActivityEntity.EVENT, current);
     return { ok: true };
   }
 
@@ -101,38 +119,51 @@ export class ContentService {
     return { live, upcoming, past };
   }
 
-  async createStream(churchId: string, dto: StreamDto) {
-    return this.prisma.$transaction(async (tx) => {
+  async createStream(churchId: string, userId: string, dto: StreamDto) {
+    const item = await this.prisma.$transaction(async (tx) => {
       if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true }, data: { isLive: false } });
       return tx.liveStream.create({ data: { ...dto, platform: detectPlatform(dto.url), churchId } });
     });
+    await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.STREAM, item);
+    return item;
   }
 
-  async updateStream(churchId: string, id: string, dto: StreamDto) {
-    await this.ensureStream(churchId, id);
-    return this.prisma.$transaction(async (tx) => {
+  async updateStream(churchId: string, userId: string, id: string, dto: StreamDto) {
+    const current = await this.ensureStream(churchId, id);
+    const item = await this.prisma.$transaction(async (tx) => {
       if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id } }, data: { isLive: false } });
       return tx.liveStream.update({ where: { id }, data: { ...dto, platform: detectPlatform(dto.url) } });
     });
+    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, dto));
+    return item;
   }
 
   /** Solo puede haber una transmisión en vivo por iglesia. */
-  async setLive(churchId: string, id: string, isLive: boolean) {
-    await this.ensureStream(churchId, id);
-    return this.prisma.$transaction(async (tx) => {
+  async setLive(churchId: string, userId: string, id: string, isLive: boolean) {
+    const current = await this.ensureStream(churchId, id);
+    const item = await this.prisma.$transaction(async (tx) => {
       if (isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true }, data: { isLive: false } });
       return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date() }) } });
     });
+    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { isLive }));
+    return item;
   }
 
-  async removeStream(churchId: string, id: string) {
-    const { count } = await this.prisma.liveStream.deleteMany({ where: { id, churchId } });
-    if (!count) throw new NotFoundException('Transmisión no encontrada');
+  async removeStream(churchId: string, userId: string, id: string) {
+    const current = await this.ensureStream(churchId, id);
+    await this.prisma.liveStream.delete({ where: { id } });
+    await this.track(churchId, userId, ActivityAction.DELETE, ActivityEntity.STREAM, current);
     return { ok: true };
   }
 
   private async ensureStream(churchId: string, id: string) {
-    if (!(await this.prisma.liveStream.findFirst({ where: { id, churchId } }))) throw new NotFoundException('Transmisión no encontrada');
+    const stream = await this.prisma.liveStream.findFirst({ where: { id, churchId } });
+    if (!stream) throw new NotFoundException('Transmisión no encontrada');
+    return stream;
+  }
+
+  private track(churchId: string, userId: string, action: ActivityAction, entity: ActivityEntity, item: { id: string; title: string }, detail?: string | null) {
+    return this.activity.log({ churchId, userId, action, entity, entityId: item.id, title: item.title, detail });
   }
 
   private checkRange(dto: EventDto) {

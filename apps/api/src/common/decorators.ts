@@ -4,15 +4,18 @@ import {
   ExecutionContext,
   SetMetadata,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Permission } from '@prisma/client';
 import { AuthUser } from './auth-user';
 
 export const IS_PUBLIC = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC, true);
 
-export const ROLES = 'roles';
-/** SUPER_ADMIN siempre pasa; el resto debe estar en la lista. */
-export const Roles = (...roles: Role[]) => SetMetadata(ROLES, roles);
+export const PERMISSIONS = 'permissions';
+/** El super admin siempre pasa; el resto necesita al menos uno de los permisos. */
+export const RequirePermissions = (...perms: Permission[]) => SetMetadata(PERMISSIONS, perms);
+
+export const SUPER_ADMIN_ONLY = 'superAdminOnly';
+export const SuperAdminOnly = () => SetMetadata(SUPER_ADMIN_ONLY, true);
 
 export const CurrentUser = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): AuthUser => ctx.switchToHttp().getRequest().user,

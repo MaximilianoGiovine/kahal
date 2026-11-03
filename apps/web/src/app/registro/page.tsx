@@ -10,7 +10,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Crear mi cuenta"
-      subtitle="Tu iglesia revisará la solicitud y te avisaremos por email cuando esté aprobada."
+      subtitle="Sumate a tu iglesia en Kahal. Vas a poder ingresar apenas completes el registro."
       footer={
         <>
           ¿Ya tenés cuenta?{' '}

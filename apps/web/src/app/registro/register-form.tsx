@@ -1,45 +1,81 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Button, ButtonLink, Checkbox, Field, Input, Select } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, fileUrl } from '@/lib/api';
 
 export function RegisterForm() {
   const params = useSearchParams();
+  const qc = useQueryClient();
   const preset = params.get('iglesia') ?? '';
-  const { data: churches = [] } = useQuery({
+  const { data: churches = [], isLoading: loadingChurches } = useQuery({
     queryKey: ['public-churches'],
-    queryFn: () => api<{ name: string; slug: string; city: string | null }[]>('/public/churches'),
+    queryFn: () => api<{ name: string; slug: string; city: string | null; logoKey: string | null }[]>('/public/churches'),
   });
+  // Llegando desde el QR (o el link) de una iglesia, queda fija y no se elige de la lista.
+  const [changing, setChanging] = useState(false);
+  const fixed = changing ? undefined : churches.find((c) => c.slug === preset);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [account, setAccount] = useState<{ church: string; email: string; password: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  /** Paso 1: cuenta (iglesia, email y contraseña). Se valida el email antes de pedir el resto. */
+  async function onAccount(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     if (fd.get('password') !== fd.get('password2')) {
       setError('Las contraseñas no coinciden');
       return;
     }
+    const email = String(fd.get('email')).trim();
+    setLoading(true);
+    setError(null);
+    try {
+      const { available } = await api<{ available: boolean }>('/auth/email-available', { query: { email } });
+      if (!available) {
+        setError('Ya existe una cuenta con ese email. Si es tuya, ingresá con tu contraseña.');
+        return;
+      }
+      setAccount({ church: String(fd.get('church')), email, password: String(fd.get('password')) });
+      setStep(2);
+      window.scrollTo({ top: 0 });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo verificar el email');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** Paso 2: datos personales; crea la cuenta y deja la sesión iniciada. */
+  async function onProfile(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!account) return;
+    const fd = new FormData(e.currentTarget);
     setLoading(true);
     setError(null);
     try {
       await api('/auth/register', {
         method: 'POST',
         body: {
-          churchSlug: fd.get('church'),
+          churchSlug: account.church,
+          email: account.email,
+          password: account.password,
           firstName: fd.get('firstName'),
           lastName: fd.get('lastName'),
-          email: fd.get('email'),
-          phone: fd.get('phone') || undefined,
-          password: fd.get('password'),
+          documentId: fd.get('documentId'),
+          birthDate: fd.get('birthDate'),
+          baptized: fd.get('baptized') === 'yes',
+          phone: fd.get('phone'),
+          address: fd.get('address'),
           consent: fd.get('consent') === 'on',
         },
       });
+      qc.clear();
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo completar el registro');
@@ -48,70 +84,134 @@ export function RegisterForm() {
     }
   }
 
+  const back = () => (setError(null), setStep(1));
+  const errorBox = error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>;
+  const today = new Date().toISOString().slice(0, 10);
+
   if (done) {
     return (
       <div className="flex flex-col items-center py-4 text-center">
         <CheckCircle2 className="size-12 text-success" />
-        <p className="mt-4 font-medium">¡Solicitud enviada!</p>
-        <p className="mt-1 text-sm text-muted">Cuando la iglesia apruebe tu cuenta vas a recibir un email y podrás ingresar.</p>
-        <ButtonLink href="/" variant="secondary" className="mt-6">
-          Volver al inicio
+        <p className="mt-4 font-medium">¡Tu cuenta está lista!</p>
+        <p className="mt-1 text-sm text-muted">Ya iniciaste sesión: vas a seguir conectado/a en este dispositivo.</p>
+        <ButtonLink href="/app" className="mt-6">
+          Entrar a la app
         </ButtonLink>
       </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <Field label="Iglesia">
-        <Select name="church" required defaultValue={preset} key={churches.length}>
-          <option value="" disabled>
-            Elegí tu iglesia
-          </option>
-          {churches.map((c) => (
-            <option key={c.slug} value={c.slug}>
-              {c.name}
-              {c.city ? ` · ${c.city}` : ''}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Nombre">
-          <Input name="firstName" required minLength={2} autoComplete="given-name" />
+    <>
+      <p className="mb-4 text-xs font-medium tracking-wide text-muted uppercase">
+        Paso {step} de 2 · {step === 1 ? 'Tu cuenta' : 'Tus datos'}
+      </p>
+
+      {/* Ambos pasos quedan montados: al volver atrás no se pierde lo escrito. */}
+      <form onSubmit={onAccount} className={step === 1 ? 'flex flex-col gap-4' : 'hidden'}>
+        {fixed ? (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3">
+            <input type="hidden" name="church" value={fixed.slug} />
+            {fixed.logoKey ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fileUrl(fixed.logoKey)} alt="" className="size-10 rounded-lg object-cover" />
+            ) : (
+              <span className="font-display flex size-10 items-center justify-center rounded-lg bg-accent font-semibold text-accent-fg">{fixed.name[0]}</span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted">Te vas a registrar en</p>
+              <p className="truncate font-medium">{fixed.name}</p>
+            </div>
+            <button type="button" onClick={() => setChanging(true)} className="text-xs text-muted hover:text-fg hover:underline">
+              Cambiar
+            </button>
+          </div>
+        ) : preset && loadingChurches ? null : (
+          <Field label="Iglesia">
+            <Select name="church" required defaultValue={preset} key={churches.length}>
+              <option value="" disabled>
+                Elegí tu iglesia
+              </option>
+              {churches.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
+                  {c.city ? ` · ${c.city}` : ''}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+        <Field label="Correo electrónico">
+          <Input name="email" type="email" required autoComplete="email" />
         </Field>
-        <Field label="Apellido">
-          <Input name="lastName" required minLength={2} autoComplete="family-name" />
-        </Field>
-      </div>
-      <Field label="Email">
-        <Input name="email" type="email" required autoComplete="email" />
-      </Field>
-      <Field label="Teléfono (opcional)">
-        <Input name="phone" type="tel" autoComplete="tel" />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Contraseña">
+        <Field label="Contraseña" hint="Mínimo 8 caracteres.">
           <Input name="password" type="password" required minLength={8} autoComplete="new-password" />
         </Field>
         <Field label="Repetir contraseña">
           <Input name="password2" type="password" required minLength={8} autoComplete="new-password" />
         </Field>
-      </div>
-      <Checkbox
-        name="consent"
-        required
-        label={
-          <span className="text-muted">
-            Acepto que la iglesia almacene y trate mis datos personales para la gestión de la membresía y la comunicación de actividades, conforme a la Ley 25.326 de
-            Protección de Datos Personales.
-          </span>
-        }
-      />
-      {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
-      <Button type="submit" loading={loading} className="mt-2">
-        Enviar solicitud
-      </Button>
-    </form>
+        {step === 1 && errorBox}
+        <Button type="submit" loading={loading} className="mt-2">
+          Continuar
+        </Button>
+      </form>
+
+      <form onSubmit={onProfile} className={step === 2 ? 'flex flex-col gap-4' : 'hidden'}>
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1.5 text-sm font-medium">Nombre completo</legend>
+          <div className="grid grid-cols-2 gap-3">
+            <Input name="firstName" required minLength={2} maxLength={60} placeholder="Nombre(s)" aria-label="Nombre(s)" autoComplete="given-name" />
+            <Input name="lastName" required minLength={2} maxLength={60} placeholder="Apellido(s)" aria-label="Apellido(s)" autoComplete="family-name" />
+          </div>
+        </fieldset>
+        <Field label="Número de carnet">
+          <Input name="documentId" required minLength={4} maxLength={30} inputMode="numeric" autoComplete="off" />
+        </Field>
+        <Field label="Fecha de nacimiento">
+          <Input name="birthDate" type="date" required max={today} autoComplete="bday" />
+        </Field>
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium">¿Estás bautizado/a?</legend>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { value: 'yes', label: 'Sí' },
+              { value: 'no', label: 'No' },
+            ].map((o) => (
+              <label key={o.value} className="cursor-pointer">
+                <input type="radio" name="baptized" value={o.value} required className="peer sr-only" />
+                <span className="flex h-10 items-center justify-center rounded-lg border border-border text-sm transition peer-checked:border-accent peer-checked:bg-accent-soft peer-checked:font-medium peer-checked:text-accent-ink peer-focus-visible:ring-2 peer-focus-visible:ring-accent/40">
+                  {o.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <Field label="Número de teléfono">
+          <Input name="phone" type="tel" required minLength={6} maxLength={40} autoComplete="tel" />
+        </Field>
+        <Field label="Dirección del domicilio">
+          <Input name="address" required minLength={4} maxLength={200} autoComplete="street-address" />
+        </Field>
+        <Checkbox
+          name="consent"
+          required
+          label={
+            <span className="text-muted">
+              Acepto que la iglesia almacene y trate mis datos personales para la gestión de la membresía y la comunicación de actividades, conforme a la Ley 25.326 de
+              Protección de Datos Personales.
+            </span>
+          }
+        />
+        {step === 2 && errorBox}
+        <div className="mt-2 grid grid-cols-[auto_1fr] gap-3">
+          <Button type="button" variant="secondary" onClick={back}>
+            <ArrowLeft className="size-4" /> Volver
+          </Button>
+          <Button type="submit" loading={loading}>
+            Crear cuenta
+          </Button>
+        </div>
+      </form>
+    </>
   );
 }

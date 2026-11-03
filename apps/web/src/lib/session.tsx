@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, getActiveChurch, setActiveChurch } from './api';
+import { api, getActiveChurch, keepSessionAlive, setActiveChurch } from './api';
 import { setTimezone } from './format';
 import type { Church, ChurchBrief, Me } from './types';
 
@@ -29,7 +29,7 @@ export function useMe() {
 
 export function SessionProvider({ me, children }: { me: Me; children: ReactNode }) {
   const qc = useQueryClient();
-  const isSuperAdmin = me.role === 'SUPER_ADMIN';
+  const isSuperAdmin = me.isSuperAdmin;
   const [selected, setSelected] = useState<string | null>(() => (isSuperAdmin ? getActiveChurch() : null));
 
   const { data: churches = [] } = useQuery({
@@ -42,6 +42,8 @@ export function SessionProvider({ me, children }: { me: Me; children: ReactNode 
     if (!isSuperAdmin) return me.church;
     return churches.find((c) => c.id === selected) ?? null;
   }, [isSuperAdmin, me.church, churches, selected]);
+
+  useEffect(keepSessionAlive, []);
 
   useEffect(() => {
     if (church?.timezone) setTimezone(church.timezone);

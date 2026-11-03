@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Permission } from '@prisma/client';
 import { AuthUser } from '../common/auth-user';
-import { ChurchId, CurrentUser, Roles } from '../common/decorators';
+import { ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
 import { CreateUserDto, UpdateProfileDto, UpdateUserDto, UsersQuery } from './users.dto';
 import { UsersService } from './users.service';
 
@@ -9,16 +9,10 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
-  @Roles(Role.ADMIN, Role.SECRETARY)
+  @RequirePermissions(Permission.USERS_VIEW)
   @Get()
   list(@ChurchId() churchId: string, @Query() query: UsersQuery) {
     return this.users.list(churchId, query);
-  }
-
-  @Roles(Role.ADMIN, Role.SECRETARY, Role.PASTOR)
-  @Get('pending-count')
-  async pendingCount(@ChurchId() churchId: string) {
-    return { count: await this.users.pendingCount(churchId) };
   }
 
   @Get('hosts')
@@ -31,27 +25,15 @@ export class UsersController {
     return this.users.updateProfile(user.id, dto);
   }
 
-  @Roles(Role.ADMIN)
+  @RequirePermissions(Permission.USERS_MANAGE)
   @Post()
-  create(@ChurchId() churchId: string, @Body() dto: CreateUserDto) {
-    return this.users.create(churchId, dto);
+  create(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: CreateUserDto) {
+    return this.users.create(churchId, user, dto);
   }
 
-  @Roles(Role.ADMIN, Role.SECRETARY)
-  @Post(':id/approve')
-  approve(@ChurchId() churchId: string, @Param('id') id: string) {
-    return this.users.approve(churchId, id);
-  }
-
-  @Roles(Role.ADMIN, Role.SECRETARY)
-  @Post(':id/reject')
-  reject(@ChurchId() churchId: string, @Param('id') id: string) {
-    return this.users.reject(churchId, id);
-  }
-
-  @Roles(Role.ADMIN)
+  @RequirePermissions(Permission.USERS_MANAGE)
   @Patch(':id')
   update(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.users.update(churchId, user.id, id, dto);
+    return this.users.update(churchId, user, id, dto);
   }
 }

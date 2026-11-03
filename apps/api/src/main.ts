@@ -11,6 +11,8 @@ async function bootstrap() {
   app.set('trust proxy', 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-origin' } }));
   app.use(cookieParser());
+  // Los artículos pueden ser largos: se amplía el límite por defecto (100 KB) del body JSON.
+  app.useBodyParser('json', { limit: '1mb' });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidUnknownValues: false }));
   app.enableShutdownHooks();

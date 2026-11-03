@@ -9,10 +9,10 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md';
 
 const buttonBase =
-  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap';
+  'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap';
 const buttonVariant: Record<Variant, string> = {
-  primary: 'bg-accent text-accent-fg hover:brightness-110 shadow-sm',
-  secondary: 'bg-surface text-fg border border-border hover:bg-surface-2',
+  primary: 'bg-accent-gradient text-accent-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.3),0_8px_24px_-8px_var(--accent)] hover:brightness-110',
+  secondary: 'border border-border bg-surface-2 text-fg shadow-[inset_0_1px_0_var(--glass-highlight)] backdrop-blur-md hover:bg-surface-3',
   ghost: 'text-muted hover:text-fg hover:bg-surface-2',
   danger: 'bg-danger text-white hover:brightness-110',
 };
@@ -37,7 +37,7 @@ export function ButtonLink({ variant = 'primary', size = 'md', className, ...pro
 }
 
 const fieldBase =
-  'w-full rounded-lg border border-border bg-surface px-3 text-sm text-fg placeholder:text-subtle outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60';
+  'w-full rounded-xl border border-border bg-surface-2 px-3.5 text-sm text-fg placeholder:text-subtle outline-none transition hover:bg-surface-3 focus:border-accent/70 focus:bg-surface-2 focus:shadow-glow focus:ring-2 focus:ring-accent/20 disabled:opacity-60 [&>option]:bg-surface-solid';
 
 export const Input = forwardRef<HTMLInputElement, ComponentProps<'input'>>(({ className, ...props }, ref) => (
   <input ref={ref} className={clsx(fieldBase, 'h-10', className)} {...props} />
@@ -74,14 +74,14 @@ export function Checkbox({ label, className, ...props }: ComponentProps<'input'>
 }
 
 export function Card({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={clsx('rounded-xl border border-border bg-surface', className)} {...props} />;
+  return <div className={clsx('glass rounded-2xl', className)} {...props} />;
 }
 
 export function CardHeader({ title, description, action }: { title: ReactNode; description?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
       <div className="min-w-0">
-        <h2 className="font-semibold text-fg">{title}</h2>
+        <h2 className="font-display font-semibold text-fg">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
       </div>
       {action}
@@ -117,7 +117,7 @@ export function Loading({ label = 'Cargando…' }: { label?: string }) {
 export function EmptyState({ icon, title, description, action }: { icon?: ReactNode; title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center px-6 py-14 text-center">
-      {icon && <div className="mb-3 rounded-full bg-surface-2 p-3 text-muted">{icon}</div>}
+      {icon && <div className="mb-3 rounded-2xl border border-border bg-surface-2 p-3 text-muted shadow-[inset_0_1px_0_var(--glass-highlight)]">{icon}</div>}
       <p className="font-medium text-fg">{title}</p>
       {description && <p className="mt-1 max-w-sm text-sm text-muted">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
@@ -142,7 +142,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-fg sm:text-3xl">{title}</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-fg sm:text-[2rem]">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -158,7 +158,7 @@ export function Avatar({ name, src, size = 36 }: { name: { firstName: string; la
   ) : (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent-ink"
+      className="font-display inline-flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent-ink"
       style={{ width: size, height: size, fontSize: size * 0.38 }}
     >
       {text}
@@ -168,12 +168,12 @@ export function Avatar({ name, src, size = 36 }: { name: { firstName: string; la
 
 export function Stat({ label, value, hint, icon }: { label: string; value: ReactNode; hint?: ReactNode; icon?: ReactNode }) {
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between text-sm text-muted">
-        <span>{label}</span>
-        {icon}
-      </div>
-      <div className="tabular mt-2 text-2xl font-semibold tracking-tight text-fg">{value}</div>
+    <Card className="h-full p-5">
+      {icon && (
+        <div className="mb-4 flex size-9 items-center justify-center rounded-xl border border-border bg-surface-2 text-accent-ink shadow-[inset_0_1px_0_var(--glass-highlight)] [&>svg]:size-4">{icon}</div>
+      )}
+      <div className="text-xs text-muted">{label}</div>
+      <div className="font-display tabular mt-1 text-2xl font-semibold tracking-tight text-fg">{value}</div>
       {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
     </Card>
   );
@@ -181,7 +181,7 @@ export function Stat({ label, value, hint, icon }: { label: string; value: React
 
 export function Tabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[] }) {
   return (
-    <div role="tablist" className="inline-flex rounded-lg border border-border bg-surface p-1">
+    <div role="tablist" className="glass inline-flex max-w-full overflow-x-auto rounded-2xl p-1">
       {items.map((it) => (
         <button
           key={it.value}
@@ -189,8 +189,8 @@ export function Tabs<T extends string>({ value, onChange, items }: { value: T; o
           aria-selected={value === it.value}
           onClick={() => onChange(it.value)}
           className={clsx(
-            'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-            value === it.value ? 'bg-surface-2 text-fg shadow-sm' : 'text-muted hover:text-fg',
+            'rounded-lg px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
+            value === it.value ? 'bg-surface-3 text-fg shadow-[inset_0_1px_0_var(--glass-highlight)]' : 'text-muted hover:text-fg',
           )}
         >
           {it.label}
