@@ -4,6 +4,7 @@ import { ActivityService, changedFields } from '../activity/activity.service';
 import { AuthUser, can } from '../common/auth-user';
 import { PageQuery, paginate } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushService } from '../push/push.service';
 import { AnnouncementDto, EventDto, EventsQuery, StreamDto } from './content.dto';
 
 const AUTHOR = { select: { id: true, firstName: true, lastName: true } };
@@ -23,6 +24,7 @@ export class ContentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly push: PushService,
   ) {}
 
   // Novedades
@@ -44,6 +46,7 @@ export class ContentService {
   async createAnnouncement(churchId: string, userId: string, dto: AnnouncementDto) {
     const item = await this.prisma.announcement.create({ data: { ...dto, churchId, authorId: userId }, include: { author: AUTHOR } });
     await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.ANNOUNCEMENT, item);
+    if (item.published) await this.notifyAnnouncement(churchId, userId, item);
     return item;
   }
 
@@ -54,6 +57,7 @@ export class ContentService {
     const publishedAt = dto.published && !current.published ? new Date() : undefined;
     const item = await this.prisma.announcement.update({ where: { id }, data: { ...dto, publishedAt }, include: { author: AUTHOR } });
     await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.ANNOUNCEMENT, item, changedFields(current, dto));
+    if (item.published && !current.published) await this.notifyAnnouncement(churchId, userId, item);
     return item;
   }
 
@@ -80,6 +84,7 @@ export class ContentService {
     this.checkRange(dto);
     const item = await this.prisma.event.create({ data: { ...dto, churchId, createdById: userId } });
     await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.EVENT, item);
+    if (item.startsAt > new Date()) await this.notifyChurch(churchId, userId, `Nuevo evento: ${item.title}`, '/app/eventos');
     return item;
   }
 
@@ -125,6 +130,7 @@ export class ContentService {
       return tx.liveStream.create({ data: { ...dto, platform: detectPlatform(dto.url), churchId } });
     });
     await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.STREAM, item);
+    if (item.isLive) await this.notifyLive(churchId, userId, item);
     return item;
   }
 
@@ -135,6 +141,7 @@ export class ContentService {
       return tx.liveStream.update({ where: { id }, data: { ...dto, platform: detectPlatform(dto.url) } });
     });
     await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, dto));
+    if (item.isLive && !current.isLive) await this.notifyLive(churchId, userId, item);
     return item;
   }
 
@@ -146,6 +153,7 @@ export class ContentService {
       return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date() }) } });
     });
     await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { isLive }));
+    if (item.isLive && !current.isLive) await this.notifyLive(churchId, userId, item);
     return item;
   }
 
@@ -160,6 +168,19 @@ export class ContentService {
     const stream = await this.prisma.liveStream.findFirst({ where: { id, churchId } });
     if (!stream) throw new NotFoundException('Transmisión no encontrada');
     return stream;
+  }
+
+  private notifyAnnouncement(churchId: string, userId: string, item: { title: string }) {
+    return this.notifyChurch(churchId, userId, `Nueva novedad: ${item.title}`, '/app/novedades');
+  }
+
+  private notifyLive(churchId: string, userId: string, item: { title: string }) {
+    return this.notifyChurch(churchId, userId, `En vivo ahora: ${item.title}`, '/app/en-vivo');
+  }
+
+  private async notifyChurch(churchId: string, userId: string, body: string, url: string) {
+    const { name } = await this.prisma.church.findUniqueOrThrow({ where: { id: churchId }, select: { name: true } });
+    await this.push.sendToChurch(churchId, { title: name, body, url }, userId);
   }
 
   private track(churchId: string, userId: string, action: ActivityAction, entity: ActivityEntity, item: { id: string; title: string }, detail?: string | null) {

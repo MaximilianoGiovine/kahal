@@ -26,10 +26,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { churchRequestsQuery } from '@/lib/church-requests';
 import { fullName, roleNames } from '@/lib/format';
+import { disablePush, syncPush } from '@/lib/push';
 import { can } from '@/lib/permissions';
 import { SessionProvider, useMe, useSession } from '@/lib/session';
 import type { Me } from '@/lib/types';
 import { BrandIcon } from './brand';
+import { PushPrompt } from './push-settings';
 import { ThemeToggle } from './theme-toggle';
 import { Avatar, Card, ErrorState, Loading, Select } from './ui';
 
@@ -99,6 +101,7 @@ function Shell({ children }: { children: ReactNode }) {
   const [drawer, setDrawer] = useState(false);
 
   useEffect(() => setDrawer(false), [pathname]);
+  useEffect(() => void syncPush().catch(() => {}), []);
 
   const needsChurch = isSuperAdmin && !church && !pathname.startsWith('/app/admin') && pathname !== '/app/perfil';
 
@@ -155,7 +158,10 @@ function Shell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12">{needsChurch ? <ChurchPicker /> : children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12">
+        {pathname !== '/app/perfil' && <PushPrompt />}
+        {needsChurch ? <ChurchPicker /> : children}
+      </main>
 
       {/* Navegación inferior móvil */}
       <nav className="glass-strong fixed inset-x-3 bottom-3 z-20 mb-[env(safe-area-inset-bottom)] grid grid-cols-4 rounded-2xl p-1.5 lg:hidden">
@@ -195,6 +201,8 @@ function Sidebar() {
   const qc = useQueryClient();
 
   async function logout() {
+    // Sin esto, el teléfono seguiría recibiendo los avisos de la persona que cerró sesión.
+    await disablePush().catch(() => {});
     await api('/auth/logout', { method: 'POST' }).catch(() => {});
     qc.clear();
     router.replace('/login');

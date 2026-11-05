@@ -3,6 +3,7 @@ import { ChurchRequestStatus, Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushService } from '../push/push.service';
 import { createChurchWithAdmin } from './church-defaults';
 import { ApproveChurchRequestDto, RejectChurchRequestDto, SubmitChurchRequestDto } from './church-requests.dto';
 
@@ -15,6 +16,7 @@ export class ChurchRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly push: PushService,
   ) {}
 
   async submit(dto: SubmitChurchRequestDto) {
@@ -46,6 +48,7 @@ export class ChurchRequestsService {
     });
 
     await this.notifySuperAdmins(dto, adminEmail);
+    await this.push.sendToSuperAdmins({ title: 'Nueva solicitud de iglesia', body: dto.name, url: '/app/admin' });
     await this.mail.send({
       to: adminEmail,
       subject: `Recibimos la solicitud de ${dto.name}`,

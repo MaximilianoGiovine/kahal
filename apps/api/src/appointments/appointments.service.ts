@@ -6,6 +6,7 @@ import { APPOINTMENT_STATUS_LABEL } from '../common/labels';
 import { addDays, minutesToTime, timeToMinutes, todayIn, weekdayOf, zonedToUtc } from '../common/time';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushService } from '../push/push.service';
 import { AppointmentsQuery, BookDto, SetAvailabilityDto, SlotsQuery, UpdateStatusDto } from './appointments.dto';
 
 /** Anticipación mínima para reservar. */
@@ -20,6 +21,7 @@ export class AppointmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly push: PushService,
   ) {}
 
   // Disponibilidad
@@ -138,6 +140,11 @@ export class AppointmentsService {
           '<br><br>Ingresá a Kahal para confirmarla.',
       ),
     });
+    await this.push.sendToUsers([appointment.host.id], {
+      title: 'Nueva solicitud de cita',
+      body: `${appointment.requester.firstName} ${appointment.requester.lastName} solicitó una cita para el ${when}`,
+      url: '/app/citas',
+    });
     return appointment;
   }
 
@@ -192,6 +199,7 @@ export class AppointmentsService {
         subject: `Cita ${label}`,
         html: mailLayout(appt.church.name, `Cita ${label}`, `La cita del <b>${when}</b> fue ${label}.`),
       });
+      await this.push.sendToUsers([notify.id], { title: `Cita ${label}`, body: `La cita del ${when} fue ${label}.`, url: '/app/citas' });
     }
     return updated;
   }
@@ -221,6 +229,11 @@ export class AppointmentsService {
           ),
         });
       }
+      await this.push.sendToUsers([a.requester.id, a.host.id], {
+        title: 'Recordatorio de cita',
+        body: `Cita entre ${a.requester.firstName} y ${a.host.firstName} ${a.host.lastName} el ${when}`,
+        url: '/app/citas',
+      });
     }
     if (due.length) this.logger.log(`Recordatorios enviados: ${due.length}`);
   }

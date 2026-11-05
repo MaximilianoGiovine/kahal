@@ -21,6 +21,7 @@ import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
 import { MembersModule } from './members/members.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PushModule } from './push/push.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
 
@@ -53,6 +54,7 @@ import { UsersModule } from './users/users.module';
     }),
     PrismaModule,
     MailModule,
+    PushModule,
     FilesModule,
     ActivityModule,
     AuthModule,

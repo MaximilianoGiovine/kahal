@@ -41,7 +41,8 @@
     "prisma": "6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "sanitize-html": "^2.18.1"
+    "sanitize-html": "^2.18.1",
+    "web-push": "3.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
@@ -52,6 +53,7 @@
     "@types/nodemailer": "^7.0.0",
     "@types/pdfkit": "^0.17.7",
     "@types/sanitize-html": "^2.16.2",
+    "@types/web-push": "3.6.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },

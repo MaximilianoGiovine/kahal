@@ -58,6 +58,10 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 - **Estados a medida**, con nombre y color, y varios a la vez por persona (por ejemplo, Miembro y Bautizado).
 - La ficha de cada persona está sincronizada con su cuenta: lo que edita en *Mi perfil* y lo que edita la iglesia es lo mismo.
 
+### 🔔 Notificaciones push
+- Avisos en Android y iPhone de novedades, eventos, transmisiones en vivo y citas.
+- Cada persona las activa en su dispositivo desde *Mi perfil*. En iPhone hace falta iOS 16.4 o posterior y agregar Kahal a la pantalla de inicio.
+
 ### 📲 Registro con QR
 - **Código QR fijo por iglesia**, descargable en PNG o SVG e imprimible como cartel A4.
 - Registro en dos pasos, sin aprobación manual, con consentimiento de datos personales (Ley 25.326).
@@ -84,7 +88,7 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 ### 🗓️ Citas pastorales
 - Reserva de turnos con el pastor, el equipo pastoral o los líderes.
 - Disponibilidad semanal por persona, sin turnos duplicados.
-- Confirmación y **recordatorios por email**.
+- Confirmación y **recordatorios por email y notificación push**.
 
 ### 📖 Artículos
 - Editor de texto enriquecido, o generación desde un archivo **Word (`.docx`) o PDF**.

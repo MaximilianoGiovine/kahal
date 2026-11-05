@@ -92,6 +92,7 @@ Se agregan en *Environment variables* del stack y se aplican con **Update the st
 | Variable | Para qué |
 |---|---|
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_SECURE` | Enviar emails (recordatorios de citas, etc.). Sin esto, los emails solo quedan en el log de la API. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Notificaciones push en Android y iPhone. Generalas una sola vez con `npx web-push generate-vapid-keys`; si las cambiás, cada dispositivo tiene que volver a activarlas. Requieren HTTPS. Opcional: `VAPID_SUBJECT` (por defecto, `mailto:` + `SUPERADMIN_EMAIL`). |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Ingresar con Google (ver abajo). |
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | Ingresar con Apple (ver abajo). |
 | `STORAGE_DRIVER=s3` + `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Guardar archivos en AWS S3 / Cloudflare R2 / Backblaze en vez del disco del servidor. |

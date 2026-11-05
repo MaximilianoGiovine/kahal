@@ -175,14 +175,15 @@ model User {
   updatedAt     DateTime   @updatedAt
 
   identities             UserIdentity[]
+  pushSubscriptions      PushSubscription[]
   roles                  UserRole[]
   member                 Member?
   transactions           Transaction[]
   announcements          Announcement[]
   events                 Event[]
   availability           Availability[]
-  hostedAppointments     Appointment[]   @relation("AppointmentHost")
-  requestedAppointments  Appointment[]   @relation("AppointmentRequester")
+  hostedAppointments     Appointment[]      @relation("AppointmentHost")
+  requestedAppointments  Appointment[]      @relation("AppointmentRequester")
   articles               Article[]
   activity               ActivityLog[]
   reviewedChurchRequests ChurchRequest[]
@@ -193,6 +194,20 @@ model User {
 enum AuthProvider {
   GOOGLE
   APPLE
+}
+
+/// Un dispositivo que aceptó recibir notificaciones push. La URL la asigna el navegador y es única por dispositivo.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 /// Cuenta de Google o Apple conectada a un usuario. Se identifica por el "sub" del proveedor, no por el email.

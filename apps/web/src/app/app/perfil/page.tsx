@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
+import { PushSettings } from '@/components/push-settings';
 import { ConnectedAccounts } from '@/components/social-auth';
 import { Badge, Button, Card, CardHeader, Field, Input, PageHeader, Select } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -139,6 +140,7 @@ export default function ProfilePage() {
           </form>
         </Card>
         <ConnectedAccounts />
+        <PushSettings />
         <Card className="p-5 lg:col-span-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
