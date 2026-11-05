@@ -2,7 +2,11 @@
 #   - ":80"                     -> solo HTTP por IP (pruebas rápidas)
 #   - "203-0-113-10.sslip.io"   -> HTTPS automático sin comprar dominio
 #   - "app.midominio.com"       -> HTTPS automático con dominio propio
+#   - "midominio.com, www.midominio.com" -> además redirige www a la dirección sin www
 {$SITE_ADDRESS::80} {
+	@www vars_regexp www {host} ^www\.(.+)$
+	redir @www https://{re.www.1}{uri} permanent
+
 	encode zstd gzip
 
 	request_body {

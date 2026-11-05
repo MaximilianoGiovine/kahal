@@ -32,6 +32,7 @@ SEED_DEMO=false
 - **`SITE_ADDRESS`**: la dirección con la que se va a entrar a la app.
   - **Sin dominio:** tu IP con guiones + `.sslip.io`. Por ejemplo, si la IP es `203.0.113.10`, poné `203-0-113-10.sslip.io`. Tenés HTTPS gratis y automático.
   - **Con dominio propio:** el dominio, por ejemplo `app.midominio.com`. Antes creá un registro **A** que apunte a la IP del VPS.
+  - **Con dominio propio y `www`:** creá un registro **A** para `@` y otro para `www`, y escribí `midominio.com, www.midominio.com`, con un espacio después de la coma. Quien entre por `www` va a la dirección sin `www`.
 - **`POSTGRES_PASSWORD`** y **`JWT_SECRET`**: dos claves distintas, largas y al azar. Podés generarlas con `openssl rand -hex 32` (cada vez da una nueva). **No cambies `POSTGRES_PASSWORD` después del primer despliegue**, porque la base ya queda creada con esa clave.
 - **`SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`**: con estos datos vas a entrar como administrador de la plataforma.
 - **`SEED_DEMO`**: `true` carga 3 iglesias de ejemplo (sirve para mostrar la app); `false` arranca vacía, para usarla de verdad.
