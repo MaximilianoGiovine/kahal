@@ -163,7 +163,7 @@ Con `SEED_DEMO=true` se crean 3 iglesias (`monte-sion`, `nueva-vida`, `emanuel`)
 | Secretaría | `secretaria@monte-sion.demo` |
 | Miembro | `miembro@monte-sion.demo` |
 
-(Igual para `nueva-vida` y `emanuel`.) El super admin es el definido en `SUPERADMIN_EMAIL`: desde **Plataforma → Iglesias** crea iglesias nuevas y puede operar sobre cualquiera.
+(Igual para `nueva-vida` y `emanuel`.) El super admin es el definido en `SUPERADMIN_EMAIL`: desde **Plataforma → Iglesias** crea iglesias nuevas, aprueba o rechaza las solicitudes que llegan desde `/solicitar-iglesia` y puede operar sobre cualquiera. El aviso por email de cada solicitud requiere SMTP configurado; sin SMTP, las solicitudes igual aparecen en el panel.
 
 > Para pasar de la demo a datos reales: eliminá el stack **y el volumen `kahal_pgdata`** (Portainer → **Volumes**) y volvé a desplegar con `SEED_DEMO=false`.
 

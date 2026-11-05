@@ -65,6 +65,16 @@ export default function Home() {
           <p className="mt-1 text-sm text-muted">Conocé sus próximas actividades o registrate como miembro.</p>
           <ChurchDirectory />
         </section>
+
+        <section className="glass mb-16 flex flex-col items-start justify-between gap-4 rounded-2xl p-6 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="font-display text-xl font-bold">¿Tu iglesia todavía no está en Kahal?</h2>
+            <p className="mt-1 text-sm text-muted">Completá la solicitud y te avisamos por email cuando esté aprobada.</p>
+          </div>
+          <ButtonLink href="/solicitar-iglesia" variant="secondary">
+            Solicitar el alta
+          </ButtonLink>
+        </section>
       </main>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted">Kahal · Gestión de iglesias</footer>

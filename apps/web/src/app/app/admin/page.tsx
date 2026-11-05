@@ -6,12 +6,14 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ChurchQrDialog } from '@/components/church-qr';
 import { Dialog } from '@/components/dialog';
-import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Loading, PageHeader, td, th } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Tabs, td, th } from '@/components/ui';
 import { api } from '@/lib/api';
-import { dayLabel, number } from '@/lib/format';
+import { churchRequestsQuery } from '@/lib/church-requests';
+import { dayLabel, number, slugify } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
 import { useSession } from '@/lib/session';
 import type { Church } from '@/lib/types';
+import { ChurchRequests } from './church-requests';
 
 type AdminChurch = Church & { createdAt: string; _count: { members: number; users: number } };
 
@@ -19,6 +21,9 @@ export default function AdminChurchesPage() {
   const { isSuperAdmin, selectChurch } = useSession();
   const [creating, setCreating] = useState(false);
   const [qrFor, setQrFor] = useState<AdminChurch | null>(null);
+  const [tab, setTab] = useState<'churches' | 'requests'>('churches');
+  const { data: requests } = useQuery({ ...churchRequestsQuery, enabled: isSuperAdmin });
+  const pending = requests?.filter((r) => r.status === 'PENDING').length ?? 0;
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin', 'churches'],
     queryFn: () => api<AdminChurch[]>('/admin/churches'),
@@ -37,12 +42,24 @@ export default function AdminChurchesPage() {
         title="Iglesias"
         description="Iglesias que usan Kahal en esta instalación."
         actions={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="size-4" /> Nueva iglesia
-          </Button>
+          tab === 'churches' && (
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="size-4" /> Nueva iglesia
+            </Button>
+          )
         }
       />
-      <Card>
+      <div className="mb-4">
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: 'churches', label: 'Iglesias' },
+            { value: 'requests', label: pending ? `Solicitudes (${pending})` : 'Solicitudes' },
+          ]}
+        />
+      </div>
+      {tab === 'requests' ? <ChurchRequests /> : <Card>
         {isLoading ? (
           <Loading />
         ) : error || !data ? (
@@ -100,7 +117,7 @@ export default function AdminChurchesPage() {
             </table>
           </div>
         )}
-      </Card>
+      </Card>}
       {creating && <CreateChurch onClose={() => setCreating(false)} />}
       {qrFor && <ChurchQrDialog church={qrFor} onClose={() => setQrFor(null)} />}
     </>
@@ -114,15 +131,6 @@ function CreateChurch({ onClose }: { onClose: () => void }) {
     invalidate: [['admin']],
     onSuccess: onClose,
   });
-  const slugify = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/^iglesia\s+/, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 60);
 
   return (
     <Dialog

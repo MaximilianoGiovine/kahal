@@ -142,7 +142,7 @@ Cada iglesia nueva arranca con estos roles, que puede editar o eliminar. El de P
 | **Tesorería** | Finanzas |
 | **Secretaría** | Miembros, ver usuarios, contenido y artículos |
 | **Miembro** *(sin roles)* | Novedades, agenda, artículos, en vivo y pedir citas |
-| **Super admin** *(de la plataforma)* | Crea iglesias y opera sobre cualquiera de ellas |
+| **Super admin** *(de la plataforma)* | Aprueba las solicitudes de iglesias nuevas, crea iglesias y opera sobre cualquiera de ellas |
 
 ## 🛠️ Stack tecnológico
 

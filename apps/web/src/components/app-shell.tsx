@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
   BookOpen,
@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError } from '@/lib/api';
+import { churchRequestsQuery } from '@/lib/church-requests';
 import { fullName, roleNames } from '@/lib/format';
 import { can } from '@/lib/permissions';
 import { SessionProvider, useMe, useSession } from '@/lib/session';
@@ -33,6 +34,7 @@ import { ThemeToggle } from './theme-toggle';
 import { Avatar, Card, ErrorState, Loading, Select } from './ui';
 
 interface NavItem {
+  badge?: number;
   href: string;
   label: string;
   icon: LucideIcon;
@@ -199,6 +201,8 @@ function Sidebar() {
   }
 
   const admin = ADMIN.filter((i) => !i.show || i.show(me));
+  const { data: requests } = useQuery({ ...churchRequestsQuery, enabled: isSuperAdmin });
+  const pendingRequests = requests?.filter((r) => r.status === 'PENDING').length ?? 0;
 
   const link = (item: NavItem) => {
     const active = isActive(pathname, item.href);
@@ -214,6 +218,11 @@ function Sidebar() {
         {active && <span className="bg-accent-gradient absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-full shadow-glow" aria-hidden />}
         <item.icon className={clsx('size-[18px]', active && 'text-accent-ink drop-shadow-[0_0_6px_var(--accent)]')} />
         <span className="flex-1">{item.label}</span>
+        {!!item.badge && (
+          <span className="bg-accent-gradient rounded-full px-1.5 text-xs font-semibold text-accent-fg tabular" aria-label={`${item.badge} pendientes`}>
+            {item.badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -252,7 +261,7 @@ function Sidebar() {
         {isSuperAdmin && (
           <>
             <p className="px-3.5 pt-6 pb-2 text-[11px] font-medium tracking-wider text-subtle uppercase">Plataforma</p>
-            {link({ href: '/app/admin', label: 'Iglesias', icon: Building2 })}
+            {link({ href: '/app/admin', label: 'Iglesias', icon: Building2, badge: pendingRequests })}
           </>
         )}
       </nav>

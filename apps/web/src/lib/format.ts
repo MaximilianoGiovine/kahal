@@ -127,3 +127,14 @@ export function fromLocalInput(value: string) {
   const guess = new Date(`${value}:00Z`);
   return new Date(guess.getTime() - tzOffsetMs(guess, tz)).toISOString();
 }
+
+/** Identificador de URL a partir del nombre de una iglesia. */
+export const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^iglesia\s+/, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);

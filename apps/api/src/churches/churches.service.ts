@@ -1,8 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { setupChurchDefaults } from './church-defaults';
+import { createChurchWithAdmin } from './church-defaults';
 import { AdminUpdateChurchDto, CreateChurchDto, UpdateChurchDto } from './churches.dto';
 
 const PUBLIC_FIELDS = {
@@ -78,32 +77,14 @@ export class ChurchesService {
       throw new ConflictException('Ya existe un usuario con ese email');
     }
     const passwordHash = await bcrypt.hash(dto.admin.password, 10);
-    return this.prisma.$transaction(async (tx) => {
-      const church = await tx.church.create({ data: { name: dto.name, slug: dto.slug, city: dto.city } });
-      const { roles, statuses } = await setupChurchDefaults(tx, church.id);
-      const admin = await tx.user.create({
-        data: {
-          churchId: church.id,
-          email,
-          passwordHash,
-          firstName: dto.admin.firstName,
-          lastName: dto.admin.lastName,
-          status: UserStatus.ACTIVE,
-          roles: { create: { roleId: roles.pastor } },
-        },
-      });
-      await tx.member.create({
-        data: {
-          churchId: church.id,
-          userId: admin.id,
-          firstName: admin.firstName,
-          lastName: admin.lastName,
-          email,
-          statuses: { create: { statusId: statuses.miembro } },
-        },
-      });
-      return church;
-    });
+    return this.prisma.$transaction((tx) =>
+      createChurchWithAdmin(tx, {
+        name: dto.name,
+        slug: dto.slug,
+        city: dto.city,
+        admin: { firstName: dto.admin.firstName, lastName: dto.admin.lastName, email, passwordHash },
+      }),
+    );
   }
 
   adminUpdate(id: string, dto: AdminUpdateChurchDto) {

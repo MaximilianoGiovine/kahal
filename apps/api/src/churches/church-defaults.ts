@@ -1,4 +1,4 @@
-import { Currency, Permission, Prisma, TransactionType } from '@prisma/client';
+import { Currency, Permission, Prisma, TransactionType, UserStatus } from '@prisma/client';
 
 export const DEFAULT_CATEGORIES: { name: string; type: TransactionType; color: string; isTithe?: boolean }[] = [
   { name: 'Diezmos', type: 'INCOME', color: '#16a34a', isTithe: true },
@@ -72,4 +72,44 @@ export async function setupChurchDefaults(tx: Prisma.TransactionClient, churchId
     statuses[key as DefaultStatusKey] = (await tx.memberStatus.create({ data: { ...def, position, churchId } })).id;
   }
   return { roles, statuses };
+}
+
+/** Crea una iglesia con sus datos iniciales y el usuario de su pastor. Corre dentro de la transacción de quien la llama. */
+export async function createChurchWithAdmin(
+  tx: Prisma.TransactionClient,
+  data: {
+    name: string;
+    slug: string;
+    city?: string | null;
+    admin: { firstName: string; lastName: string; email: string; phone?: string | null; passwordHash: string; consentAt?: Date };
+  },
+) {
+  const { admin } = data;
+  const church = await tx.church.create({ data: { name: data.name, slug: data.slug, city: data.city } });
+  const { roles, statuses } = await setupChurchDefaults(tx, church.id);
+  const user = await tx.user.create({
+    data: {
+      churchId: church.id,
+      email: admin.email,
+      passwordHash: admin.passwordHash,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      phone: admin.phone,
+      consentAt: admin.consentAt,
+      status: UserStatus.ACTIVE,
+      roles: { create: { roleId: roles.pastor } },
+    },
+  });
+  await tx.member.create({
+    data: {
+      churchId: church.id,
+      userId: user.id,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      email: admin.email,
+      phone: admin.phone,
+      statuses: { create: { statusId: statuses.miembro } },
+    },
+  });
+  return church;
 }
