@@ -32,7 +32,8 @@ export default function DashboardPage() {
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
 
-  const fin = (type: 'INCOME' | 'EXPENSE') => data.finance?.rows.find((r) => r.currency === 'ARS' && r.type === type)?.total ?? '0';
+  const currency = church?.defaultCurrency ?? 'ARS';
+  const fin = (type: 'INCOME' | 'EXPENSE') => data.finance?.rows.find((r) => r.currency === currency && r.type === type)?.total ?? '0';
 
   const next = data.events[0];
 
@@ -58,10 +59,10 @@ export default function DashboardPage() {
             <Link href="/app/finanzas" className="col-span-2 rounded-2xl transition hover:brightness-110 lg:col-span-1">
               <Stat
                 label={`Resultado ${monthLabel(data.finance.month, 'long')}`}
-                value={money(Number(fin('INCOME')) - Number(fin('EXPENSE')), 'ARS', { compact: true })}
+                value={money(Number(fin('INCOME')) - Number(fin('EXPENSE')), currency, { compact: true })}
                 hint={
                   <>
-                    Ingresos {money(fin('INCOME'), 'ARS', { compact: true })} · Egresos {money(fin('EXPENSE'), 'ARS', { compact: true })}
+                    Ingresos {money(fin('INCOME'), currency, { compact: true })} · Egresos {money(fin('EXPENSE'), currency, { compact: true })}
                   </>
                 }
                 icon={<HandCoins />}

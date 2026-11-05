@@ -12,8 +12,8 @@ export function money(value: string | number, currency: Currency = 'ARS', opts: 
     f = new Intl.NumberFormat('es-AR', {
       style: 'currency',
       currency,
-      maximumFractionDigits: opts.compact ? 1 : 2,
-      minimumFractionDigits: opts.compact ? 0 : 2,
+      // Sin compactar, cada moneda usa sus propios decimales: el yen o el guaraní no tienen.
+      ...(opts.compact && { maximumFractionDigits: 1, minimumFractionDigits: 0 }),
       notation: opts.compact ? 'compact' : 'standard',
     });
     moneyFmt.set(key, f);

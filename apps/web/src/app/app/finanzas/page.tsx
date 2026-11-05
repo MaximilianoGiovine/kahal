@@ -10,11 +10,14 @@ import { PeriodPicker, resolvePeriod, type Period } from '@/components/finance/p
 import { Button, Card, CardHeader, ErrorState, Loading, Stat, Tabs } from '@/components/ui';
 import { api, download } from '@/lib/api';
 import { money } from '@/lib/format';
+import { useSession } from '@/lib/session';
 import type { Currency, FinanceSummary } from '@/lib/types';
 
 export default function FinanceSummaryPage() {
   const [period, setPeriod] = useState<Period>(() => resolvePeriod('month'));
-  const [currency, setCurrency] = useState<Currency>('ARS');
+  const { church } = useSession();
+  const mainCurrency = church?.defaultCurrency ?? 'ARS';
+  const [currency, setCurrency] = useState<Currency>(mainCurrency);
   const [exporting, setExporting] = useState(false);
 
   const range = { from: period.from, to: period.to };
@@ -57,6 +60,8 @@ export default function FinanceSummaryPage() {
   if (summary.error || !summary.data) return <ErrorState error={summary.error} onRetry={summary.refetch} />;
 
   const s = summary.data;
+  // La moneda principal y las que tienen movimientos, en este período o en los últimos 12 meses.
+  const currencies = [...new Set([mainCurrency, currency, ...Object.keys(s.totals), ...Object.keys(yearly.data?.totals ?? {})])] as Currency[];
   const t = s.totals[currency] ?? { income: '0', expense: '0', net: '0' };
   const cats = (type: 'INCOME' | 'EXPENSE') =>
     s.byCategory.filter((c) => c.currency === currency && c.type === type).map((c) => ({ name: c.name, total: Number(c.total), count: c.count }));
@@ -69,10 +74,7 @@ export default function FinanceSummaryPage() {
           <Tabs
             value={currency}
             onChange={setCurrency}
-            items={[
-              { value: 'ARS', label: 'ARS' },
-              { value: 'USD', label: 'USD' },
-            ]}
+            items={currencies.map((c) => ({ value: c, label: c }))}
           />
         </div>
         <Button variant="secondary" onClick={exportXlsx} loading={exporting}>

@@ -3,11 +3,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Pencil, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { CurrencyOptions } from '@/components/currency-options';
 import { Dialog } from '@/components/dialog';
 import { Badge, Button, Card, CardHeader, Checkbox, ErrorState, Field, Input, Loading, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { money } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
+import { useSession } from '@/lib/session';
 import type { Account, Category, TxType } from '@/lib/types';
 
 export default function FinanceSettingsPage() {
@@ -88,6 +90,7 @@ export default function FinanceSettingsPage() {
 }
 
 function AccountForm({ item, onClose }: { item: Account | null; onClose: () => void }) {
+  const { church } = useSession();
   const save = useAction(
     (body: Record<string, unknown>) => (item ? api(`/finance/accounts/${item.id}`, { method: 'PATCH', body }) : api('/finance/accounts', { method: 'POST', body })),
     { success: 'Cuenta guardada', invalidate: [['finance']], onSuccess: onClose },
@@ -120,9 +123,8 @@ function AccountForm({ item, onClose }: { item: Account | null; onClose: () => v
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Moneda">
-            <Select name="currency" defaultValue={item?.currency ?? 'ARS'}>
-              <option value="ARS">ARS</option>
-              <option value="USD">USD</option>
+            <Select name="currency" defaultValue={item?.currency ?? church?.defaultCurrency ?? 'ARS'}>
+              <CurrencyOptions />
             </Select>
           </Field>
           <Field label="Saldo inicial">

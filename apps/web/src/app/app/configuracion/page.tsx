@@ -5,6 +5,7 @@ import { Ban, Copy, Pencil, Plus, QrCode as QrIcon, Search, ShieldCheck, Trash2 
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ChurchQrDialog, QrCode, registerLink } from '@/components/church-qr';
+import { CurrencyOptions } from '@/components/currency-options';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
 import { ActionMenu } from '@/components/menu';
@@ -109,8 +110,7 @@ function ChurchSettings() {
           </Field>
           <Field label="Moneda principal">
             <Select name="defaultCurrency" defaultValue={data.defaultCurrency}>
-              <option value="ARS">ARS</option>
-              <option value="USD">USD</option>
+              <CurrencyOptions />
             </Select>
           </Field>
           <Field label="Zona horaria" className="sm:col-span-2">

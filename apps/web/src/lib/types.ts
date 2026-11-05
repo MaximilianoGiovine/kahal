@@ -1,3 +1,5 @@
+import type { Currency } from './currencies';
+
 export type Permission =
   | 'MEMBERS_VIEW'
   | 'MEMBERS_EDIT'
@@ -28,7 +30,7 @@ export interface ChurchRole {
   _count: { users: number };
 }
 export type UserStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'DISABLED';
-export type Currency = 'ARS' | 'USD';
+export type { Currency };
 export type TxType = 'INCOME' | 'EXPENSE';
 export type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
