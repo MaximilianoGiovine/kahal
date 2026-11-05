@@ -73,7 +73,7 @@ La primera vez tarda varios minutos (entre 5 y 15, según el servidor) porque co
 1. Subí los cambios a GitHub (rama `main`).
 2. En Portainer → **Stacks** → `kahal` → **Pull and redeploy**, y confirmá.
 
-La base de datos se actualiza sola al reiniciar; no se pierde nada. Si después de unos minutos no ves los cambios, repetí el redeploy activando la opción de volver a construir las imágenes (*Re-pull image and redeploy* / *rebuild*, según la versión de Portainer).
+Las imágenes de Kahal se construyen de nuevo en cada despliegue, sin descargarse de ningún registro. La base de datos se actualiza sola al reiniciar; no se pierde nada.
 
 ### Si algo no anda
 
