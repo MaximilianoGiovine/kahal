@@ -5,9 +5,10 @@ import { Printer } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { BrandIcon } from '@/components/brand';
-import { QrCode, registerLink } from '@/components/church-qr';
+import { printPoster, QrCode, registerLink, usePosterFile } from '@/components/church-qr';
 import { Button, ErrorState, Loading } from '@/components/ui';
 import { api, fileUrl } from '@/lib/api';
+import { isIos } from '@/lib/push';
 
 /** Cartel A4 para imprimir con el QR de registro de la iglesia. */
 export default function ChurchPosterPage() {
@@ -16,6 +17,8 @@ export default function ChurchPosterPage() {
     queryKey: ['public-church', slug],
     queryFn: () => api<{ name: string; slug: string; city: string | null; logoKey: string | null }>(`/public/churches/${slug}`),
   });
+
+  const poster = usePosterFile(data);
 
   useEffect(() => {
     if (data) document.title = `QR de registro · ${data.name}`;
@@ -29,7 +32,7 @@ export default function ChurchPosterPage() {
     <div className="min-h-dvh bg-surface-2 py-8 print:bg-white print:py-0">
       <style>{'@page { size: A4; margin: 0 } @media print { html, body { background: #fff !important } }'}</style>
       <div className="mx-auto mb-6 flex max-w-[210mm] justify-end px-4 print:hidden">
-        <Button onClick={() => window.print()}>
+        <Button loading={isIos() && !poster} onClick={() => (isIos() ? poster && printPoster(poster) : window.print())}>
           <Printer className="size-4" /> Imprimir
         </Button>
       </div>
@@ -43,8 +46,8 @@ export default function ChurchPosterPage() {
           {data.city && <p className="mt-1 text-lg text-neutral-600">{data.city}</p>}
         </header>
         <div className="flex w-full flex-col items-center">
-          <p className="font-display text-[clamp(1.25rem,3.5vw,2rem)] font-semibold">¡Sumate a nuestra comunidad!</p>
-          <p className="mt-2 text-neutral-600">Escaneá el código con la cámara de tu celular y creá tu cuenta.</p>
+          <p className="font-display text-[clamp(1.25rem,3.5vw,2rem)] font-semibold">¡Únete a nuestra comunidad!</p>
+          <p className="mt-2 text-neutral-600">Escanea el código con la cámara de tu teléfono y crea tu cuenta.</p>
           <QrCode value={url} className="mt-6 w-[70%]" />
           <p className="mt-3 font-mono text-sm break-all text-neutral-600">{url}</p>
         </div>
