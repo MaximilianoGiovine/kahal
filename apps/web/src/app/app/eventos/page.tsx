@@ -1,8 +1,9 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays, Clock, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarPlus, CalendarDays, Clock, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { CalendarSubscribeDialog } from '@/components/calendar-subscribe';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
 import { ActionMenu } from '@/components/menu';
@@ -19,6 +20,7 @@ export default function EventsPage() {
   const editor = can.content(me);
   const [editing, setEditing] = useState<ChurchEvent | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ChurchEvent | null>(null);
+  const [subscribing, setSubscribing] = useState(false);
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['events'], queryFn: () => api<ChurchEvent[]>('/events') });
   const remove = useAction((id: string) => api(`/events/${id}`, { method: 'DELETE' }), {
     success: 'Evento eliminado',
@@ -41,11 +43,19 @@ export default function EventsPage() {
         title="Agenda"
         description="Cultos, reuniones y actividades de la iglesia."
         actions={
-          editor && (
-            <Button onClick={() => setEditing('new')}>
-              <Plus className="size-4" /> Nuevo evento
-            </Button>
-          )
+          <>
+            {/* El feed es por cuenta: el super admin no pertenece a ninguna iglesia. */}
+            {me.church && (
+              <Button variant="secondary" onClick={() => setSubscribing(true)}>
+                <CalendarPlus className="size-4" /> Agregar a mi calendario
+              </Button>
+            )}
+            {editor && (
+              <Button onClick={() => setEditing('new')}>
+                <Plus className="size-4" /> Nuevo evento
+              </Button>
+            )}
+          </>
         }
       />
       {isLoading ? (
@@ -110,6 +120,7 @@ export default function EventsPage() {
           ))}
         </div>
       )}
+      {subscribing && <CalendarSubscribeDialog onClose={() => setSubscribing(false)} />}
       {editing && <EventForm item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       <ConfirmDialog
         open={!!deleting}

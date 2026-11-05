@@ -1,4 +1,4 @@
-import { Equals, IsBoolean, IsDateString, IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { Equals, IsBoolean, IsDateString, IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Email inválido' })
@@ -47,10 +47,12 @@ export class RegisterDto {
   @MaxLength(200)
   address: string;
 
+  /** Se omite al registrarse con Google o Apple. */
+  @IsOptional()
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
   @MaxLength(100)
-  password: string;
+  password?: string;
 
   @Equals(true, { message: 'Debés aceptar el tratamiento de tus datos personales' })
   consent: boolean;
@@ -62,8 +64,10 @@ export class EmailQuery {
 }
 
 export class ChangePasswordDto {
+  /** No hace falta si la cuenta (creada con Google o Apple) todavía no tiene contraseña. */
+  @IsOptional()
   @IsString()
-  currentPassword: string;
+  currentPassword?: string;
 
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })

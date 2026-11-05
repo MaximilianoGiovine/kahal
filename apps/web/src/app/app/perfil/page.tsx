@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
+import { ConnectedAccounts } from '@/components/social-auth';
 import { Badge, Button, Card, CardHeader, Field, Input, PageHeader, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { roleNames } from '@/lib/format';
@@ -43,7 +44,10 @@ export default function ProfilePage() {
     if (!m) return profile.mutate({ firstName: v.firstName, lastName: v.lastName, phone: v.phone });
     profile.mutate({ ...v, birthDate: v.birthDate || undefined, baptized: v.baptized === 'yes' ? true : v.baptized === 'no' ? false : undefined });
   }
-  const password = useAction((body: Record<string, unknown>) => api('/auth/change-password', { method: 'POST', body }), { success: 'Contraseña actualizada' });
+  const password = useAction((body: Record<string, unknown>) => api('/auth/change-password', { method: 'POST', body }), {
+    success: me.hasPassword ? 'Contraseña actualizada' : 'Contraseña creada',
+    invalidate: [['me']],
+  });
 
   function onPassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -53,7 +57,7 @@ export default function ProfilePage() {
       password.reset();
       return void import('sonner').then(({ toast }) => toast.error('Las contraseñas no coinciden'));
     }
-    password.mutate({ currentPassword: v.currentPassword, newPassword: v.newPassword }, { onSuccess: () => form.reset() });
+    password.mutate({ currentPassword: me.hasPassword ? v.currentPassword : undefined, newPassword: v.newPassword }, { onSuccess: () => form.reset() });
   }
 
   return (
@@ -112,11 +116,15 @@ export default function ProfilePage() {
           </form>
         </Card>
         <Card>
-          <CardHeader title="Cambiar contraseña" />
+          <CardHeader title={me.hasPassword ? 'Cambiar contraseña' : 'Crear contraseña'} />
           <form className="flex flex-col gap-4 p-5" onSubmit={onPassword}>
-            <Field label="Contraseña actual">
-              <Input name="currentPassword" type="password" required autoComplete="current-password" />
-            </Field>
+            {me.hasPassword ? (
+              <Field label="Contraseña actual">
+                <Input name="currentPassword" type="password" required autoComplete="current-password" />
+              </Field>
+            ) : (
+              <p className="text-sm text-muted">Hoy ingresás solo con Google o Apple. Con una contraseña también vas a poder ingresar con tu email.</p>
+            )}
             <Field label="Nueva contraseña">
               <Input name="newPassword" type="password" required minLength={8} autoComplete="new-password" />
             </Field>
@@ -125,11 +133,12 @@ export default function ProfilePage() {
             </Field>
             <div className="flex justify-end">
               <Button type="submit" loading={password.isPending}>
-                Actualizar
+                {me.hasPassword ? 'Actualizar' : 'Crear'}
               </Button>
             </div>
           </form>
         </Card>
+        <ConnectedAccounts />
         <Card className="p-5 lg:col-span-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

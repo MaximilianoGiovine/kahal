@@ -4,8 +4,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
-import { Button, ButtonLink, Checkbox, Field, Input, Select } from '@/components/ui';
+import { PROVIDER_NAMES, SocialButtons } from '@/components/social-auth';
+import { Button, ButtonLink, Checkbox, Field, Input, Loading, Select } from '@/components/ui';
 import { api, fileUrl } from '@/lib/api';
+import { oauthErrorMessage, type PendingIdentity } from '@/lib/oauth';
 
 export function RegisterForm() {
   const params = useSearchParams();
@@ -15,12 +17,20 @@ export function RegisterForm() {
     queryKey: ['public-churches'],
     queryFn: () => api<{ name: string; slug: string; city: string | null; logoKey: string | null }[]>('/public/churches'),
   });
+  // Viene de Google o Apple sin cuenta en Kahal: esa cuenta aporta el email y reemplaza a la contraseña.
+  const social = !!params.get('social');
+  const { data: pendingData, isLoading: loadingPending } = useQuery({
+    queryKey: ['oauth-pending'],
+    queryFn: () => api<{ pending: PendingIdentity | null }>('/auth/oauth/pending'),
+    enabled: social,
+  });
+  const pending = pendingData?.pending ?? null;
   // Llegando desde el QR (o el link) de una iglesia, queda fija y no se elige de la lista.
   const [changing, setChanging] = useState(false);
   const fixed = changing ? undefined : churches.find((c) => c.slug === preset);
   const [step, setStep] = useState<1 | 2>(1);
-  const [account, setAccount] = useState<{ church: string; email: string; password: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [account, setAccount] = useState<{ church: string; email: string; password?: string } | null>(null);
+  const [error, setError] = useState<string | null>(() => oauthErrorMessage(params.get('oauth_error')));
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -32,7 +42,7 @@ export function RegisterForm() {
       setError('Las contraseñas no coinciden');
       return;
     }
-    const email = String(fd.get('email')).trim();
+    const email = pending?.email ?? String(fd.get('email')).trim();
     setLoading(true);
     setError(null);
     try {
@@ -41,7 +51,7 @@ export function RegisterForm() {
         setError('Ya existe una cuenta con ese email. Si es tuya, ingresá con tu contraseña.');
         return;
       }
-      setAccount({ church: String(fd.get('church')), email, password: String(fd.get('password')) });
+      setAccount({ church: String(fd.get('church')), email, password: pending ? undefined : String(fd.get('password')) });
       setStep(2);
       window.scrollTo({ top: 0 });
     } catch (err) {
@@ -87,6 +97,8 @@ export function RegisterForm() {
   const back = () => (setError(null), setStep(1));
   const errorBox = error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>;
   const today = new Date().toISOString().slice(0, 10);
+
+  if (social && loadingPending) return <Loading />;
 
   if (done) {
     return (
@@ -141,27 +153,36 @@ export function RegisterForm() {
             </Select>
           </Field>
         )}
-        <Field label="Correo electrónico">
-          <Input name="email" type="email" required autoComplete="email" />
-        </Field>
-        <Field label="Contraseña" hint="Mínimo 8 caracteres.">
-          <Input name="password" type="password" required minLength={8} autoComplete="new-password" />
-        </Field>
-        <Field label="Repetir contraseña">
-          <Input name="password2" type="password" required minLength={8} autoComplete="new-password" />
-        </Field>
+        {pending ? (
+          <Field label="Correo electrónico" hint={`Vas a ingresar con tu cuenta de ${PROVIDER_NAMES[pending.provider]}, sin contraseña.`}>
+            <Input value={pending.email} disabled />
+          </Field>
+        ) : (
+          <>
+            <Field label="Correo electrónico">
+              <Input name="email" type="email" required autoComplete="email" />
+            </Field>
+            <Field label="Contraseña" hint="Mínimo 8 caracteres.">
+              <Input name="password" type="password" required minLength={8} autoComplete="new-password" />
+            </Field>
+            <Field label="Repetir contraseña">
+              <Input name="password2" type="password" required minLength={8} autoComplete="new-password" />
+            </Field>
+          </>
+        )}
         {step === 1 && errorBox}
         <Button type="submit" loading={loading} className="mt-2">
           Continuar
         </Button>
+        {!pending && <SocialButtons iglesia={preset} />}
       </form>
 
       <form onSubmit={onProfile} className={step === 2 ? 'flex flex-col gap-4' : 'hidden'}>
         <fieldset className="flex flex-col gap-1.5">
           <legend className="mb-1.5 text-sm font-medium">Nombre completo</legend>
           <div className="grid grid-cols-2 gap-3">
-            <Input name="firstName" required minLength={2} maxLength={60} placeholder="Nombre(s)" aria-label="Nombre(s)" autoComplete="given-name" />
-            <Input name="lastName" required minLength={2} maxLength={60} placeholder="Apellido(s)" aria-label="Apellido(s)" autoComplete="family-name" />
+            <Input name="firstName" required minLength={2} maxLength={60} defaultValue={pending?.firstName} placeholder="Nombre(s)" aria-label="Nombre(s)" autoComplete="given-name" />
+            <Input name="lastName" required minLength={2} maxLength={60} defaultValue={pending?.lastName} placeholder="Apellido(s)" aria-label="Apellido(s)" autoComplete="family-name" />
           </div>
         </fieldset>
         <Field label="Número de carnet">

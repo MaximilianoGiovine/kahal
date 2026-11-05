@@ -60,6 +60,9 @@ export interface Me {
   /** Permisos efectivos (unión de todos sus roles). */
   permissions: Permission[];
   status: UserStatus;
+  /** Falso en cuentas creadas con Google o Apple que todavía no definieron contraseña. */
+  hasPassword: boolean;
+  identities: { provider: 'GOOGLE' | 'APPLE'; email: string | null }[];
   church: ChurchBrief | null;
   /** Ficha del padrón vinculada a la cuenta (los datos que se piden al registrarse). */
   member: { id: string; documentId: string | null; birthDate: string | null; baptized: boolean | null; address: string | null } | null;

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { User, UserStatus } from '@prisma/client';
+import { AuthProvider, Prisma, User, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { AccessPayload } from '../common/auth.guard';
 import { AuthUser } from '../common/auth-user';
@@ -30,6 +30,13 @@ export const ACCESS_TTL_SECONDS = 15 * 60;
  * tras 180 días sin abrir la app (o al cambiar la contraseña / deshabilitar la cuenta).
  */
 export const REFRESH_TTL_SECONDS = 180 * 24 * 60 * 60;
+
+/** Cuenta de Google o Apple ya verificada, lista para vincularse a un usuario. */
+export interface VerifiedIdentity {
+  provider: AuthProvider;
+  subject: string;
+  email: string;
+}
 
 const STATUS_MESSAGES: Record<UserStatus, string | null> = {
   ACTIVE: null,
@@ -56,9 +63,14 @@ export class AuthService {
       where: { email: dto.email.toLowerCase().trim() },
       include: { church: { select: { active: true } } },
     });
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+    if (!user?.passwordHash || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Email o contraseña incorrectos');
     }
+    return this.startSession(user);
+  }
+
+  /** Abre sesión para una cuenta ya autenticada (por contraseña o por Google/Apple). */
+  async startSession(user: User & { church: { active: boolean } | null }) {
     const blocked = STATUS_MESSAGES[user.status];
     if (blocked) throw new ForbiddenException(blocked);
     if (user.church && !user.church.active) {
@@ -68,11 +80,16 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  async register(dto: RegisterDto) {
+  /** Con `identity` (registro con Google o Apple) el email es el del proveedor y no hace falta contraseña. */
+  async register(dto: RegisterDto, identity?: VerifiedIdentity | null) {
+    // Quien manda contraseña hace un registro común, aunque le haya quedado un intento de Google/Apple sin terminar.
+    const social = dto.password ? null : identity;
+    if (!dto.password && !social) throw new BadRequestException('La contraseña debe tener al menos 8 caracteres');
+
     const church = await this.prisma.church.findUnique({ where: { slug: dto.churchSlug } });
     if (!church || !church.active) throw new NotFoundException('Iglesia no encontrada');
 
-    const email = dto.email.toLowerCase().trim();
+    const email = social ? social.email : dto.email.toLowerCase().trim();
     if (await this.prisma.user.findUnique({ where: { email } })) {
       throw new ConflictException('Ya existe una cuenta con ese email');
     }
@@ -83,17 +100,19 @@ export class AuthService {
     const lastName = dto.lastName.trim();
     const phone = dto.phone.trim();
     // El registro es libre: la cuenta queda activa, sin roles, y vinculada al padrón con los estados por defecto.
+    const passwordHash = dto.password ? await bcrypt.hash(dto.password, 10) : null;
     const user = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           churchId: church.id,
           email,
-          passwordHash: await bcrypt.hash(dto.password, 10),
+          passwordHash,
           firstName,
           lastName,
           phone,
           status: UserStatus.ACTIVE,
           consentAt: new Date(),
+          ...(social && { identities: { create: { provider: social.provider, subject: social.subject, email: social.email } } }),
         },
       });
       await linkMember(tx, church.id, user.id, {
@@ -107,6 +126,12 @@ export class AuthService {
         address: dto.address.trim(),
       });
       return user;
+    }).catch((err) => {
+      // Doble envío del formulario, o la misma cuenta de Google/Apple registrada mientras tanto.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException('Ya existe una cuenta con esos datos. Probá ingresar.');
+      }
+      throw err;
     });
 
     await this.mail.send({
@@ -155,18 +180,35 @@ export class AuthService {
         phone: true,
         isSuperAdmin: true,
         status: true,
+        passwordHash: true,
+        identities: { select: { provider: true, email: true }, orderBy: { provider: 'asc' } },
         ...ROLE_NAMES_SELECT,
         church: { select: { id: true, name: true, slug: true, logoKey: true, primaryColor: true, timezone: true, defaultCurrency: true } },
         member: { select: { id: true, documentId: true, birthDate: true, baptized: true, address: true } },
       },
     });
     if (!user) throw new UnauthorizedException();
-    return { ...user, permissions: auth.permissions };
+    const { passwordHash, ...rest } = user;
+    return { ...rest, hasPassword: !!passwordHash, permissions: auth.permissions };
+  }
+
+  /** Nunca deja una cuenta sin ninguna forma de ingresar. */
+  async unlinkIdentity(userId: string, provider: AuthProvider) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { passwordHash: true, identities: { select: { provider: true } } },
+    });
+    if (!user.identities.some((i) => i.provider === provider)) throw new NotFoundException('Esa cuenta no está conectada');
+    if (!user.passwordHash && user.identities.length === 1) {
+      throw new BadRequestException('Creá una contraseña antes de desconectar esta cuenta: es tu única forma de ingresar');
+    }
+    await this.prisma.userIdentity.delete({ where: { userId_provider: { userId, provider } } });
+    return { ok: true };
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    if (!(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
+    if (user.passwordHash && !(dto.currentPassword && (await bcrypt.compare(dto.currentPassword, user.passwordHash)))) {
       throw new BadRequestException('La contraseña actual es incorrecta');
     }
     const updated = await this.prisma.user.update({

@@ -3,14 +3,16 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { SocialButtons } from '@/components/social-auth';
 import { Button, Field, Input } from '@/components/ui';
 import { api } from '@/lib/api';
+import { oauthErrorMessage } from '@/lib/oauth';
 
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const qc = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => oauthErrorMessage(params.get('oauth_error')));
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -42,6 +44,7 @@ export function LoginForm() {
       <Button type="submit" loading={loading} className="mt-2">
         Ingresar
       </Button>
+      <SocialButtons next={params.get('next')} />
     </form>
   );
 }

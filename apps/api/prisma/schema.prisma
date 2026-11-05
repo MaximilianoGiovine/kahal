@@ -118,24 +118,28 @@ model Church {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  churchId     String?
-  church       Church?    @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  email        String     @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  phone        String?
+  id            String     @id @default(cuid())
+  churchId      String?
+  church        Church?    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  email         String     @unique
+  /// Null en cuentas creadas con Google o Apple que todavía no definieron contraseña.
+  passwordHash  String?
+  firstName     String
+  lastName      String
+  phone         String?
   /// Administrador de la plataforma: opera sobre cualquier iglesia con todos los permisos.
-  isSuperAdmin Boolean    @default(false)
-  status       UserStatus @default(PENDING)
+  isSuperAdmin  Boolean    @default(false)
+  status        UserStatus @default(PENDING)
   /// Incrementar invalida todos los refresh tokens emitidos.
-  tokenVersion Int        @default(0)
-  consentAt    DateTime?
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  tokenVersion  Int        @default(0)
+  consentAt     DateTime?
+  lastLoginAt   DateTime?
+  /// Token secreto del feed de calendario personal (.ics). Se crea al pedirlo por primera vez.
+  calendarToken String?    @unique
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
+  identities            UserIdentity[]
   roles                 UserRole[]
   member                Member?
   transactions          Transaction[]
@@ -148,6 +152,25 @@ model User {
   activity              ActivityLog[]
 
   @@index([churchId, status])
+}
+
+enum AuthProvider {
+  GOOGLE
+  APPLE
+}
+
+/// Cuenta de Google o Apple conectada a un usuario. Se identifica por el "sub" del proveedor, no por el email.
+model UserIdentity {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  AuthProvider
+  subject   String
+  email     String?
+  createdAt DateTime     @default(now())
+
+  @@unique([provider, subject])
+  @@unique([userId, provider])
 }
 
 /// Rol definido por cada iglesia con los permisos que elija.
