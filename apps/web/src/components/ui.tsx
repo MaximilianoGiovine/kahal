@@ -50,7 +50,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, ComponentProps<'textarea
 Textarea.displayName = 'Textarea';
 
 export const Select = forwardRef<HTMLSelectElement, ComponentProps<'select'>>(({ className, ...props }, ref) => (
-  <select ref={ref} className={clsx(fieldBase, 'h-10 pr-8', className)} {...props} />
+  <select ref={ref} className={clsx(fieldBase, 'h-10 truncate pr-8', className)} {...props} />
 ));
 Select.displayName = 'Select';
 

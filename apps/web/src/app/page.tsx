@@ -19,10 +19,10 @@ export default function Home() {
         <Brand />
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <ButtonLink href="/solicitar-iglesia" variant="ghost" className="hidden sm:inline-flex">
+          <ButtonLink href="/solicitar-iglesia" variant="ghost" className="max-sm:hidden">
             Solicitar alta de iglesia
           </ButtonLink>
-          <ButtonLink href="/registro" variant="ghost" className="hidden sm:inline-flex">
+          <ButtonLink href="/registro" variant="ghost" className="max-sm:hidden">
             Registrarme
           </ButtonLink>
           <ButtonLink href="/login">Ingresar</ButtonLink>

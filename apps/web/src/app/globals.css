@@ -147,6 +147,22 @@ body {
   font-feature-settings: 'cv11', 'ss01';
 }
 
+/* Sin esto, un texto largo agranda la columna de la grilla y la página queda más ancha que el teléfono. */
+@layer base {
+  .grid > * {
+    min-width: 0;
+  }
+}
+
+/* iOS acerca la pantalla al enfocar un campo con letra menor a 16px y no vuelve a alejarla. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .tabular {
   font-variant-numeric: tabular-nums;
 }
