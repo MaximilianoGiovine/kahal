@@ -1,3 +1,12 @@
+# TRUSTED_PROXIES: "private_ranges" si hay otro proxy delante (Nginx Proxy Manager, etc.).
+# Sin definir, Caddy no confía en los encabezados X-Forwarded-* que recibe.
+{
+	servers {
+		trusted_proxies static {$TRUSTED_PROXIES:127.0.0.1/32}
+		trusted_proxies_strict
+	}
+}
+
 # SITE_ADDRESS:
 #   - ":80"                     -> solo HTTP por IP (pruebas rápidas)
 #   - "203-0-113-10.sslip.io"   -> HTTPS automático sin comprar dominio
@@ -22,6 +31,8 @@
 
 	handle /api/* {
 		reverse_proxy api:4000 {
+			# La API confía en un solo proxy: recibe directamente la IP real de la persona.
+			header_up X-Forwarded-For {client_ip}
 			health_uri /api/health
 			health_interval 15s
 		}

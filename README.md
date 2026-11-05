@@ -88,6 +88,32 @@ Se agregan en *Environment variables* del stack y se aplican con **Update the st
 | `DEMO_STREAM_URL` | Link de YouTube/Facebook/Twitch para las transmisiones de la demo. |
 | `HTTP_PORT` / `HTTPS_PORT` | Cambiar los puertos 80 / 443. |
 
+### Detrás de Nginx Proxy Manager (opcional)
+
+Si los puertos 80 y 443 ya los usa Nginx Proxy Manager (NPM), Caddy queda detrás de él y NPM se encarga del HTTPS.
+
+1. Por SSH, averiguá la IP de Docker en el servidor. Suele ser `172.17.0.1`:
+
+   ```bash
+   ip -4 addr show docker0
+   ```
+
+2. Usá estas variables en el stack, en lugar de la `SITE_ADDRESS` del paso 2. Ligar los puertos a esa IP evita que Caddy quede expuesto a internet sin HTTPS:
+
+   ```env
+   SITE_ADDRESS=:80
+   TRUSTED_PROXIES=private_ranges
+   HTTP_PORT=172.17.0.1:8080
+   HTTPS_PORT=172.17.0.1:8443
+   ```
+
+3. En NPM, creá un **Proxy Host**:
+   - **Domain Names:** `midominio.com` y `www.midominio.com`.
+   - **Scheme / Forward Hostname / Forward Port:** `http`, `172.17.0.1`, `8080`.
+   - **Pestaña SSL:** pedí un certificado de Let's Encrypt y activá **Force SSL**.
+
+Quien entre por `www` va a la dirección sin `www`.
+
 ### Ingresar con Google y Apple (opcional)
 
 Cada botón aparece solo cuando sus variables están definidas. Sin ellas la app funciona igual, con email y contraseña. Los dos proveedores exigen HTTPS y rechazan direcciones IP; se recomienda un **dominio propio**, porque pueden no aceptar una dirección `sslip.io`. En lo que sigue, `TU-DIRECCION` es el valor de `SITE_ADDRESS`.
