@@ -4,6 +4,7 @@ import { AppointmentStatus, Permission, Prisma, UserStatus } from '@prisma/clien
 import { AuthUser, can } from '../common/auth-user';
 import { APPOINTMENT_STATUS_LABEL } from '../common/labels';
 import { addDays, minutesToTime, timeToMinutes, todayIn, weekdayOf, zonedToUtc } from '../common/time';
+import { LOCALE } from '../common/locale';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
@@ -239,6 +240,6 @@ export class AppointmentsService {
   }
 
   private formatWhen(date: Date, timeZone: string) {
-    return new Intl.DateTimeFormat('es-AR', { timeZone, dateStyle: 'full', timeStyle: 'short' }).format(date);
+    return new Intl.DateTimeFormat(LOCALE, { timeZone, dateStyle: 'full', timeStyle: 'short' }).format(date);
   }
 }

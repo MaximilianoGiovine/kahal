@@ -1,5 +1,8 @@
 import type { ActivityAction, ActivityEntity, AppointmentStatus, Currency, UserRoles, UserStatus } from './types';
 
+/** Español de América Latina: no favorece el formato de ningún país. */
+const LOCALE = 'es-419';
+
 let tz = 'America/Argentina/Buenos_Aires';
 export const setTimezone = (t: string) => (tz = t);
 export const getTimezone = () => tz;
@@ -9,7 +12,7 @@ export function money(value: string | number, currency: Currency = 'ARS', opts: 
   const key = `${currency}:${opts.compact}`;
   let f = moneyFmt.get(key);
   if (!f) {
-    f = new Intl.NumberFormat('es-AR', {
+    f = new Intl.NumberFormat(LOCALE, {
       style: 'currency',
       currency,
       // Sin compactar, cada moneda usa sus propios decimales: el yen o el guaraní no tienen.
@@ -21,19 +24,19 @@ export function money(value: string | number, currency: Currency = 'ARS', opts: 
   return f.format(Number(value));
 }
 
-export const number = (n: number) => new Intl.NumberFormat('es-AR').format(n);
+export const number = (n: number) => new Intl.NumberFormat(LOCALE).format(n);
 
 /** Fechas "solo día" (columnas DATE): se formatean en UTC para no correrse un día. */
 export function dayLabel(iso: string | null | undefined, style: 'short' | 'medium' | 'long' = 'medium') {
   if (!iso) return '—';
   const opts: Intl.DateTimeFormatOptions =
     style === 'short' ? { day: '2-digit', month: '2-digit', year: 'numeric' } : style === 'long' ? { dateStyle: 'long' } : { day: 'numeric', month: 'short', year: 'numeric' };
-  return new Intl.DateTimeFormat('es-AR', { ...opts, timeZone: 'UTC' }).format(new Date(iso));
+  return new Intl.DateTimeFormat(LOCALE, { ...opts, timeZone: 'UTC' }).format(new Date(iso));
 }
 
 export function dateTime(iso: string | null | undefined, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }) {
   if (!iso) return '—';
-  return new Intl.DateTimeFormat('es-AR', { hourCycle: 'h23', ...opts, timeZone: tz }).format(new Date(iso));
+  return new Intl.DateTimeFormat(LOCALE, { hourCycle: 'h23', ...opts, timeZone: tz }).format(new Date(iso));
 }
 
 export const time = (iso: string) => dateTime(iso, { hour: '2-digit', minute: '2-digit' });
@@ -61,7 +64,7 @@ export function monthRange(offset = 0) {
 }
 
 export const monthLabel = (ym: string, style: 'short' | 'long' = 'short') =>
-  new Intl.DateTimeFormat('es-AR', { month: style, year: style === 'long' ? 'numeric' : '2-digit', timeZone: 'UTC' }).format(new Date(`${ym}-01T00:00:00Z`));
+  new Intl.DateTimeFormat(LOCALE, { month: style, year: style === 'long' ? 'numeric' : '2-digit', timeZone: 'UTC' }).format(new Date(`${ym}-01T00:00:00Z`));
 
 export const fullName = (p?: { firstName: string; lastName: string } | null) => (p ? `${p.firstName} ${p.lastName}` : '—');
 export const initials = (p: { firstName: string; lastName: string }) => `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase();

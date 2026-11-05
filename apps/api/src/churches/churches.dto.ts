@@ -9,6 +9,7 @@ import {
   IsUrl,
   Matches,
   ValidateIf,
+  IsTimeZone,
   MaxLength,
   MinLength,
   ValidateNested,
@@ -49,6 +50,10 @@ export class CreateChurchDto {
   slug: string;
 
   @IsOptional() @IsString() @MaxLength(120) city?: string;
+
+  @IsTimeZone({ message: 'Elige una zona horaria válida' }) timezone: string;
+
+  @IsEnum(Currency, { message: 'Elige una moneda válida' }) currency: Currency;
 
   @ValidateNested()
   @Type(() => ChurchAdminDto)

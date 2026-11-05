@@ -38,6 +38,8 @@ export class ChurchRequestsService {
         slug: dto.slug,
         city: dto.city,
         message: dto.message,
+        timezone: dto.timezone,
+        defaultCurrency: dto.currency,
         adminFirstName: dto.firstName,
         adminLastName: dto.lastName,
         adminEmail,
@@ -83,6 +85,8 @@ export class ChurchRequestsService {
           name: request.name,
           slug,
           city: request.city,
+          timezone: request.timezone,
+          defaultCurrency: request.defaultCurrency,
           admin: {
             firstName: request.adminFirstName,
             lastName: request.adminLastName,

@@ -283,6 +283,8 @@ model ChurchRequest {
   slug              String
   city              String?
   message           String?
+  timezone          String?
+  defaultCurrency   Currency?
   adminFirstName    String
   adminLastName     String
   adminEmail        String

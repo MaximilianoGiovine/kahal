@@ -82,6 +82,8 @@ export class ChurchesService {
         name: dto.name,
         slug: dto.slug,
         city: dto.city,
+        timezone: dto.timezone,
+        defaultCurrency: dto.currency,
         admin: { firstName: dto.admin.firstName, lastName: dto.admin.lastName, email, passwordHash },
       }),
     );

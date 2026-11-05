@@ -2,6 +2,7 @@
 
 import { CheckCircle2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { RegionFields } from '@/components/region-fields';
 import { Button, ButtonLink, Checkbox, Field, Input, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
 import { slugify } from '@/lib/format';
@@ -28,6 +29,8 @@ export function RequestForm() {
           name: fd.get('name'),
           slug,
           city: fd.get('city') || undefined,
+          timezone: fd.get('timezone'),
+          currency: fd.get('currency'),
           message: fd.get('message') || undefined,
           firstName: fd.get('firstName'),
           lastName: fd.get('lastName'),
@@ -69,6 +72,7 @@ export function RequestForm() {
       <Field label="Ciudad">
         <Input name="city" maxLength={120} />
       </Field>
+      <RegionFields />
       <fieldset className="flex flex-col gap-1.5">
         <legend className="mb-1.5 text-sm font-medium">Pastor o responsable</legend>
         <div className="grid grid-cols-2 gap-3">

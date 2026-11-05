@@ -110,7 +110,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       description: def.description,
     },
   });
-  const { roles, statuses } = await setupChurchDefaults(prisma, church.id);
+  const { roles, statuses } = await setupChurchDefaults(prisma, church.id, church.defaultCurrency);
   const statusLinks = (keys: DefaultStatusKey[]) => ({ create: keys.map((k) => ({ statusId: statuses[k] })) });
   await prisma.financeAccount.create({ data: { churchId: church.id, name: 'Fondo en dólares', currency: Currency.USD, initialBalance: 1500 } });
   await prisma.financeAccount.updateMany({ where: { churchId: church.id, name: 'Caja general' }, data: { initialBalance: roundTo(350000 * def.scale, 1000) } });

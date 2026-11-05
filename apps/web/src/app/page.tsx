@@ -92,7 +92,7 @@ function Preview() {
       <div className="grid grid-cols-3 gap-3">
         {[
           { icon: Users, label: 'Miembros activos', value: '248' },
-          { icon: HandCoins, label: 'Resultado del mes', value: '$1,3 M' },
+          { icon: HandCoins, label: 'Resultado del mes', value: '$1.3 M' },
           { icon: CalendarClock, label: 'Citas esta semana', value: '12' },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-border bg-surface-2/60 p-3.5">

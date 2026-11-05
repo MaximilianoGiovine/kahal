@@ -1,5 +1,6 @@
 import { Parser } from 'htmlparser2';
 import PDFDocument from 'pdfkit';
+import { LOCALE } from '../common/locale';
 
 interface Run {
   text: string;
@@ -209,7 +210,7 @@ export async function renderArticlePdf(input: ArticlePdfInput): Promise<Buffer> 
   doc.moveDown(0.8);
   doc.font('Times-Bold').fontSize(26).fillColor(COLOR.text).text(pdfSafe(input.title), { width, lineGap: 2 });
   doc.moveDown(0.4);
-  const date = new Intl.DateTimeFormat('es-AR', { dateStyle: 'long', timeZone: input.timezone }).format(input.publishedAt);
+  const date = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'long', timeZone: input.timezone }).format(input.publishedAt);
   doc.font('Helvetica').fontSize(10).fillColor(COLOR.muted).text(pdfSafe([input.author && `Por ${input.author}`, date].filter(Boolean).join(' · ')), { width });
   if (input.summary) {
     doc.moveDown(0.8);

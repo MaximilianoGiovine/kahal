@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ChurchQrDialog } from '@/components/church-qr';
 import { Dialog } from '@/components/dialog';
+import { RegionFields } from '@/components/region-fields';
 import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Tabs, td, th } from '@/components/ui';
 import { api } from '@/lib/api';
 import { churchRequestsQuery } from '@/lib/church-requests';
@@ -159,6 +160,8 @@ function CreateChurch({ onClose }: { onClose: () => void }) {
             name: v.name,
             slug: v.slug,
             city: v.city || undefined,
+            timezone: v.timezone,
+            currency: v.currency,
             admin: { firstName: v.adminFirstName, lastName: v.adminLastName, email: v.adminEmail, password: v.adminPassword },
           });
         }}
@@ -172,6 +175,7 @@ function CreateChurch({ onClose }: { onClose: () => void }) {
         <Field label="Ciudad">
           <Input name="city" />
         </Field>
+        <RegionFields />
         <p className="pt-2 text-sm font-semibold sm:col-span-2">Pastor de la iglesia</p>
         <Field label="Nombre">
           <Input name="adminFirstName" required minLength={2} />

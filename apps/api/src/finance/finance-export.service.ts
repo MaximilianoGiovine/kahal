@@ -5,6 +5,7 @@ import { TRANSACTION_TYPE_LABEL } from '../common/labels';
 import { PrismaService } from '../prisma/prisma.service';
 import { TransactionsQuery } from './finance.dto';
 import { FinanceService, TRANSACTION_INCLUDE } from './finance.service';
+import { LOCALE } from '../common/locale';
 
 const fmtDay = (d?: string) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
 const num = (d: Prisma.Decimal | null | undefined) => (d ? d.toNumber() : 0);
@@ -33,7 +34,7 @@ export class FinanceExportService {
     ws.addRow([church.name]).font = { bold: true, size: 16 };
     ws.addRow(['Reporte financiero']).font = { size: 12, color: { argb: 'FF57534E' } };
     ws.addRow([`Período: ${period}`]);
-    ws.addRow([`Generado: ${new Date().toLocaleString('es-AR', { timeZone: church.timezone })}`]);
+    ws.addRow([`Generado: ${new Date().toLocaleString(LOCALE, { timeZone: church.timezone })}`]);
     ws.addRow([]);
     styleHeader(ws.addRow(['Moneda', 'Ingresos', 'Egresos', 'Resultado']));
     for (const [currency, t] of Object.entries(summary.totals)) {

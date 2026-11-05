@@ -18,10 +18,7 @@ export const DEFAULT_CATEGORIES: { name: string; type: TransactionType; color: s
   { name: 'Otros egresos', type: 'EXPENSE', color: '#64748b' },
 ];
 
-export const DEFAULT_ACCOUNTS: { name: string; currency: Currency }[] = [
-  { name: 'Caja general', currency: 'ARS' },
-  { name: 'Banco', currency: 'ARS' },
-];
+export const DEFAULT_ACCOUNTS = ['Caja general', 'Banco'];
 
 /** Roles iniciales; cada iglesia puede editarlos, borrarlos o crear otros. */
 export const DEFAULT_ROLES = {
@@ -58,11 +55,11 @@ export const DEFAULT_MEMBER_STATUSES = {
 export type DefaultStatusKey = keyof typeof DEFAULT_MEMBER_STATUSES;
 
 /** Crea roles, estados, categorías y cuentas iniciales para una iglesia nueva. Devuelve sus ids. */
-export async function setupChurchDefaults(tx: Prisma.TransactionClient, churchId: string) {
+export async function setupChurchDefaults(tx: Prisma.TransactionClient, churchId: string, currency: Currency) {
   await tx.financeCategory.createMany({
     data: DEFAULT_CATEGORIES.map((c) => ({ ...c, isTithe: c.isTithe ?? false, churchId })),
   });
-  await tx.financeAccount.createMany({ data: DEFAULT_ACCOUNTS.map((a) => ({ ...a, churchId })) });
+  await tx.financeAccount.createMany({ data: DEFAULT_ACCOUNTS.map((name) => ({ name, currency, churchId })) });
   const roles = {} as Record<DefaultRoleKey, string>;
   for (const [key, def] of Object.entries(DEFAULT_ROLES)) {
     roles[key as DefaultRoleKey] = (await tx.churchRole.create({ data: { ...def, churchId } })).id;
@@ -81,12 +78,17 @@ export async function createChurchWithAdmin(
     name: string;
     slug: string;
     city?: string | null;
+    /** Solo faltan en solicitudes anteriores a que se pidieran: ahí rige el valor por defecto de la base. */
+    timezone?: string | null;
+    defaultCurrency?: Currency | null;
     admin: { firstName: string; lastName: string; email: string; phone?: string | null; passwordHash: string; consentAt?: Date };
   },
 ) {
   const { admin } = data;
-  const church = await tx.church.create({ data: { name: data.name, slug: data.slug, city: data.city } });
-  const { roles, statuses } = await setupChurchDefaults(tx, church.id);
+  const church = await tx.church.create({
+    data: { name: data.name, slug: data.slug, city: data.city, timezone: data.timezone ?? undefined, defaultCurrency: data.defaultCurrency ?? undefined },
+  });
+  const { roles, statuses } = await setupChurchDefaults(tx, church.id, church.defaultCurrency);
   const user = await tx.user.create({
     data: {
       churchId: church.id,

@@ -8,6 +8,7 @@ import { ChurchQrDialog, QrCode, registerLink } from '@/components/church-qr';
 import { CurrencyOptions } from '@/components/currency-options';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
+import { TimezoneOptions } from '@/components/region-fields';
 import { ActionMenu } from '@/components/menu';
 import { Avatar, Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Pagination, Select, Tabs, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -115,11 +116,7 @@ function ChurchSettings() {
           </Field>
           <Field label="Zona horaria" className="sm:col-span-2">
             <Select name="timezone" defaultValue={data.timezone}>
-              {['America/Argentina/Buenos_Aires', 'America/Montevideo', 'America/Santiago', 'America/Asuncion', 'America/La_Paz', 'America/Lima', 'America/Bogota', 'America/Mexico_City', 'Europe/Madrid'].map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz.replace(/_/g, ' ')}
-                </option>
-              ))}
+              <TimezoneOptions current={data.timezone} />
             </Select>
           </Field>
           <fieldset className="grid gap-4 sm:col-span-2 sm:grid-cols-3">

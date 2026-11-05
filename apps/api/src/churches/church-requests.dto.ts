@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { Equals, IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { Currency } from '@prisma/client';
+import { Equals, IsEmail, IsEnum, IsOptional, IsString, IsTimeZone, Matches, MaxLength, MinLength } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 const trimToUndefined = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || undefined : value);
@@ -12,6 +13,10 @@ export class SubmitChurchRequestDto {
   @Matches(SLUG, { message: SLUG_MESSAGE }) @MaxLength(60) slug: string;
 
   @IsOptional() @Transform(trimToUndefined) @IsString() @MaxLength(120) city?: string;
+
+  @IsTimeZone({ message: 'Elige una zona horaria válida' }) timezone: string;
+
+  @IsEnum(Currency, { message: 'Elige una moneda válida' }) currency: Currency;
 
   @IsOptional() @Transform(trimToUndefined) @IsString() @MaxLength(1000) message?: string;
 

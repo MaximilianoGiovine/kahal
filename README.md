@@ -47,7 +47,7 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 ## 🧩 Funcionalidades
 
 ### 💰 Finanzas
-- Ingresos y egresos en cuentas en **ARS y USD**, con categorías propias.
+- Ingresos y egresos en cuentas de **más de 150 monedas**, con categorías propias.
 - **Diezmos asociados a cada miembro** y comprobantes adjuntos a cada movimiento.
 - Resumen por período con gráfico de los últimos 12 meses.
 - **Exportación a Excel** con resumen, movimientos, totales por categoría y por mes, y diezmos por miembro.
