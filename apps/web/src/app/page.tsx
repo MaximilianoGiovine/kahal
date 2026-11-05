@@ -6,8 +6,8 @@ import { ChurchDirectory } from './church-directory';
 
 const FEATURES = [
   { icon: HandCoins, title: 'Finanzas claras', text: 'Ingresos, egresos, diezmos por miembro y reportes listos para exportar a Excel.' },
-  { icon: Users, title: 'Membresía', text: 'Padrón de miembros, familias y ministerios; cada persona se registra sola escaneando el QR de su iglesia.' },
-  { icon: Megaphone, title: 'Novedades y agenda', text: 'Anuncios y eventos que llegan a toda la congregación en su celular.' },
+  { icon: Users, title: 'Membresía', text: 'Registro de miembros, familias y ministerios; cada persona se registra sola escaneando el QR de su iglesia.' },
+  { icon: Megaphone, title: 'Novedades y agenda', text: 'Anuncios y eventos que llegan a toda la congregación en su teléfono.' },
   { icon: MonitorPlay, title: 'Transmisiones', text: 'Los cultos en vivo de YouTube, Facebook o Twitch, dentro de la app de la iglesia.' },
   { icon: CalendarClock, title: 'Citas pastorales', text: 'Los miembros reservan un horario con su pastor o líder, con recordatorios.' },
 ];
@@ -65,14 +65,14 @@ export default function Home() {
 
         <section className="py-16">
           <h2 className="font-display text-2xl font-bold">Iglesias en Kahal</h2>
-          <p className="mt-1 text-sm text-muted">Conocé sus próximas actividades o registrate como miembro.</p>
+          <p className="mt-1 text-sm text-muted">Conoce sus próximas actividades o regístrate como miembro.</p>
           <ChurchDirectory />
         </section>
 
         <section className="glass mb-16 flex flex-col items-start justify-between gap-4 rounded-2xl p-6 sm:flex-row sm:items-center">
           <div>
             <h2 className="font-display text-xl font-bold">¿Tu iglesia todavía no está en Kahal?</h2>
-            <p className="mt-1 text-sm text-muted">Completá la solicitud y te avisamos por email cuando esté aprobada.</p>
+            <p className="mt-1 text-sm text-muted">Completa la solicitud y te avisamos por email cuando esté aprobada.</p>
           </div>
           <ButtonLink href="/solicitar-iglesia" variant="secondary">
             Solicitar el alta
@@ -107,7 +107,7 @@ function Preview() {
       <div className="hero-glow mt-3 rounded-2xl p-5">
         <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">En vivo ahora</span>
         <p className="font-display mt-6 text-xl font-semibold">Culto dominical</p>
-        <p className="text-xs text-white/80">Domingo 10:00 hs · YouTube</p>
+        <p className="text-xs text-white/80">Domingo 10:00 · YouTube</p>
       </div>
       <div className="mt-3 space-y-2">
         {['Reunión de jóvenes', 'Ensayo del coro'].map((t, i) => (

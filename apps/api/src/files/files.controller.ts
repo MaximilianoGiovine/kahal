@@ -44,7 +44,7 @@ export class FilesController {
     if (!KINDS.includes(kind)) throw new BadRequestException('Tipo de archivo inválido');
     const ext = MIME_EXT[file.mimetype];
     if (!ext || (ext === 'pdf' && kind !== 'receipt')) {
-      throw new BadRequestException(kind === 'receipt' ? 'Formato no soportado (usá imagen o PDF)' : 'Formato no soportado (usá JPG, PNG o WEBP)');
+      throw new BadRequestException(kind === 'receipt' ? 'Formato no soportado (usa imagen o PDF)' : 'Formato no soportado (usa JPG, PNG o WEBP)');
     }
     const key = `${churchId}/${kind}/${randomUUID()}.${ext}`;
     await this.storage.put(key, file.buffer, file.mimetype);

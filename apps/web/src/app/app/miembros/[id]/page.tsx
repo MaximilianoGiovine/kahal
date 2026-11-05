@@ -76,7 +76,7 @@ export default function MemberPage() {
           <dl className="grid gap-x-6 gap-y-5 p-5 sm:grid-cols-2">
             <Item icon={<Mail />} label="Email" value={m.email} />
             <Item icon={<Phone />} label="Teléfono" value={m.phone} />
-            <Item icon={<IdCard />} label="Número de carnet" value={m.documentId} />
+            <Item icon={<IdCard />} label="Número de documento" value={m.documentId} />
             <Item icon={<Cake />} label="Nacimiento" value={m.birthDate && `${dayLabel(m.birthDate, 'long')} (${age(m.birthDate)} años)`} />
             <Item icon={<MapPin />} label="Dirección" value={m.address} />
             <Item icon={<UserPlus />} label="Ingreso a la iglesia" value={m.joinedAt && dayLabel(m.joinedAt, 'long')} />
@@ -164,7 +164,7 @@ export default function MemberPage() {
         loading={remove.isPending}
         danger
         title="Eliminar miembro"
-        message={`¿Eliminar a ${fullName(m)} del padrón? Si preferís conservar el historial, marcalo como "Inactivo".`}
+        message={`¿Eliminar a ${fullName(m)} del registro? Si prefieres conservar el historial, márcalo como "Inactivo".`}
         confirmLabel="Eliminar"
       />
     </>

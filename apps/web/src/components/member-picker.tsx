@@ -69,7 +69,7 @@ export function MemberPicker({ name, initial }: { name: string; initial?: Pick |
                     className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-surface-2"
                   >
                     {m.lastName}, {m.firstName}
-                    {m.documentId && <span className="ml-2 text-xs text-muted">Carnet {m.documentId}</span>}
+                    {m.documentId && <span className="ml-2 text-xs text-muted">Documento {m.documentId}</span>}
                   </button>
                 </li>
               ))}

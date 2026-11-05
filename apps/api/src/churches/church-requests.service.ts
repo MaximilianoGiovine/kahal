@@ -109,7 +109,7 @@ export class ChurchRequestsService {
       html: mailLayout(
         church.name,
         '¡Tu iglesia fue aprobada!',
-        `Hola ${escapeHtml(request.adminFirstName)}, ya podés ingresar a Kahal con este email y la contraseña que elegiste en la solicitud.`,
+        `Hola ${escapeHtml(request.adminFirstName)}, ya puedes ingresar a Kahal con este email y la contraseña que elegiste en la solicitud.`,
       ),
     });
     return church;
@@ -180,7 +180,7 @@ export class ChurchRequestsService {
         this.mail.send({
           to: admin.email,
           subject: `Nueva solicitud de iglesia: ${dto.name}`,
-          html: mailLayout(dto.name, 'Nueva solicitud de iglesia', `${details}<br><br>Para aprobarla o rechazarla, entrá a Kahal → Plataforma → Iglesias → Solicitudes.`),
+          html: mailLayout(dto.name, 'Nueva solicitud de iglesia', `${details}<br><br>Para aprobarla o rechazarla, entra a Kahal → Plataforma → Iglesias → Solicitudes.`),
         }),
       ),
     );

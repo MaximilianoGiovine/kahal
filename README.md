@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>La plataforma para administrar tu iglesia y mantener conectada a tu congregación.</strong><br>
-  Finanzas, membresía, agenda, transmisiones y citas pastorales, desde la computadora o el celular.
+  Finanzas, membresía, agenda, transmisiones y citas pastorales, desde la computadora o el teléfono.
 </p>
 
 <p align="center">
@@ -32,14 +32,14 @@
 
 ## ✨ ¿Qué es Kahal?
 
-**Kahal** (קהל) significa *congregación* en hebreo. Reúne en una sola app lo que muchas iglesias llevan repartido entre planillas, grupos de chat y cuadernos: la tesorería, el padrón, los anuncios, la agenda y los turnos con el pastor.
+**Kahal** (קהל) significa *congregación* en hebreo. Reúne en una sola app lo que muchas iglesias llevan repartido entre hojas de cálculo, grupos de chat y cuadernos: la tesorería, el registro de miembros, los anuncios, la agenda y las citas con el pastor.
 
-Una misma instalación atiende a muchas iglesias, cada una con sus datos aislados, su logo, su color y su propia forma de organizarse. Los miembros se suman escaneando un código QR y tienen la iglesia en el celular, sin pasar por ninguna tienda de aplicaciones.
+Una misma instalación atiende a muchas iglesias, cada una con sus datos aislados, su logo, su color y su propia forma de organizarse. Los miembros se unen escaneando un código QR y tienen la iglesia en el teléfono, sin pasar por ninguna tienda de aplicaciones.
 
 <table>
   <tr>
     <td width="33%" valign="top"><strong>⛪ Para quienes lideran</strong><br>Una mirada clara de la congregación y de las finanzas, con la tarea repartida según los roles que definas.</td>
-    <td width="33%" valign="top"><strong>📱 Para la congregación</strong><br>Novedades, actividades, cultos en vivo y turnos pastorales, siempre a mano.</td>
+    <td width="33%" valign="top"><strong>📱 Para la congregación</strong><br>Novedades, actividades, cultos en vivo y citas pastorales, siempre a mano.</td>
     <td width="33%" valign="top"><strong>🚀 Para quien la instala</strong><br>Un solo stack de Docker, con HTTPS automático, migraciones y backups diarios.</td>
   </tr>
 </table>
@@ -53,7 +53,7 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 - **Exportación a Excel** con resumen, movimientos, totales por categoría y por mes, y diezmos por miembro.
 
 ### 👥 Membresía
-- Padrón con búsqueda y filtros por estado, ministerio y origen, exportable a Excel.
+- Registro de miembros con búsqueda y filtros por estado, ministerio y origen, exportable a Excel.
 - **Familias y ministerios**, con líder por ministerio.
 - **Estados a medida**, con nombre y color, y varios a la vez por persona (por ejemplo, Miembro y Bautizado).
 - La ficha de cada persona está sincronizada con su cuenta: lo que edita en *Mi perfil* y lo que edita la iglesia es lo mismo.
@@ -86,8 +86,8 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 - Aviso en el inicio cuando hay una transmisión en curso.
 
 ### 🗓️ Citas pastorales
-- Reserva de turnos con el pastor, el equipo pastoral o los líderes.
-- Disponibilidad semanal por persona, sin turnos duplicados.
+- Reserva de citas con el pastor, el equipo pastoral o los líderes.
+- Disponibilidad semanal por persona, sin citas duplicadas.
 - Confirmación y **recordatorios por email y notificación push**.
 
 ### 📖 Artículos
@@ -107,28 +107,28 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 
 ### 🎨 Una app cuidada
 - Diseño *liquid glass* con **tema oscuro y claro**.
-- **PWA instalable** en el celular, con navegación inferior y página sin conexión.
+- **PWA instalable** en el teléfono, con navegación inferior y página sin conexión.
 
 ## 📸 Un vistazo
 
 <table>
   <tr>
     <td width="50%"><img src="docs/img/finanzas.jpg" alt="Resumen de finanzas con ingresos, egresos y gráfico de los últimos 12 meses"><p align="center"><strong>Finanzas</strong></p></td>
-    <td width="50%"><img src="docs/img/miembros.jpg" alt="Padrón de miembros con filtros, estados, ministerios y familias"><p align="center"><strong>Membresía</strong></p></td>
+    <td width="50%"><img src="docs/img/miembros.jpg" alt="Registro de miembros con filtros, estados, ministerios y familias"><p align="center"><strong>Membresía</strong></p></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/img/agenda.jpg" alt="Agenda de actividades con la opción de agregar a mi calendario"><p align="center"><strong>Agenda</strong></p></td>
-    <td width="50%"><img src="docs/img/citas.jpg" alt="Citas pastorales con turnos para confirmar"><p align="center"><strong>Citas pastorales</strong></p></td>
+    <td width="50%"><img src="docs/img/citas.jpg" alt="Citas pastorales por confirmar"><p align="center"><strong>Citas pastorales</strong></p></td>
   </tr>
 </table>
 
-<h3 align="center">En el celular, como una app</h3>
+<h3 align="center">En el teléfono, como una app</h3>
 
 <table align="center">
   <tr>
-    <td width="33%"><img src="docs/img/movil-inicio.jpg" alt="Inicio en el celular"></td>
-    <td width="33%"><img src="docs/img/movil-agenda.jpg" alt="Agenda en el celular"></td>
-    <td width="33%"><img src="docs/img/movil-citas.jpg" alt="Citas en el celular"></td>
+    <td width="33%"><img src="docs/img/movil-inicio.jpg" alt="Inicio en el teléfono"></td>
+    <td width="33%"><img src="docs/img/movil-agenda.jpg" alt="Agenda en el teléfono"></td>
+    <td width="33%"><img src="docs/img/movil-citas.jpg" alt="Citas en el teléfono"></td>
   </tr>
 </table>
 
@@ -201,7 +201,7 @@ docs           Guía de instalación e imágenes
 Kahal se levanta con un solo stack de Docker: Portainer construye y arranca todo desde este repositorio.
 
 ```bash
-cp .env.example .env   # completá los secretos
+cp .env.example .env   # completa los secretos
 docker compose up -d --build
 ```
 

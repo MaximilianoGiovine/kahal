@@ -29,9 +29,9 @@ export const PERMISSION_GROUPS: { label: string; items: { value: Permission; lab
   {
     label: 'Miembros',
     items: [
-      { value: 'MEMBERS_VIEW', label: 'Ver miembros', help: 'Padrón, familias, ministerios, estadísticas y exportación' },
-      { value: 'MEMBERS_EDIT', label: 'Editar miembros', help: 'Alta y edición de miembros, familias y ministerios' },
-      { value: 'MEMBERS_DELETE', label: 'Dar de baja miembros', help: 'Eliminar fichas del padrón' },
+      { value: 'MEMBERS_VIEW', label: 'Ver miembros', help: 'Listado de miembros, familias, ministerios, estadísticas y exportación' },
+      { value: 'MEMBERS_EDIT', label: 'Editar miembros', help: 'Creación y edición de miembros, familias y ministerios' },
+      { value: 'MEMBERS_DELETE', label: 'Dar de baja miembros', help: 'Eliminar fichas de miembros' },
       { value: 'MEMBER_STATUSES_MANAGE', label: 'Gestionar estados', help: 'Crear, editar, ordenar y eliminar los estados de miembros' },
     ],
   },
@@ -39,7 +39,7 @@ export const PERMISSION_GROUPS: { label: string; items: { value: Permission; lab
     label: 'Finanzas',
     items: [
       { value: 'FINANCE_VIEW', label: 'Ver finanzas', help: 'Movimientos, reportes, comprobantes y aportes de cada miembro' },
-      { value: 'FINANCE_EDIT', label: 'Cargar finanzas', help: 'Registrar movimientos y administrar cuentas y categorías' },
+      { value: 'FINANCE_EDIT', label: 'Registrar finanzas', help: 'Registrar movimientos y administrar cuentas y categorías' },
     ],
   },
   {

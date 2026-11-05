@@ -129,7 +129,7 @@ export class AuthService {
     }).catch((err) => {
       // Doble envío del formulario, o la misma cuenta de Google/Apple registrada mientras tanto.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ConflictException('Ya existe una cuenta con esos datos. Probá ingresar.');
+        throw new ConflictException('Ya existe una cuenta con esos datos. Intenta ingresar.');
       }
       throw err;
     });
@@ -140,7 +140,7 @@ export class AuthService {
       html: mailLayout(
         church.name,
         '¡Tu cuenta está lista!',
-        `Hola ${escapeHtml(firstName)}, ya podés ingresar a Kahal para ver las novedades, conectarte a las transmisiones y agendar citas.`,
+        `Hola ${escapeHtml(firstName)}, ya puedes ingresar a Kahal para ver las novedades, conectarte a las transmisiones y agendar citas.`,
       ),
     });
     // Queda con la sesión iniciada: quien se registra desde el QR entra directo a la app.
@@ -200,7 +200,7 @@ export class AuthService {
     });
     if (!user.identities.some((i) => i.provider === provider)) throw new NotFoundException('Esa cuenta no está conectada');
     if (!user.passwordHash && user.identities.length === 1) {
-      throw new BadRequestException('Creá una contraseña antes de desconectar esta cuenta: es tu única forma de ingresar');
+      throw new BadRequestException('Crea una contraseña antes de desconectar esta cuenta: es tu única forma de ingresar');
     }
     await this.prisma.userIdentity.delete({ where: { userId_provider: { userId, provider } } });
     return { ok: true };

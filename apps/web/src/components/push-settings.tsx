@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { disablePush, enablePush, readPushStatus, type PushStatus } from '@/lib/push';
 import { Button, Card } from './ui';
 
-const IOS_STEPS = 'En iPhone, primero agregá Kahal a la pantalla de inicio: botón Compartir → “Agregar a inicio”. Después abrila desde ese ícono y activalas acá.';
+const IOS_STEPS = 'En iPhone, primero agrega Kahal a la pantalla de inicio: botón Compartir → “Agregar a inicio”. Después ábrela desde ese ícono y actívalas aquí.';
 
 function usePush() {
   const [status, setStatus] = useState<PushStatus>('loading');
@@ -47,8 +47,8 @@ const MESSAGES: Record<PushStatus, string> = {
   unsupported: 'Este navegador no admite notificaciones. En iPhone se necesita iOS 16.4 o posterior.',
   'needs-install': IOS_STEPS,
   unconfigured: 'Las notificaciones todavía no están habilitadas en este servidor.',
-  denied: 'Las bloqueaste en este dispositivo. Para activarlas, permitilas desde los ajustes del teléfono o del navegador.',
-  off: 'Recibí en este dispositivo las novedades, los eventos, las transmisiones en vivo y tus citas.',
+  denied: 'Las bloqueaste en este dispositivo. Para activarlas, permítelas desde los ajustes del teléfono o del navegador.',
+  off: 'Recibe en este dispositivo las novedades, los eventos, las transmisiones en vivo y tus citas.',
   on: 'Activadas en este dispositivo.',
 };
 
@@ -124,8 +124,8 @@ export function PushPrompt() {
     <Card className="mb-6 flex items-start gap-3 p-4">
       <Bell className="mt-0.5 size-5 shrink-0 text-accent-ink" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">Activá las notificaciones</p>
-        <p className="mt-0.5 text-sm text-muted">{status === 'off' ? 'Enterate al momento de las novedades, las transmisiones en vivo y tus citas.' : IOS_STEPS}</p>
+        <p className="text-sm font-medium">Activa las notificaciones</p>
+        <p className="mt-0.5 text-sm text-muted">{status === 'off' ? 'Entérate al momento de las novedades, las transmisiones en vivo y tus citas.' : IOS_STEPS}</p>
         {status === 'off' && (
           <Button size="sm" className="mt-3" loading={busy} onClick={enable}>
             Activar

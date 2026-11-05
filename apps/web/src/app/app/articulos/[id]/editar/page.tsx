@@ -15,7 +15,7 @@ export default function EditArticlePage() {
   const allowed = can.articles(me);
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['articles', 'detail', id], queryFn: () => api<Article>(`/articles/${id}`), enabled: allowed });
 
-  if (!allowed) return <ErrorState error={new Error('No tenés permisos para editar artículos')} />;
+  if (!allowed) return <ErrorState error={new Error('No tienes permisos para editar artículos')} />;
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
   return <ArticleForm item={data} />;

@@ -49,7 +49,7 @@ export class PushService {
       this.publicKey = publicKey;
     } catch (err) {
       // Una clave mal copiada desactiva las notificaciones, pero no tira abajo la API.
-      this.logger.error(`Notificaciones desactivadas, revisá las variables VAPID: ${err}`);
+      this.logger.error(`Notificaciones desactivadas, revisa las variables VAPID: ${err}`);
     }
   }
 

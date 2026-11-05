@@ -119,7 +119,7 @@ function AccountForm({ item, onClose }: { item: Account | null; onClose: () => v
     >
       <form id="account-form" onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field label="Nombre">
-          <Input name="name" required minLength={2} defaultValue={item?.name} placeholder="Ej.: Banco Nación" />
+          <Input name="name" required minLength={2} defaultValue={item?.name} placeholder="Ej.: Banco principal" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Moneda">

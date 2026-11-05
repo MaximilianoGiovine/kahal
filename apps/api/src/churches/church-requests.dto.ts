@@ -7,7 +7,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SLUG_MESSAGE = 'El identificador solo admite minúsculas, números y guiones';
 
 export class SubmitChurchRequestDto {
-  @Transform(trim) @IsString() @MinLength(2, { message: 'Ingresá el nombre de la iglesia' }) @MaxLength(120) name: string;
+  @Transform(trim) @IsString() @MinLength(2, { message: 'Ingresa el nombre de la iglesia' }) @MaxLength(120) name: string;
 
   @Matches(SLUG, { message: SLUG_MESSAGE }) @MaxLength(60) slug: string;
 
@@ -15,17 +15,17 @@ export class SubmitChurchRequestDto {
 
   @IsOptional() @Transform(trimToUndefined) @IsString() @MaxLength(1000) message?: string;
 
-  @Transform(trim) @IsString() @MinLength(2, { message: 'Ingresá tu nombre' }) @MaxLength(60) firstName: string;
+  @Transform(trim) @IsString() @MinLength(2, { message: 'Ingresa tu nombre' }) @MaxLength(60) firstName: string;
 
-  @Transform(trim) @IsString() @MinLength(2, { message: 'Ingresá tu apellido' }) @MaxLength(60) lastName: string;
+  @Transform(trim) @IsString() @MinLength(2, { message: 'Ingresa tu apellido' }) @MaxLength(60) lastName: string;
 
   @IsEmail({}, { message: 'Email inválido' }) email: string;
 
-  @Transform(trim) @IsString() @MinLength(6, { message: 'Ingresá un teléfono válido' }) @MaxLength(40) phone: string;
+  @Transform(trim) @IsString() @MinLength(6, { message: 'Ingresa un teléfono válido' }) @MaxLength(40) phone: string;
 
   @IsString() @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' }) @MaxLength(100) password: string;
 
-  @Equals(true, { message: 'Debés aceptar el tratamiento de tus datos personales' }) consent: boolean;
+  @Equals(true, { message: 'Debes aceptar el tratamiento de tus datos personales' }) consent: boolean;
 }
 
 export class ApproveChurchRequestDto {

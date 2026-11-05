@@ -29,7 +29,7 @@ export default function ActivityPage() {
   const { me } = useSession();
   const [tab, setTab] = useState<'changes' | 'appointments'>('changes');
 
-  if (!can.activity(me)) return <ErrorState error={new Error('No tenés permisos para ver el registro de actividad')} />;
+  if (!can.activity(me)) return <ErrorState error={new Error('No tienes permisos para ver el registro de actividad')} />;
 
   return (
     <>
@@ -104,7 +104,7 @@ function ChangesTab() {
       ) : error || !data ? (
         <ErrorState error={error} onRetry={refetch} />
       ) : data.items.length === 0 ? (
-        <EmptyState icon={<History className="size-5" />} title="Sin cambios registrados" description="Los cambios aparecen acá a medida que el equipo crea, edita o elimina contenido." />
+        <EmptyState icon={<History className="size-5" />} title="Sin cambios registrados" description="Los cambios aparecen aquí a medida que el equipo crea, edita o elimina contenido." />
       ) : (
         <>
           <div className="hidden overflow-x-auto md:block">
@@ -281,7 +281,7 @@ function AppointmentsTab() {
           })}
         </div>
       )}
-      {data && data.length >= 200 && <p className="mt-3 text-sm text-muted">Se muestran las primeras 200 citas: usá los filtros para acotar.</p>}
+      {data && data.length >= 200 && <p className="mt-3 text-sm text-muted">Se muestran las primeras 200 citas: usa los filtros para acotar.</p>}
     </>
   );
 }

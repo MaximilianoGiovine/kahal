@@ -61,7 +61,7 @@ export default function ArticlesPage() {
           <EmptyState
             icon={<BookOpen className="size-5" />}
             title={search ? 'No se encontraron artículos' : 'Todavía no hay artículos'}
-            description={editor && !search ? 'Escribí el primero o importalo desde un documento de Word o PDF.' : undefined}
+            description={editor && !search ? 'Escribe el primero o impórtalo desde un documento de Word o PDF.' : undefined}
           />
         </Card>
       ) : (

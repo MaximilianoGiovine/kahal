@@ -26,7 +26,7 @@ self.addEventListener('push', (e) => {
   }
   e.waitUntil(
     self.registration.showNotification(data.title || 'Kahal', {
-      body: data.body || 'Tenés un aviso nuevo',
+      body: data.body || 'Tienes un aviso nuevo',
       icon: '/icons/192',
       tag: data.tag,
       data: { url: data.url || '/app' },

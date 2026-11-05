@@ -111,13 +111,13 @@ export default function LivePage() {
           <EmptyState
             icon={<MonitorPlay className="size-5" />}
             title="No hay ninguna transmisión en vivo"
-            description={data.upcoming[0] ? `Próxima: ${data.upcoming[0].title}, ${dateTime(data.upcoming[0].scheduledAt)}` : 'Cuando la iglesia esté en vivo la vas a ver acá.'}
+            description={data.upcoming[0] ? `Próxima: ${data.upcoming[0].title}, ${dateTime(data.upcoming[0].scheduledAt)}` : 'Cuando la iglesia esté en vivo la vas a ver aquí.'}
           />
           {channels.length > 0 && (
             <div className="-mt-4 flex flex-wrap justify-center gap-2 px-5 pb-8">
               {channels.map((c) => (
                 <a key={c.key} href={c.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-surface-2">
-                  Seguinos en {c.label} <ExternalLink className="size-3.5" />
+                  Síguenos en {c.label} <ExternalLink className="size-3.5" />
                 </a>
               ))}
             </div>
@@ -245,7 +245,7 @@ function StreamForm({ item, channels, onClose }: { item: Stream | null; channels
         <Field label="Título">
           <Input name="title" required minLength={2} defaultValue={item?.title} placeholder="Culto dominical" />
         </Field>
-        <Field label="Link de la transmisión" hint="Pegá el link del video o del vivo de YouTube, Facebook o Twitch. En Twitch alcanza con el link del canal.">
+        <Field label="Enlace de la transmisión" hint="Pega el enlace del video o de la transmisión en vivo de YouTube, Facebook o Twitch. En Twitch basta con el enlace del canal.">
           <Input name="url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
         </Field>
         {channels.length > 0 && (

@@ -48,7 +48,7 @@ export function RegisterForm() {
     try {
       const { available } = await api<{ available: boolean }>('/auth/email-available', { query: { email } });
       if (!available) {
-        setError('Ya existe una cuenta con ese email. Si es tuya, ingresá con tu contraseña.');
+        setError('Ya existe una cuenta con ese email. Si es tuya, ingresa con tu contraseña.');
         return;
       }
       setAccount({ church: String(fd.get('church')), email, password: pending ? undefined : String(fd.get('password')) });
@@ -142,7 +142,7 @@ export function RegisterForm() {
           <Field label="Iglesia">
             <Select name="church" required defaultValue={preset} key={churches.length}>
               <option value="" disabled>
-                Elegí tu iglesia
+                Elige tu iglesia
               </option>
               {churches.map((c) => (
                 <option key={c.slug} value={c.slug}>
@@ -185,7 +185,7 @@ export function RegisterForm() {
             <Input name="lastName" required minLength={2} maxLength={60} defaultValue={pending?.lastName} placeholder="Apellido(s)" aria-label="Apellido(s)" autoComplete="family-name" />
           </div>
         </fieldset>
-        <Field label="Número de carnet">
+        <Field label="Número de documento">
           <Input name="documentId" required minLength={4} maxLength={30} inputMode="numeric" autoComplete="off" />
         </Field>
         <Field label="Fecha de nacimiento">

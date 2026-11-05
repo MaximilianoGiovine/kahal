@@ -22,7 +22,7 @@ interface Dashboard {
 
 function greeting() {
   const h = new Date().getHours();
-  return h < 12 ? 'Buen día' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+  return h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
 }
 
 export default function DashboardPage() {
@@ -151,7 +151,7 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{e.title}</p>
                       <p className="truncate text-xs text-muted">
-                        {dateTime(e.startsAt, { hour: '2-digit', minute: '2-digit' })} hs{e.location ? ` · ${e.location}` : ''}
+                        {dateTime(e.startsAt, { hour: '2-digit', minute: '2-digit' })}{e.location ? ` · ${e.location}` : ''}
                       </p>
                     </div>
                   </li>
@@ -170,7 +170,7 @@ export default function DashboardPage() {
               }
             />
             {data.myAppointments.length === 0 ? (
-              <EmptyState icon={<CalendarClock className="size-5" />} title="No tenés citas agendadas" description="Reservá un horario con tu pastor o líder." />
+              <EmptyState icon={<CalendarClock className="size-5" />} title="No tienes citas agendadas" description="Reserva un horario con tu pastor o líder." />
             ) : (
               <ul className="divide-y divide-border">
                 {data.myAppointments.map((a) => (
@@ -238,11 +238,11 @@ function Hero({ live, next }: { live: Stream | null; next?: ChurchEvent }) {
             </span>
           )}
           <p className="font-display mt-4 text-2xl leading-tight font-semibold sm:text-3xl">
-            {live ? live.title : next ? next.title : 'Enterate de todo lo que pasa en tu iglesia'}
+            {live ? live.title : next ? next.title : 'Entérate de todo lo que pasa en tu iglesia'}
           </p>
           {!live && next && (
             <p className="mt-1.5 text-sm text-muted">
-              {dateTime(next.startsAt, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} hs
+              {dateTime(next.startsAt, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
               {next.location ? ` · ${next.location}` : ''}
             </p>
           )}

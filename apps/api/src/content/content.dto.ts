@@ -29,7 +29,7 @@ export class EventsQuery {
 export class StreamDto {
   @IsString() @MinLength(2) @MaxLength(160) title: string;
   @IsOptional() @Transform(emptyToNull) @IsString() @MaxLength(2000) description?: string | null;
-  @IsUrl({ protocols: ['https'], require_protocol: true }, { message: 'Ingresá un link https válido' }) url: string;
+  @IsUrl({ protocols: ['https'], require_protocol: true }, { message: 'Ingresa un enlace https válido' }) url: string;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsDateString() scheduledAt?: string | null;
   @IsOptional() @IsBoolean() isLive?: boolean;
 }

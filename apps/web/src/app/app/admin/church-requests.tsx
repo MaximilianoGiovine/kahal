@@ -26,7 +26,7 @@ export function ChurchRequests() {
   if (data.length === 0) {
     return (
       <Card>
-        <EmptyState icon={<Inbox className="size-5" />} title="No hay solicitudes" description="Las que lleguen desde /solicitar-iglesia van a aparecer acá." />
+        <EmptyState icon={<Inbox className="size-5" />} title="No hay solicitudes" description="Las que lleguen desde /solicitar-iglesia van a aparecer aquí." />
       </Card>
     );
   }

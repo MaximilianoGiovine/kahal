@@ -31,7 +31,7 @@ import { UsersModule } from './users/users.module';
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({
       throttlers: [{ ttl: 60_000, limit: 300 }],
-      errorMessage: 'Demasiados intentos. Esperá un minuto y volvé a probar.',
+      errorMessage: 'Demasiados intentos. Espera un minuto y vuelve a probar.',
     }),
     JwtModule.registerAsync({
       global: true,

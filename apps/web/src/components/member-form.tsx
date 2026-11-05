@@ -77,7 +77,7 @@ export function MemberForm({ member, onClose, onSaved }: { member: Member | null
         <Field label="Teléfono">
           <Input name="phone" type="tel" defaultValue={member?.phone ?? ''} />
         </Field>
-        <Field label="Número de carnet">
+        <Field label="Número de documento">
           <Input name="documentId" defaultValue={member?.documentId ?? ''} />
         </Field>
         <Field label="Fecha de nacimiento">

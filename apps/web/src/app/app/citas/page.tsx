@@ -36,7 +36,7 @@ export default function AppointmentsPage() {
 
   return (
     <>
-      <PageHeader title="Citas" description="Reservá un horario con el pastor, el equipo pastoral o un líder de la iglesia." />
+      <PageHeader title="Citas" description="Reserva un horario con el pastor, el equipo pastoral o un líder de la iglesia." />
       <div className="-mx-4 mb-6 overflow-x-auto px-4">
         <Tabs value={tab} onChange={setTab} items={items} />
       </div>
@@ -79,7 +79,7 @@ function BookTab({ onBooked }: { onBooked: () => void }) {
   if (!available.length) {
     return (
       <Card>
-        <EmptyState icon={<CalendarClock className="size-5" />} title="No hay pastores con horarios disponibles" description="Cuando un pastor o líder cargue su disponibilidad vas a poder reservar acá." />
+        <EmptyState icon={<CalendarClock className="size-5" />} title="No hay pastores con horarios disponibles" description="Cuando un pastor o líder publique su disponibilidad vas a poder reservar aquí." />
       </Card>
     );
   }
@@ -87,7 +87,7 @@ function BookTab({ onBooked }: { onBooked: () => void }) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <Card className="h-fit p-5">
-        <p className="text-sm font-medium">¿Con quién querés reunirte?</p>
+        <p className="text-sm font-medium">¿Con quién quieres reunirte?</p>
         <div className="mt-3 space-y-2">
           {available.map((h) => (
             <button
@@ -115,7 +115,7 @@ function BookTab({ onBooked }: { onBooked: () => void }) {
         ) : slots.error ? (
           <ErrorState error={slots.error} onRetry={slots.refetch} />
         ) : days.length === 0 ? (
-          <EmptyState title="No quedan horarios libres" description="Probá con otro pastor o líder, o volvé más adelante." />
+          <EmptyState title="No quedan horarios libres" description="Prueba con otro pastor o líder, o vuelve más adelante." />
         ) : (
           <div className="divide-y divide-border">
             {days.map((d) => (
@@ -175,10 +175,10 @@ function ConfirmBooking({ host, slot, onClose, onBooked }: { host: Host; slot: {
         <Avatar name={host} />
         <div>
           <p className="text-sm font-medium">{fullName(host)}</p>
-          <p className="text-sm text-muted capitalize">{dateTime(slot.startsAt, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} hs</p>
+          <p className="text-sm text-muted capitalize">{dateTime(slot.startsAt, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
-      <Field label="Motivo (opcional)" className="mt-4" hint="Solo lo verá la persona con quien te reunís.">
+      <Field label="Motivo (opcional)" className="mt-4" hint="Solo lo verá la persona con quien te reúnes.">
         <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={1000} placeholder="Ej.: consejería, oración, consulta sobre bautismo…" />
       </Field>
     </Dialog>
@@ -235,7 +235,7 @@ function AppointmentList({ scope }: { scope: 'mine' | 'hosting' | 'all' }) {
                       {fullName(other)}
                       {scope === 'all' && <span className="font-normal text-muted"> con {fullName(a.host)}</span>}
                     </p>
-                    <p className="text-sm text-muted capitalize">{dateTime(a.startsAt, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} hs</p>
+                    <p className="text-sm text-muted capitalize">{dateTime(a.startsAt, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
                     {a.reason && <p className="mt-1 text-sm text-muted">“{a.reason}”</p>}
                     {asHost && a.requester.phone && <p className="mt-0.5 text-xs text-subtle">Tel. {a.requester.phone}</p>}
                     {asHost && a.hostNotes && <p className="mt-1 text-xs text-subtle">Notas: {a.hostNotes}</p>}
@@ -318,7 +318,7 @@ function AvailabilityEditor() {
     <Card>
       <CardHeader
         title="Horarios semanales"
-        description="Los miembros podrán reservar turnos dentro de estas franjas (hora de la iglesia)."
+        description="Los miembros podrán reservar citas dentro de estas franjas (hora de la iglesia)."
         action={
           <Button size="sm" variant="secondary" onClick={() => setRows([...rows, { weekday: 1, startTime: '18:00', endTime: '20:00', slotMinutes: 30 }])}>
             <Plus className="size-4" /> Agregar franja
@@ -326,7 +326,7 @@ function AvailabilityEditor() {
         }
       />
       {rows.length === 0 ? (
-        <EmptyState title="No cargaste horarios" description="Agregá al menos una franja para empezar a recibir citas." />
+        <EmptyState title="No has agregado horarios" description="Agrega al menos una franja para empezar a recibir citas." />
       ) : (
         <div className="divide-y divide-border">
           {rows.map((r, i) => (

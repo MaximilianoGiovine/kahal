@@ -63,7 +63,7 @@ export class FinanceExportService {
         { header: 'Miembro', key: 'member', width: 24 },
         { header: 'Descripción', key: 'description', width: 36 },
         { header: 'Referencia', key: 'reference', width: 16 },
-        { header: 'Cargado por', key: 'createdBy', width: 20 },
+        { header: 'Registrado por', key: 'createdBy', width: 20 },
       ],
       transactions.map((t) => ({
         date: t.date,

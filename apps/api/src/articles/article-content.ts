@@ -57,7 +57,7 @@ export async function importDocument(file: Express.Multer.File, churchId: string
   if (name.endsWith('.pdf') || file.mimetype === 'application/pdf') {
     return fromPdf(file.buffer, file.originalname);
   }
-  throw new BadRequestException('Formato no soportado: subí un archivo .docx o .pdf');
+  throw new BadRequestException('Formato no soportado: sube un archivo .docx o .pdf');
 }
 
 const baseName = (filename: string) => filename.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();

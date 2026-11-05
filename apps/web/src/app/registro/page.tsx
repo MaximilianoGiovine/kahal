@@ -10,12 +10,12 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Crear mi cuenta"
-      subtitle="Sumate a tu iglesia en Kahal. Vas a poder ingresar apenas completes el registro."
+      subtitle="Únete a tu iglesia en Kahal. Vas a poder ingresar en cuanto completes el registro."
       footer={
         <>
-          ¿Ya tenés cuenta?{' '}
+          ¿Ya tienes cuenta?{' '}
           <Link href="/login" className="font-medium text-accent-ink hover:underline">
-            Ingresá
+            Ingresa
           </Link>
         </>
       }

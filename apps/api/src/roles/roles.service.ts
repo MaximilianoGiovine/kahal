@@ -67,14 +67,14 @@ export class RolesService {
   private grantable(actor: AuthUser, perms: Permission[]) {
     const permissions = normalizePermissions(perms);
     if (!coversAll(actor, permissions)) {
-      throw new ForbiddenException('No podés otorgar permisos que no tenés');
+      throw new ForbiddenException('No puedes otorgar permisos que no tienes');
     }
     return permissions;
   }
 
   private assertManageable(actor: AuthUser, role: { isAdmin: boolean; permissions: Permission[] }) {
     if (!coversAll(actor, effectivePermissions([role]))) {
-      throw new ForbiddenException('No podés modificar un rol con más permisos que los tuyos');
+      throw new ForbiddenException('No puedes modificar un rol con más permisos que los tuyos');
     }
   }
 

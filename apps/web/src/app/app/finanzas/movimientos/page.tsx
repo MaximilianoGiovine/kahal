@@ -230,7 +230,7 @@ export default function TransactionsPage() {
       </Card>
       {!single && data && data.items.length > 0 && (
         <p className="mt-3 text-sm text-muted">
-          <Badge>Tip</Badge> Filtrá por una cuenta para ver los totales del período (hay cuentas en distintas monedas).
+          <Badge>Consejo</Badge> Filtra por una cuenta para ver los totales del período (hay cuentas en distintas monedas).
         </p>
       )}
 

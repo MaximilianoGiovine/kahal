@@ -98,7 +98,7 @@ export function ChurchPublic({ slug }: { slug: string }) {
             <Radio className="size-6 shrink-0 animate-pulse" />
             <div className="flex-1">
               <p className="font-display text-lg font-semibold">Estamos en vivo: {data.live.title}</p>
-              <p className="text-sm text-white/80">Ingresá con tu cuenta para ver la transmisión.</p>
+              <p className="text-sm text-white/80">Ingresa con tu cuenta para ver la transmisión.</p>
             </div>
           </div>
         )}

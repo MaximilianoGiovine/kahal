@@ -10,12 +10,12 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Ingresar"
-      subtitle="Accedé con el email de tu cuenta."
+      subtitle="Accede con el email de tu cuenta."
       footer={
         <>
-          ¿Todavía no tenés cuenta?{' '}
+          ¿Todavía no tienes cuenta?{' '}
           <Link href="/registro" className="font-medium text-accent-ink hover:underline">
-            Registrate
+            Regístrate
           </Link>
         </>
       }

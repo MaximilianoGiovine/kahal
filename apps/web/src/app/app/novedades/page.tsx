@@ -49,7 +49,7 @@ export default function AnnouncementsPage() {
         <ErrorState error={error} onRetry={refetch} />
       ) : data.items.length === 0 ? (
         <Card>
-          <EmptyState icon={<Megaphone className="size-5" />} title="Todavía no hay novedades" description={editor ? 'Publicá la primera para toda la congregación.' : undefined} />
+          <EmptyState icon={<Megaphone className="size-5" />} title="Todavía no hay novedades" description={editor ? 'Publica la primera para toda la congregación.' : undefined} />
         </Card>
       ) : (
         <div className="space-y-4">

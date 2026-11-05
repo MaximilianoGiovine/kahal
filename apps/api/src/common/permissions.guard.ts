@@ -16,6 +16,6 @@ export class PermissionsGuard implements CanActivate {
     const user: AuthUser | undefined = ctx.switchToHttp().getRequest().user;
     if (!user) return false;
     if (superOnly ? user.isSuperAdmin : can(user, ...perms)) return true;
-    throw new ForbiddenException('No tenés permisos para esta acción');
+    throw new ForbiddenException('No tienes permisos para esta acción');
   }
 }

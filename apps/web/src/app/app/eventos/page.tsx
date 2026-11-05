@@ -86,7 +86,7 @@ export default function EventsPage() {
                             <span className="flex items-center gap-1">
                               <Clock className="size-3.5" />
                               {dateTime(e.startsAt, { hour: '2-digit', minute: '2-digit' })}
-                              {e.endsAt && ` – ${dateTime(e.endsAt, { hour: '2-digit', minute: '2-digit' })}`} hs
+                              {e.endsAt && ` – ${dateTime(e.endsAt, { hour: '2-digit', minute: '2-digit' })}`}
                             </span>
                             {e.location && (
                               <span className="flex items-center gap-1">

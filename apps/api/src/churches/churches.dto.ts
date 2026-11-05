@@ -29,9 +29,9 @@ export class UpdateChurchDto {
   @IsOptional() @IsString() timezone?: string;
   @IsOptional() @IsEnum(Currency) defaultCurrency?: Currency;
   @IsOptional() @IsString() logoKey?: string;
-  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Link de YouTube inválido' }) youtubeUrl?: string | null;
-  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Link de Facebook inválido' }) facebookUrl?: string | null;
-  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Link de Twitch inválido' }) twitchUrl?: string | null;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de YouTube inválido' }) youtubeUrl?: string | null;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de Facebook inválido' }) facebookUrl?: string | null;
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de Twitch inválido' }) twitchUrl?: string | null;
 }
 
 class ChurchAdminDto {

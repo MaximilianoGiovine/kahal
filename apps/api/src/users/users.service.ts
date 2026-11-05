@@ -94,9 +94,9 @@ export class UsersService {
 
   async update(churchId: string, actor: AuthUser, id: string, dto: UpdateUserDto) {
     const target = await this.find(churchId, id);
-    if (id === actor.id) throw new BadRequestException('No podés modificar tus propios roles o estado');
+    if (id === actor.id) throw new BadRequestException('No puedes modificar tus propios roles o estado');
     if (!coversAll(actor, effectivePermissions(target.roles.map((r) => r.role)))) {
-      throw new ForbiddenException('No podés modificar a un usuario con más permisos que los tuyos');
+      throw new ForbiddenException('No puedes modificar a un usuario con más permisos que los tuyos');
     }
     if (dto.roleIds) await this.assertAssignable(churchId, actor, dto.roleIds);
 
@@ -154,7 +154,7 @@ export class UsersService {
     const roles = await this.prisma.churchRole.findMany({ where: { churchId, id: { in: roleIds } } });
     if (roles.length !== roleIds.length) throw new BadRequestException('Rol inválido');
     if (!coversAll(actor, effectivePermissions(roles))) {
-      throw new ForbiddenException('No podés asignar roles con permisos que no tenés');
+      throw new ForbiddenException('No puedes asignar roles con permisos que no tienes');
     }
   }
 

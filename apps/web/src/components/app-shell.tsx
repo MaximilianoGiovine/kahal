@@ -288,8 +288,8 @@ function ChurchPicker() {
   const { churches, selectChurch } = useSession();
   return (
     <div className="mx-auto max-w-2xl py-10">
-      <h1 className="font-display text-2xl font-bold">Elegí una iglesia</h1>
-      <p className="mt-1 text-sm text-muted">Como super admin podés operar sobre cualquier iglesia de la plataforma.</p>
+      <h1 className="font-display text-2xl font-bold">Elige una iglesia</h1>
+      <p className="mt-1 text-sm text-muted">Como super admin puedes operar sobre cualquier iglesia de la plataforma.</p>
       <div className="mt-6 grid gap-3">
         {churches.map((c) => (
           <Card key={c.id} className="cursor-pointer p-4 transition hover:border-accent/50" onClick={() => selectChurch(c.id)}>

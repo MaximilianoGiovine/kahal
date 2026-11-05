@@ -25,7 +25,7 @@ export const CurrentUser = createParamDecorator(
 export const ChurchId = createParamDecorator((_: unknown, ctx: ExecutionContext): string => {
   const user: AuthUser | undefined = ctx.switchToHttp().getRequest().user;
   if (!user?.activeChurchId) {
-    throw new BadRequestException('Seleccioná una iglesia para operar');
+    throw new BadRequestException('Selecciona una iglesia para operar');
   }
   return user.activeChurchId;
 });

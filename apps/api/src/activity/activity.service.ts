@@ -17,7 +17,7 @@ export interface ActivityEntry {
 
 /**
  * Nombres legibles de los campos editables, para registrar qué cambió en cada edición.
- * Los campos que no figuran acá no se informan.
+ * Los campos que no figuran aquí no se informan.
  */
 const FIELD_LABEL: Record<string, string> = {
   title: 'título',

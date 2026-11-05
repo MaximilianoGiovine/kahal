@@ -36,7 +36,7 @@ export class AppointmentsService {
   async setAvailability(churchId: string, userId: string, dto: SetAvailabilityDto) {
     for (const s of dto.slots) {
       if (timeToMinutes(s.endTime) - timeToMinutes(s.startTime) < (s.slotMinutes ?? 30)) {
-        throw new BadRequestException('Cada franja debe durar al menos un turno');
+        throw new BadRequestException('Cada franja debe durar al menos lo que dura una cita');
       }
     }
     const byDay = new Map<number, [number, number][]>();
@@ -98,7 +98,7 @@ export class AppointmentsService {
   // Citas
 
   async book(churchId: string, user: AuthUser, dto: BookDto) {
-    if (dto.hostId === user.id) throw new BadRequestException('No podés agendar una cita con vos mismo');
+    if (dto.hostId === user.id) throw new BadRequestException('No puedes agendar una cita contigo mismo');
     const startsAt = new Date(dto.startsAt);
     const day = new Intl.DateTimeFormat('en-CA', {
       timeZone: (await this.prisma.church.findUniqueOrThrow({ where: { id: churchId } })).timezone,
@@ -137,7 +137,7 @@ export class AppointmentsService {
         'Nueva solicitud de cita',
         `${escapeHtml(appointment.requester.firstName)} ${escapeHtml(appointment.requester.lastName)} solicitó una cita para el <b>${when}</b>.` +
           (dto.reason ? `<br><br>Motivo: ${escapeHtml(dto.reason)}` : '') +
-          '<br><br>Ingresá a Kahal para confirmarla.',
+          '<br><br>Ingresa a Kahal para confirmarla.',
       ),
     });
     await this.push.sendToUsers([appointment.host.id], {
@@ -178,7 +178,7 @@ export class AppointmentsService {
     const isHost = appt.hostId === user.id || can(user, Permission.APPOINTMENTS_ALL);
     const isRequester = appt.requesterId === user.id;
     if (!isHost && !(isRequester && dto.status === AppointmentStatus.CANCELLED)) {
-      throw new ForbiddenException('No podés realizar esta acción sobre la cita');
+      throw new ForbiddenException('No puedes realizar esta acción sobre la cita');
     }
     if (appt.status === AppointmentStatus.CANCELLED || appt.status === AppointmentStatus.COMPLETED) {
       throw new BadRequestException('La cita ya está cerrada');

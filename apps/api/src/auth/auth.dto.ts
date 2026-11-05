@@ -27,23 +27,23 @@ export class RegisterDto {
   email: string;
 
   @IsString()
-  @MinLength(6, { message: 'Ingresá un teléfono válido' })
+  @MinLength(6, { message: 'Ingresa un teléfono válido' })
   @MaxLength(40)
   phone: string;
 
   @IsString()
-  @MinLength(4, { message: 'Ingresá un número de carnet válido' })
+  @MinLength(4, { message: 'Ingresa un número de documento válido' })
   @MaxLength(30)
   documentId: string;
 
   @IsDateString({}, { message: 'Fecha de nacimiento inválida' })
   birthDate: string;
 
-  @IsBoolean({ message: 'Indicá si estás bautizado/a' })
+  @IsBoolean({ message: 'Indica si estás bautizado/a' })
   baptized: boolean;
 
   @IsString()
-  @MinLength(4, { message: 'Ingresá tu dirección' })
+  @MinLength(4, { message: 'Ingresa tu dirección' })
   @MaxLength(200)
   address: string;
 
@@ -54,7 +54,7 @@ export class RegisterDto {
   @MaxLength(100)
   password?: string;
 
-  @Equals(true, { message: 'Debés aceptar el tratamiento de tus datos personales' })
+  @Equals(true, { message: 'Debes aceptar el tratamiento de tus datos personales' })
   consent: boolean;
 }
 

@@ -40,7 +40,7 @@ export default function SettingsPage() {
   ];
   const [tab, setTab] = useState<Tab | undefined>(tabs[0]?.value);
 
-  if (!tab) return <ErrorState error={new Error('No tenés permisos para acceder a la configuración')} />;
+  if (!tab) return <ErrorState error={new Error('No tienes permisos para acceder a la configuración')} />;
   return (
     <>
       <PageHeader title="Configuración" description="Datos de la iglesia, usuarios, roles y permisos." />
@@ -72,7 +72,7 @@ function ChurchSettings() {
 
   const publicUrl = typeof window !== 'undefined' ? `${window.location.origin}/i/${data.slug}` : '';
   const registerUrl = registerLink(data.slug);
-  const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => toast.success('Link copiado'));
+  const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => toast.success('Enlace copiado'));
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -143,7 +143,7 @@ function ChurchSettings() {
       </Card>
       <div className="space-y-6">
         <Card>
-          <CardHeader title="Código QR de registro" description="Fijo para la iglesia: imprimilo y quien lo escanee se registra directamente acá." />
+          <CardHeader title="Código QR de registro" description="Fijo para la iglesia: imprímelo y quien lo escanee se registra directamente aquí." />
           <div className="flex flex-col items-center gap-4 p-5">
             <QrCode value={registerUrl} className="w-40 rounded-lg border border-border bg-white p-1.5" />
             <Button variant="secondary" onClick={() => setShowQr(true)}>
@@ -152,7 +152,7 @@ function ChurchSettings() {
           </div>
         </Card>
         <Card>
-          <CardHeader title="Links para compartir" />
+          <CardHeader title="Enlaces para compartir" />
           <div className="space-y-4 p-5">
             {[
               { label: 'Página pública', url: publicUrl },
@@ -243,7 +243,7 @@ function UsersSettings() {
                     <Avatar name={u} size={34} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">
-                        {fullName(u)} {self && <span className="text-muted">(vos)</span>}
+                        {fullName(u)} {self && <span className="text-muted">(tú)</span>}
                       </p>
                       <p className="truncate text-xs text-muted">
                         {u.email} · último ingreso {u.lastLoginAt ? dayLabel(u.lastLoginAt) : 'nunca'}
@@ -309,7 +309,7 @@ function RolePicker({ roles, selected, onChange }: { roles: ChurchRole[]; select
               <>
                 <span className="font-medium">{r.name}</span>
                 {r.description && <span className="block text-xs text-muted">{r.description}</span>}
-                {!allowed && <span className="block text-xs text-muted">Tiene permisos que vos no tenés</span>}
+                {!allowed && <span className="block text-xs text-muted">Tiene permisos que tú no tienes</span>}
               </>
             }
           />
@@ -360,7 +360,7 @@ function CreateUser({ roles, onClose }: { roles: ChurchRole[]; onClose: () => vo
       open
       onClose={onClose}
       title="Nuevo usuario"
-      description="La cuenta queda activa de inmediato. Compartí la contraseña inicial con la persona."
+      description="La cuenta queda activa de inmediato. Comparte la contraseña inicial con la persona."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -419,7 +419,7 @@ function RolesSettings() {
   return (
     <>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted">Armá los roles de tu iglesia y elegí qué puede hacer cada uno. Después asignalos desde la pestaña Usuarios.</p>
+        <p className="text-sm text-muted">Arma los roles de tu iglesia y elige qué puede hacer cada uno. Después asígnalos desde la pestaña Usuarios.</p>
         {manage && (
           <Button onClick={() => setEditing('new')} className="shrink-0">
             <Plus className="size-4" /> Nuevo rol
@@ -428,7 +428,7 @@ function RolesSettings() {
       </div>
       {data.length === 0 ? (
         <Card>
-          <EmptyState title="No hay roles" description="Creá el primer rol para empezar a delegar tareas." />
+          <EmptyState title="No hay roles" description="Crea el primer rol para empezar a delegar tareas." />
         </Card>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
@@ -567,7 +567,7 @@ function RoleForm({ role, onClose }: { role: ChurchRole | null; onClose: () => v
                         label={
                           <>
                             <span className="font-medium">{it.label}</span>
-                            <span className="block text-xs text-muted">{mine ? it.help : 'No podés otorgar un permiso que no tenés'}</span>
+                            <span className="block text-xs text-muted">{mine ? it.help : 'No puedes otorgar un permiso que no tienes'}</span>
                           </>
                         }
                       />

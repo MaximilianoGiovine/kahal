@@ -134,7 +134,7 @@ export class MembersService {
     const { ministryIds, statusIds, ...data } = dto;
     return this.prisma.$transaction(async (tx) => {
       if (member.userId) {
-        // Ficha y cuenta son la misma persona: el email es el de ingreso (no se cambia desde acá)
+        // Ficha y cuenta son la misma persona: el email es el de ingreso (no se cambia desde aquí)
         // y nombre y teléfono se mantienen iguales en ambos lados.
         delete data.email;
         await tx.user.update({
@@ -163,7 +163,7 @@ export class MembersService {
   async remove(churchId: string, id: string) {
     const member = await this.ensure(churchId, id);
     if (member.userId) {
-      throw new BadRequestException('El miembro tiene una cuenta de usuario. Deshabilitá la cuenta o marcalo como inactivo.');
+      throw new BadRequestException('El miembro tiene una cuenta de usuario. Deshabilita la cuenta o márcalo como inactivo.');
     }
     await this.prisma.member.delete({ where: { id } });
     return { ok: true };

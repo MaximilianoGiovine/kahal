@@ -119,7 +119,7 @@ export async function api<T = unknown>(path: string, opts: Options = {}): Promis
     data = text ? JSON.parse(text) : undefined;
   } catch {
     // Respuesta que no es JSON: típicamente la API caída y el proxy devolviendo "Internal Server Error".
-    throw new ApiError(res.status, res.ok ? 'Respuesta inválida del servidor' : 'No se pudo conectar con el servidor. Probá de nuevo en unos minutos.');
+    throw new ApiError(res.status, res.ok ? 'Respuesta inválida del servidor' : 'No se pudo conectar con el servidor. Prueba de nuevo en unos minutos.');
   }
   if (!res.ok) {
     const msg = Array.isArray(data?.message) ? data.message[0] : data?.message;

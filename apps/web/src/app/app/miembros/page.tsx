@@ -24,13 +24,13 @@ export default function MembersPage() {
   const [tab, setTab] = useState<Tab>('members');
   return (
     <>
-      <PageHeader title="Miembros" description="Padrón de la congregación, familias, ministerios y estados." />
+      <PageHeader title="Miembros" description="Registro de la congregación, familias, ministerios y estados." />
       <div className="mb-6">
         <Tabs
           value={tab}
           onChange={setTab}
           items={[
-            { value: 'members', label: 'Padrón' },
+            { value: 'members', label: 'Listado' },
             { value: 'families', label: 'Familias' },
             { value: 'ministries', label: 'Ministerios' },
             { value: 'statuses', label: 'Estados' },
@@ -85,7 +85,7 @@ function MembersTab() {
     <>
       {stats && (
         <div className="mb-6 grid gap-3 lg:grid-cols-4">
-          <Stat label="Total en padrón" value={number(stats.total)} hint={`${stats.newThisMonth} nuevos este mes`} />
+          <Stat label="Total de miembros" value={number(stats.total)} hint={`${stats.newThisMonth} nuevos este mes`} />
           {/* Quienes se registran en la app ya quedan en el padrón con sus datos: no hace falta cargarlos. */}
           <button
             type="button"
@@ -97,7 +97,7 @@ function MembersTab() {
               Registrados en la app <Smartphone className="size-4" />
             </span>
             <span className="tabular mt-2 block text-2xl font-semibold tracking-tight">{number(stats.fromApp)}</span>
-            <span className="mt-1 block text-xs text-muted">{stats.fromAppThisMonth} este mes · tocá para filtrar</span>
+            <span className="mt-1 block text-xs text-muted">{stats.fromAppThisMonth} este mes · toca para filtrar</span>
           </button>
           {stats.byStatus.length > 0 && (
             <Card className="p-4 lg:col-span-2">
@@ -130,7 +130,7 @@ function MembersTab() {
                 setQ(e.target.value);
                 setPage(1);
               }}
-              placeholder="Buscar por nombre, email, carnet o teléfono"
+              placeholder="Buscar por nombre, email, documento o teléfono"
               className="pl-9"
               aria-label="Buscar miembros"
             />
@@ -139,7 +139,7 @@ function MembersTab() {
             <Select value={source} onChange={(e) => (setSource(e.target.value as typeof source), setPage(1))} aria-label="Origen" className="col-span-2 sm:col-span-1">
               <option value="">Todos los orígenes</option>
               <option value="app">Registrados en la app</option>
-              <option value="manual">Cargados por la iglesia</option>
+              <option value="manual">Agregados por la iglesia</option>
             </Select>
             <Select value={status} onChange={(e) => (setStatus(e.target.value), setPage(1))} aria-label="Estado">
               <option value="">Todos los estados</option>
@@ -175,7 +175,7 @@ function MembersTab() {
         ) : error || !data ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : data.items.length === 0 ? (
-          <EmptyState icon={<Users className="size-5" />} title="No se encontraron miembros" description="Probá con otros filtros o agregá un miembro nuevo." />
+          <EmptyState icon={<Users className="size-5" />} title="No se encontraron miembros" description="Prueba con otros filtros o agrega un miembro nuevo." />
         ) : (
           <>
             {/* Tabla escritorio */}
@@ -281,7 +281,7 @@ function FamiliesTab() {
         )}
       </div>
       {list.length === 0 ? (
-        <EmptyState title="No hay familias" description="Agrupá a los miembros por familia desde aquí o desde su ficha." />
+        <EmptyState title="No hay familias" description="Agrupa a los miembros por familia desde aquí o desde su ficha." />
       ) : (
         <ul className="grid divide-y divide-border sm:grid-cols-2 sm:divide-y-0">
           {list.map((f) => (
@@ -523,7 +523,7 @@ function StatusesTab() {
       </div>
       <Card>
         {data.length === 0 ? (
-          <EmptyState title="No hay estados" description="Creá estados como Visitante, Miembro o Bautizado para clasificar el padrón." />
+          <EmptyState title="No hay estados" description="Crea estados como Visitante, Miembro o Bautizado para clasificar a los miembros." />
         ) : (
           <ul className="divide-y divide-border">
             {data.map((s, i) => (
@@ -633,7 +633,7 @@ function StatusForm({ item, onClose }: { item: MemberStatus | null; onClose: () 
           label={
             <>
               <span className="font-medium">No cuenta como activo</span>
-              <span className="block text-xs text-muted">Quienes lo tengan no suman en el total de miembros del inicio.</span>
+              <span className="block text-xs text-muted">Quienes lo tengan no se cuentan en el total de miembros del inicio.</span>
             </>
           }
         />

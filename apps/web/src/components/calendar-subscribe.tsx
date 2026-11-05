@@ -20,7 +20,7 @@ export function CalendarSubscribeDialog({ onClose }: { onClose: () => void }) {
     queryFn: () => api<{ token: string }>('/calendar/subscription'),
   });
   const rotate = useAction(() => api<{ token: string }>('/calendar/subscription/rotate', { method: 'POST' }), {
-    success: 'Generamos un enlace nuevo. Volvé a suscribirte con este.',
+    success: 'Generamos un enlace nuevo. Vuelve a suscribirte con este.',
     onSuccess: (fresh) => {
       qc.setQueryData(QUERY_KEY, fresh);
       setConfirming(false);
@@ -35,7 +35,7 @@ export function CalendarSubscribeDialog({ onClose }: { onClose: () => void }) {
       await navigator.clipboard.writeText(httpsUrl);
       toast.success('Enlace copiado');
     } catch {
-      toast.error('No se pudo copiar: seleccioná el enlace y copialo a mano');
+      toast.error('No se pudo copiar: selecciona el enlace y cópialo a mano');
     }
   }
 
@@ -72,7 +72,7 @@ export function CalendarSubscribeDialog({ onClose }: { onClose: () => void }) {
             </div>
             <ul className="list-disc space-y-1 pl-4 text-xs text-muted">
               <li>Cada calendario busca novedades por su cuenta: un cambio puede tardar unas horas en verse (en Google, hasta un día).</li>
-              <li>Si Google Calendar no abre bien en el celular, copiá el enlace y agregalo desde calendar.google.com, en “Otros calendarios → Desde URL”.</li>
+              <li>Si Google Calendar no abre bien en el teléfono, copia el enlace y agrégalo desde calendar.google.com, en “Otros calendarios → Desde URL”.</li>
               <li>
                 El enlace es personal: no lo compartas.{' '}
                 <button type="button" onClick={() => setConfirming(true)} className="font-medium text-fg underline-offset-2 hover:underline">

@@ -28,7 +28,7 @@ export class MembersExportService {
         { header: 'Estados', key: 'statuses', width: 22 },
         { header: 'Email', key: 'email', width: 28 },
         { header: 'Teléfono', key: 'phone', width: 16 },
-        { header: 'Carnet', key: 'documentId', width: 14 },
+        { header: 'Documento', key: 'documentId', width: 14 },
         { header: 'Nacimiento', key: 'birthDate', width: 13, numFmt: DATE_FMT },
         { header: 'Ingreso', key: 'joinedAt', width: 13, numFmt: DATE_FMT },
         { header: 'Bautizado/a', key: 'baptized', width: 12 },

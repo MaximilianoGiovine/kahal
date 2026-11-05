@@ -89,7 +89,7 @@ export function RequestForm() {
         <Input name="password2" type="password" required minLength={8} maxLength={100} autoComplete="new-password" />
       </Field>
       <Field label="Mensaje (opcional)">
-        <Textarea name="message" rows={3} maxLength={1000} placeholder="Contanos sobre tu iglesia" />
+        <Textarea name="message" rows={3} maxLength={1000} placeholder="Cuéntanos sobre tu iglesia" />
       </Field>
       <Checkbox
         name="consent"

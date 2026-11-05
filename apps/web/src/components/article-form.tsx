@@ -51,7 +51,7 @@ export function ArticleForm({ item }: { item: Article | null }) {
       setBody(result.body);
       if (result.title) setTitle(result.title);
       setVersion((v) => v + 1);
-      toast.success('Documento importado. Revisalo antes de guardar.');
+      toast.success('Documento importado. Revísalo antes de guardar.');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo importar el archivo');
     } finally {
@@ -63,7 +63,7 @@ export function ArticleForm({ item }: { item: Article | null }) {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!hasText(body)) {
-      toast.error('Escribí el contenido del artículo o importá un documento');
+      toast.error('Escribe el contenido del artículo o importa un documento');
       return;
     }
     save.mutate({ ...formValues(e.currentTarget), title, body });
@@ -76,7 +76,7 @@ export function ArticleForm({ item }: { item: Article | null }) {
       </Link>
       <PageHeader
         title={item ? 'Editar artículo' : 'Nuevo artículo'}
-        description="Redactalo acá o generalo a partir de un documento de Word (.docx) o PDF."
+        description="Redáctalo aquí o genéralo a partir de un documento de Word (.docx) o PDF."
         actions={
           <Button variant="secondary" onClick={pickFile} disabled={importing}>
             {importing ? <Loader2 className="size-4 animate-spin" /> : <FileUp className="size-4" />}
@@ -99,7 +99,7 @@ export function ArticleForm({ item }: { item: Article | null }) {
           </Field>
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Contenido</span>
-            <RichTextEditor key={version} initialHtml={body} onChange={setBody} placeholder="Empezá a escribir…" />
+            <RichTextEditor key={version} initialHtml={body} onChange={setBody} placeholder="Empieza a escribir…" />
           </div>
         </div>
 

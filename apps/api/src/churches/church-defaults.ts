@@ -36,7 +36,7 @@ export const DEFAULT_ROLES = {
     description: 'Miembros, contenido, artículos y recibe citas',
     permissions: ['MEMBERS_VIEW', 'MEMBERS_EDIT', 'CONTENT_MANAGE', 'ARTICLES_MANAGE', 'APPOINTMENTS_HOST'],
   },
-  tesoreria: { name: 'Tesorería', description: 'Carga y reportes de finanzas', permissions: ['FINANCE_VIEW', 'FINANCE_EDIT'] },
+  tesoreria: { name: 'Tesorería', description: 'Registro y reportes de finanzas', permissions: ['FINANCE_VIEW', 'FINANCE_EDIT'] },
   secretaria: {
     name: 'Secretaría',
     description: 'Miembros, usuarios, contenido y artículos',

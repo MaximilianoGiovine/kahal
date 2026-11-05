@@ -81,7 +81,7 @@ export default function ProfilePage() {
             </div>
             {m && (
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Número de carnet">
+                <Field label="Número de documento">
                   <Input name="documentId" maxLength={30} defaultValue={m.documentId ?? ''} />
                 </Field>
                 <Field label="Fecha de nacimiento">
@@ -93,7 +93,7 @@ export default function ProfilePage() {
               <Field label="¿Estás bautizado/a?">
                 <Select name="baptized" defaultValue={m.baptized == null ? '' : m.baptized ? 'yes' : 'no'}>
                   <option value="" disabled>
-                    Elegí una opción
+                    Elige una opción
                   </option>
                   <option value="yes">Sí</option>
                   <option value="no">No</option>
@@ -124,7 +124,7 @@ export default function ProfilePage() {
                 <Input name="currentPassword" type="password" required autoComplete="current-password" />
               </Field>
             ) : (
-              <p className="text-sm text-muted">Hoy ingresás solo con Google o Apple. Con una contraseña también vas a poder ingresar con tu email.</p>
+              <p className="text-sm text-muted">Hoy ingresas solo con Google o Apple. Con una contraseña también vas a poder ingresar con tu email.</p>
             )}
             <Field label="Nueva contraseña">
               <Input name="newPassword" type="password" required minLength={8} autoComplete="new-password" />
@@ -145,12 +145,12 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium">
-                Instalar Kahal en tu celular <Badge tone="accent">App</Badge>
+                Instalar Kahal en tu teléfono <Badge tone="accent">App</Badge>
               </p>
               <p className="mt-1 text-sm text-muted">
                 {install
-                  ? 'Agregá Kahal a tu pantalla de inicio para abrirla como una app.'
-                  : 'En el celular, abrí el menú del navegador y elegí “Agregar a pantalla de inicio” (en iPhone: botón Compartir → “Agregar a inicio”).'}
+                  ? 'Agrega Kahal a tu pantalla de inicio para abrirla como una app.'
+                  : 'En el teléfono, abre el menú del navegador y elige “Agregar a pantalla de inicio” (en iPhone: botón Compartir → “Agregar a inicio”).'}
               </p>
             </div>
             {install && (

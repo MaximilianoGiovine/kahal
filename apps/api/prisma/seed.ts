@@ -45,7 +45,7 @@ const DEMO_CHURCHES = [
     address: 'Av. Rivadavia 4520, CABA',
     phone: '+54 11 4555-1020',
     primaryColor: '#4f46e5',
-    description: 'Una comunidad de fe en el corazón de Caballito. Cultos los domingos a las 10 y 19 hs.',
+    description: 'Una comunidad de fe en el corazón de Caballito. Cultos los domingos a las 10:00 y a las 19:00.',
     members: 90,
     scale: 1,
   },
@@ -56,7 +56,7 @@ const DEMO_CHURCHES = [
     address: 'Bv. San Juan 880, Córdoba',
     phone: '+54 351 422-3344',
     primaryColor: '#0d9488',
-    description: 'Iglesia familiar en barrio Güemes. Reuniones los domingos a las 18 hs y células durante la semana.',
+    description: 'Iglesia familiar en barrio Güemes. Reuniones los domingos a las 18:00 y células durante la semana.',
     members: 60,
     scale: 0.7,
   },
@@ -67,7 +67,7 @@ const DEMO_CHURCHES = [
     address: 'Pellegrini 1650, Rosario',
     phone: '+54 341 448-9900',
     primaryColor: '#b45309',
-    description: 'Más de 40 años sirviendo a Rosario. Escuela bíblica dominical a las 9:30 y culto a las 11 hs.',
+    description: 'Más de 40 años sirviendo a Rosario. Escuela bíblica dominical a las 9:30 y culto a las 11:00.',
     members: 45,
     scale: 0.5,
   },
@@ -244,7 +244,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
     if (d.getDate() === 12) {
       tx.push({ ...base, type: 'EXPENSE', accountId: acc('Banco'), categoryId: cat('Servicios', 'EXPENSE'), amount: roundTo(between(90000, 180000) * s, 100), date, description: 'Electricidad' });
       tx.push({ ...base, type: 'EXPENSE', accountId: acc('Banco'), categoryId: cat('Servicios', 'EXPENSE'), amount: roundTo(between(25000, 45000) * s, 100), date, description: 'Internet y telefonía' });
-      tx.push({ ...base, type: 'EXPENSE', accountId: acc('Caja general'), categoryId: cat('Ayuda social', 'EXPENSE'), amount: roundTo(between(120000, 300000) * s, 100), date, description: 'Mercadería comedor comunitario' });
+      tx.push({ ...base, type: 'EXPENSE', accountId: acc('Caja general'), categoryId: cat('Ayuda social', 'EXPENSE'), amount: roundTo(between(120000, 300000) * s, 100), date, description: 'Alimentos para el comedor comunitario' });
     }
     if (d.getDate() === 20) {
       tx.push({ ...base, type: 'EXPENSE', accountId: acc('Fondo en dólares'), categoryId: cat('Misiones', 'EXPENSE'), amount: between(100, 250), date, description: 'Envío a misioneros' });
@@ -253,7 +253,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       tx.push({ ...base, type: 'EXPENSE', accountId: acc('Caja general'), categoryId: cat(pick(['Mantenimiento', 'Equipamiento', 'Eventos', 'Otros egresos']), 'EXPENSE'), amount: roundTo(between(15000, 250000) * s, 100), date, description: pick(['Reparación de sillas', 'Pintura salón', 'Cables y micrófonos', 'Artículos de limpieza', 'Refrigerio evento', 'Librería']) });
     }
     if (rand() < 0.03) {
-      tx.push({ ...base, type: 'INCOME', accountId: acc('Banco'), categoryId: cat(pick(['Donaciones', 'Eventos']), 'INCOME'), amount: roundTo(between(50000, 400000) * s, 1000), date, description: pick(['Donación anónima', 'Venta de comidas', 'Retiro de jóvenes', 'Feria americana']) });
+      tx.push({ ...base, type: 'INCOME', accountId: acc('Banco'), categoryId: cat(pick(['Donaciones', 'Eventos']), 'INCOME'), amount: roundTo(between(50000, 400000) * s, 1000), date, description: pick(['Donación anónima', 'Venta de comidas', 'Retiro de jóvenes', 'Venta solidaria']) });
     }
   }
   await prisma.transaction.createMany({ data: tx });
@@ -262,10 +262,10 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
   const author = users.secretaria.id;
   await prisma.announcement.createMany({
     data: [
-      { churchId: church.id, authorId: author, pinned: true, title: 'Bienvenidos a Kahal', body: `Desde ahora podés seguir todas las novedades de ${def.name} desde tu celular: actividades, transmisiones en vivo y turnos con los pastores.\n\nInstalá la app desde el menú de tu navegador con "Agregar a pantalla de inicio".`, publishedAt: addDays(today, -1) },
-      { churchId: church.id, authorId: author, title: 'Campaña de alimentos', body: 'Durante todo el mes recibimos alimentos no perecederos para el comedor comunitario. Podés acercarlos antes o después de cada reunión.', publishedAt: addDays(today, -4) },
-      { churchId: church.id, authorId: author, title: 'Inscripciones abiertas: Retiro de jóvenes', body: 'Ya están abiertas las inscripciones para el retiro de jóvenes. Cupos limitados. Consultá con los líderes del ministerio.', publishedAt: addDays(today, -9) },
-      { churchId: church.id, authorId: author, title: 'Nuevo horario de reunión de oración', body: 'A partir de este mes la reunión de oración de los miércoles pasa a las 20 hs.', publishedAt: addDays(today, -16) },
+      { churchId: church.id, authorId: author, pinned: true, title: 'Bienvenidos a Kahal', body: `Desde ahora puedes seguir todas las novedades de ${def.name} desde tu teléfono: actividades, transmisiones en vivo y citas con los pastores.\n\nInstala la app desde el menú de tu navegador con "Agregar a pantalla de inicio".`, publishedAt: addDays(today, -1) },
+      { churchId: church.id, authorId: author, title: 'Campaña de alimentos', body: 'Durante todo el mes recibimos alimentos no perecederos para el comedor comunitario. Puedes acercarlos antes o después de cada reunión.', publishedAt: addDays(today, -4) },
+      { churchId: church.id, authorId: author, title: 'Inscripciones abiertas: Retiro de jóvenes', body: 'Ya están abiertas las inscripciones para el retiro de jóvenes. Cupos limitados. Consulta con los líderes del ministerio.', publishedAt: addDays(today, -9) },
+      { churchId: church.id, authorId: author, title: 'Nuevo horario de reunión de oración', body: 'A partir de este mes la reunión de oración de los miércoles pasa a las 20:00.', publishedAt: addDays(today, -16) },
     ],
   });
 
@@ -281,7 +281,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       { churchId: church.id, createdById: author, title: 'Reunión de oración', location: def.address, startsAt: at(((3 - today.getDay() + 7) % 7) || 7, 20), endsAt: at(((3 - today.getDay() + 7) % 7) || 7, 21, 30) },
       { churchId: church.id, createdById: author, title: 'Noche de jóvenes', location: 'Salón principal', startsAt: at(nextSunday - 1, 20, 30), endsAt: at(nextSunday - 1, 23) },
       { churchId: church.id, createdById: author, title: 'Taller para matrimonios', location: 'Salón anexo', startsAt: at(nextSunday + 6, 17), endsAt: at(nextSunday + 6, 19), description: 'Encuentro mensual con dinámicas y charla.' },
-      { churchId: church.id, createdById: author, title: 'Bautismos', location: def.address, startsAt: at(nextSunday + 14, 11), description: 'Celebración de bautismos. Inscribite con secretaría.' },
+      { churchId: church.id, createdById: author, title: 'Bautismos', location: def.address, startsAt: at(nextSunday + 14, 11), description: 'Celebración de bautismos. Inscríbete con secretaría.' },
       { churchId: church.id, createdById: author, title: 'Retiro de jóvenes', location: 'Quinta El Encuentro', startsAt: at(nextSunday + 26, 9), endsAt: at(nextSunday + 27, 18) },
     ],
   });
@@ -313,7 +313,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       { churchId: church.id, hostId: users.pastor.id, requesterId: users.miembro.id, startsAt: at(nextWeekday(2), 18), endsAt: at(nextWeekday(2), 18, 30), status: 'CONFIRMED', reason: 'Consejería familiar' },
       { churchId: church.id, hostId: users.pastor.id, requesterId: users.miembro2.id, startsAt: at(nextWeekday(4), 19), endsAt: at(nextWeekday(4), 19, 30), status: 'PENDING', reason: 'Quiero hablar sobre el bautismo' },
       { churchId: church.id, hostId: users.equipo.id, requesterId: users.miembro2.id, startsAt: at(nextWeekday(3), 17), endsAt: at(nextWeekday(3), 17, 30), status: 'CONFIRMED', reason: 'Acompañamiento en duelo' },
-      { churchId: church.id, hostId: users.lider.id, requesterId: users.miembro.id, startsAt: at(nextWeekday(5, 1), 17), endsAt: at(nextWeekday(5, 1), 18), status: 'PENDING', reason: 'Sumarme al ministerio de jóvenes' },
+      { churchId: church.id, hostId: users.lider.id, requesterId: users.miembro.id, startsAt: at(nextWeekday(5, 1), 17), endsAt: at(nextWeekday(5, 1), 18), status: 'PENDING', reason: 'Unirme al ministerio de jóvenes' },
       { churchId: church.id, hostId: users.pastor.id, requesterId: users.miembro.id, startsAt: at(-6, 18), endsAt: at(-6, 18, 30), status: 'COMPLETED', reason: 'Oración' },
     ],
   });
@@ -329,12 +329,12 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
         publishedAt: addDays(today, -3),
         body:
           '<p>Muchas veces sabemos que orar es importante, pero nos cuesta sostenerlo en el tiempo. La buena noticia es que la oración no depende de grandes momentos, sino de pequeños pasos fieles.</p>' +
-          '<h2>1. Elegí un momento fijo</h2><p>Puede ser temprano a la mañana o antes de dormir. Lo importante es que sea <strong>el mismo todos los días</strong>, así se vuelve parte de tu rutina.</p>' +
-          '<h2>2. Empezá con poco</h2><p>Diez minutos con el corazón atento valen más que una hora distraída. Con el tiempo, vas a querer quedarte más.</p>' +
-          '<h2>3. Usá una guía</h2><ul><li>Adoración: reconocé quién es Dios.</li><li>Confesión: poné delante de Él lo que pesa.</li><li>Gratitud: nombrá tres cosas por las que agradecer.</li><li>Pedidos: orá por otros y por vos.</li></ul>' +
+          '<h2>1. Elige un momento fijo</h2><p>Puede ser temprano por la mañana o antes de dormir. Lo importante es que sea <strong>el mismo todos los días</strong>, así se vuelve parte de tu rutina.</p>' +
+          '<h2>2. Empieza con poco</h2><p>Diez minutos con el corazón atento valen más que una hora distraída. Con el tiempo, vas a querer quedarte más.</p>' +
+          '<h2>3. Usa una guía</h2><ul><li>Adoración: reconoce quién es Dios.</li><li>Confesión: pon delante de Él lo que pesa.</li><li>Gratitud: nombra tres cosas por las que agradecer.</li><li>Pedidos: ora por otros y por ti.</li></ul>' +
           '<blockquote>"Oren sin cesar. Den gracias a Dios en toda situación." — 1 Tesalonicenses 5:17-18</blockquote>' +
-          '<h2>4. Escribí</h2><p>Anotar tus oraciones te ayuda a enfocarte y, con el tiempo, a ver cómo Dios fue respondiendo.</p>' +
-          '<h2>5. Orá en comunidad</h2><p>Te esperamos los miércoles en la reunión de oración. Orar juntos fortalece la fe de todos.</p>',
+          '<h2>4. Escribe</h2><p>Anotar tus oraciones te ayuda a enfocarte y, con el tiempo, a ver cómo Dios fue respondiendo.</p>' +
+          '<h2>5. Ora en comunidad</h2><p>Te esperamos los miércoles en la reunión de oración. Orar juntos fortalece la fe de todos.</p>',
       },
       {
         churchId: church.id,
@@ -344,9 +344,9 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
         publishedAt: addDays(today, -12),
         body:
           '<p>Cuando alguien que queremos pierde a un ser querido, solemos sentir que no sabemos qué decir. Muchas veces, lo más valioso es simplemente <em>estar</em>.</p>' +
-          '<h3>Lo que ayuda</h3><ul><li>Escuchar sin apurarse a dar respuestas.</li><li>Ofrecer ayuda concreta: una comida, un traslado, una tarde de compañía.</li><li>Recordar fechas significativas y volver a escribir semanas después.</li></ul>' +
+          '<h3>Lo que ayuda</h3><ul><li>Escuchar sin apresurarse a dar respuestas.</li><li>Ofrecer ayuda concreta: una comida, un traslado, una tarde de compañía.</li><li>Recordar fechas significativas y volver a escribir semanas después.</li></ul>' +
           '<h3>Lo que conviene evitar</h3><ul><li>Frases hechas que minimizan el dolor.</li><li>Comparar pérdidas.</li><li>Poner plazos para "estar bien".</li></ul>' +
-          '<p>Si necesitás acompañamiento, podés pedir una cita con el equipo pastoral desde la sección <strong>Citas</strong> de la app.</p>',
+          '<p>Si necesitas acompañamiento, puedes pedir una cita con el equipo pastoral desde la sección <strong>Citas</strong> de la app.</p>',
       },
     ],
   });
