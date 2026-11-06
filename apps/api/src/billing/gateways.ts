@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SubscriptionStatus } from '@prisma/client';
 import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
@@ -29,6 +29,17 @@ export interface GatewayClient {
 }
 
 const TIMEOUT_MS = 15_000;
+
+/** Conserva la respuesta de la pasarela para reconocer los rechazos que quien paga puede resolver. */
+class GatewayRejected extends BadGatewayException {
+  constructor(
+    message: string,
+    readonly detail: string,
+  ) {
+    super(message);
+  }
+}
+
 const date = (value: unknown) => {
   const parsed = typeof value === 'string' ? new Date(value) : undefined;
   return parsed && !Number.isNaN(parsed.getTime()) ? parsed : undefined;
@@ -46,7 +57,7 @@ async function call(logger: Logger, name: string, url: string, init: RequestInit
   const text = await res.text();
   if (!res.ok) {
     logger.error(`${name} respondió ${res.status} a ${init.method ?? 'GET'} ${new URL(url).pathname}: ${text.slice(0, 500)}`);
-    throw new BadGatewayException(`${name} rechazó la operación. Revisa los datos e intenta de nuevo.`);
+    throw new GatewayRejected(`${name} rechazó la operación. Revisa los datos e intenta de nuevo.`, text);
   }
   return (text ? JSON.parse(text) : {}) as Record<string, any>;
 }
@@ -93,9 +104,23 @@ export class MercadoPagoGateway implements GatewayClient {
         },
       },
       { 'X-Idempotency-Key': randomUUID() },
-    );
+    ).catch((e) => {
+      throw this.payerEmailError(e);
+    });
     if (!created.id || !created.init_point) throw new BadGatewayException('Mercado Pago no devolvió el enlace de pago');
     return { externalId: String(created.id), checkoutUrl: String(created.init_point) };
+  }
+
+  /** Mercado Pago no distingue con claridad estos rechazos: se traducen a algo que quien paga pueda corregir. */
+  private payerEmailError(e: unknown) {
+    const detail = e instanceof GatewayRejected ? e.detail : '';
+    if (/cannot be the same user/i.test(detail)) {
+      return new BadRequestException('Ese correo es el de la cuenta que recibe los pagos de Kahal. Usa el de otra cuenta de Mercado Pago.');
+    }
+    if (/must be real or test users|user bad request/i.test(detail)) {
+      return new BadRequestException('No encontramos una cuenta de Mercado Pago con ese correo. Escribe el correo con el que ingresas a Mercado Pago, o crea una cuenta con él.');
+    }
+    return e;
   }
 
   async fetch(externalId: string): Promise<GatewayState> {

@@ -97,7 +97,11 @@ export class BillingService {
     const church = await this.church(churchId);
     const plan = planForTimezone(church.timezone);
     const subscriptions = await this.prisma.churchSubscription.findMany({ where: { churchId }, orderBy: { createdAt: 'desc' } });
-    const current = subscriptions.find((s) => s.status === SubscriptionStatus.ACTIVE || s.status === SubscriptionStatus.PAUSED) ?? subscriptions.find((s) => s.status === SubscriptionStatus.CANCELLED) ?? null;
+    // Una suscripción cancelada sin llegar a pagarse no es la que tuvo la iglesia.
+    const current =
+      subscriptions.find((s) => s.status === SubscriptionStatus.ACTIVE || s.status === SubscriptionStatus.PAUSED) ??
+      subscriptions.find((s) => s.status === SubscriptionStatus.CANCELLED && (s.currentPeriodEnd || s.lastPaymentAt)) ??
+      null;
     return {
       plan: { gateway: plan.gateway, label: plan.label, currency: plan.currency, minAmount: plan.minAmount, available: this.available(plan.gateway) },
       access: await this.access(churchId),
