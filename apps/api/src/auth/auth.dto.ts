@@ -49,6 +49,11 @@ export class RegisterDto {
   @MaxLength(200)
   address: string;
 
+  /** Solo en iglesias con sedes habilitadas. */
+  @IsOptional()
+  @IsString()
+  campusId?: string;
+
   /** Se omite al registrarse con Google o Apple. */
   @IsOptional()
   @IsString()

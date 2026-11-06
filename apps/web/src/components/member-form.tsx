@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent } from 'react';
+import { CampusField } from '@/components/campuses';
 import { Dialog } from '@/components/dialog';
 import { Button, Field, Input, Select, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -77,6 +78,7 @@ export function MemberForm({ member, onClose, onSaved }: { member: Member | null
         <Field label="Teléfono">
           <Input name="phone" type="tel" defaultValue={member?.phone ?? ''} />
         </Field>
+        <CampusField current={member?.campusId} emptyLabel="Sin sede" className="sm:col-span-2" />
         <Field label="Número de documento">
           <Input name="documentId" defaultValue={member?.documentId ?? ''} />
         </Field>

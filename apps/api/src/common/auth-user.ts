@@ -1,4 +1,5 @@
 import { Permission } from '@prisma/client';
+import { CampusScope } from './campus-scope';
 
 export interface AuthUser {
   id: string;
@@ -9,6 +10,8 @@ export interface AuthUser {
   activeChurchId: string | null;
   /** Permisos efectivos: unión de los permisos de todos sus roles. */
   permissions: Permission[];
+  /** Sedes a las que se limitan sus miembros y finanzas. `null`: toda la iglesia. */
+  campusScope: CampusScope;
 }
 
 export const ALL_PERMISSIONS = Object.values(Permission);
@@ -34,6 +37,34 @@ export function normalizePermissions(perms: Permission[]): Permission[] {
 export function effectivePermissions(roles: { isAdmin: boolean; permissions: Permission[] }[]): Permission[] {
   if (roles.some((r) => r.isAdmin)) return ALL_PERMISSIONS;
   return normalizePermissions(roles.flatMap((r) => r.permissions));
+}
+
+/**
+ * Permisos sobre toda la iglesia, que no aplican a quien está limitado a ciertas sedes.
+ * Quitarlos cierra de raíz la escalada: no puede editar roles ni usuarios (ni los suyos a través de otro).
+ */
+const CHURCH_WIDE_PERMISSIONS: Permission[] = [
+  Permission.USERS_VIEW,
+  Permission.USERS_MANAGE,
+  Permission.ROLES_MANAGE,
+  Permission.CHURCH_SETTINGS,
+  Permission.MEMBER_STATUSES_MANAGE,
+];
+
+/** Sedes y permisos reales de un usuario. La administración y el super admin siempre ven toda la iglesia. */
+export function campusAccess(user: {
+  isSuperAdmin: boolean;
+  campusRestricted: boolean;
+  campuses: { campusId: string }[];
+  roles: { role: { isAdmin: boolean; permissions: Permission[] } }[];
+}): Pick<AuthUser, 'permissions' | 'campusScope'> {
+  const roles = user.roles.map((r) => r.role);
+  const permissions = effectivePermissions(roles);
+  if (user.isSuperAdmin || !user.campusRestricted || roles.some((r) => r.isAdmin)) return { permissions, campusScope: null };
+  return {
+    permissions: permissions.filter((p) => !CHURCH_WIDE_PERMISSIONS.includes(p)),
+    campusScope: user.campuses.map((c) => c.campusId),
+  };
 }
 
 /** El super admin pasa siempre; el resto necesita al menos uno de los permisos. */

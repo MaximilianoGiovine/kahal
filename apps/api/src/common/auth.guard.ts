@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserStatus } from '@prisma/client';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthUser, effectivePermissions } from './auth-user';
+import { AuthUser, campusAccess } from './auth-user';
 import { IS_PUBLIC } from './decorators';
 
 export const ACCESS_COOKIE = 'kahal_at';
@@ -50,6 +50,8 @@ export class AuthGuard implements CanActivate {
         isSuperAdmin: true,
         churchId: true,
         status: true,
+        campusRestricted: true,
+        campuses: { select: { campusId: true } },
         roles: { select: { role: { select: { isAdmin: true, permissions: true } } } },
       },
     });
@@ -68,7 +70,7 @@ export class AuthGuard implements CanActivate {
       isSuperAdmin: user.isSuperAdmin,
       churchId: user.churchId,
       activeChurchId,
-      permissions: effectivePermissions(user.roles.map((r) => r.role)),
+      ...campusAccess(user),
     };
     return true;
   }

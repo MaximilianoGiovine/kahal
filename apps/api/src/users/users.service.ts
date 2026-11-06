@@ -18,6 +18,8 @@ export const USER_PUBLIC_SELECT = {
   createdAt: true,
   lastLoginAt: true,
   member: { select: { id: true } },
+  campusRestricted: true,
+  campuses: { select: { campus: { select: { id: true, name: true } } } },
   ...ROLE_NAMES_SELECT,
 } satisfies Prisma.UserSelect;
 
@@ -68,6 +70,7 @@ export class UsersService {
 
   async create(churchId: string, actor: AuthUser, dto: CreateUserDto) {
     await this.assertAssignable(churchId, actor, dto.roleIds);
+    await this.assertCampusAccess(churchId, dto.campusRestricted ?? false, dto.campusIds, dto.roleIds);
     const email = dto.email.toLowerCase().trim();
     if (await this.prisma.user.findUnique({ where: { email } })) {
       throw new ConflictException('Ya existe una cuenta con ese email');
@@ -84,6 +87,8 @@ export class UsersService {
           phone: dto.phone,
           status: UserStatus.ACTIVE,
           roles: { create: dto.roleIds.map((roleId) => ({ roleId })) },
+          campusRestricted: dto.campusRestricted ?? false,
+          ...(dto.campusRestricted && { campuses: { create: dto.campusIds?.map((campusId) => ({ campusId })) } }),
         },
         select: USER_PUBLIC_SELECT,
       });
@@ -105,15 +110,26 @@ export class UsersService {
       (dto.status === UserStatus.DISABLED || (dto.roleIds && !(await this.hasAdminRole(churchId, dto.roleIds))));
     if (removesAdmin) await this.assertAnotherAdmin(churchId, id);
 
+    // También se revisa al cambiar solo los roles: el límite no puede convivir con el rol de administración sin avisar.
+    const restricted = dto.campusRestricted ?? target.campusRestricted;
+    if (dto.campusRestricted !== undefined || dto.campusIds || (dto.roleIds && restricted)) {
+      const campusIds = dto.campusIds ?? (restricted ? target.campuses.map((c) => c.campusId) : undefined);
+      await this.assertCampusAccess(churchId, restricted, campusIds, dto.roleIds ?? target.roles.map((r) => r.roleId));
+    }
+
     return this.prisma.$transaction(async (tx) => {
       if (dto.roleIds) {
         await tx.userRole.deleteMany({ where: { userId: id } });
         await tx.userRole.createMany({ data: dto.roleIds.map((roleId) => ({ userId: id, roleId })) });
       }
+      if (dto.campusIds || dto.campusRestricted === false) {
+        await tx.userCampus.deleteMany({ where: { userId: id } });
+        if (restricted) await tx.userCampus.createMany({ data: (dto.campusIds ?? []).map((campusId) => ({ userId: id, campusId })) });
+      }
       return tx.user.update({
         where: { id },
         // Deshabilitar invalida las sesiones abiertas; los cambios de roles aplican al instante.
-        data: { status: dto.status, ...(dto.status === UserStatus.DISABLED && { tokenVersion: { increment: 1 } }) },
+        data: { status: dto.status, campusRestricted: dto.campusRestricted, ...(dto.status === UserStatus.DISABLED && { tokenVersion: { increment: 1 } }) },
         select: USER_PUBLIC_SELECT,
       });
     });
@@ -143,7 +159,7 @@ export class UsersService {
   private async find(churchId: string, id: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, churchId },
-      include: { roles: { include: { role: true } } },
+      include: { roles: { include: { role: true } }, campuses: { select: { campusId: true } } },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;
@@ -155,6 +171,20 @@ export class UsersService {
     if (roles.length !== roleIds.length) throw new BadRequestException('Rol inválido');
     if (!coversAll(actor, effectivePermissions(roles))) {
       throw new ForbiddenException('No puedes asignar roles con permisos que no tienes');
+    }
+  }
+
+  /** Un límite debe nombrar sedes de la iglesia, y no aplica a la administración, que ve siempre toda la iglesia. */
+  private async assertCampusAccess(churchId: string, restricted: boolean, campusIds: string[] | undefined, roleIds: string[]) {
+    if (!restricted) {
+      if (campusIds?.length) throw new BadRequestException('Las sedes solo se indican al limitar el acceso');
+      return;
+    }
+    if (!campusIds?.length) throw new BadRequestException('Elige al menos una sede');
+    const found = await this.prisma.campus.count({ where: { churchId, id: { in: campusIds }, church: { campusesEnabled: true } } });
+    if (found !== campusIds.length) throw new BadRequestException('Sede inválida');
+    if (await this.hasAdminRole(churchId, roleIds)) {
+      throw new BadRequestException('El rol de administración ve siempre toda la iglesia: no se puede limitar a una sede');
     }
   }
 
@@ -185,6 +215,7 @@ export async function linkMember(
     birthDate?: Date;
     baptized?: boolean;
     address?: string;
+    campusId?: string | null;
   },
 ) {
   const existing = await tx.member.findFirst({
@@ -193,7 +224,7 @@ export async function linkMember(
   if (existing) {
     // La ficha cargada por la iglesia manda: solo se completan los datos que faltan.
     const missing = Object.fromEntries(
-      (['phone', 'documentId', 'birthDate', 'baptized', 'address'] as const)
+      (['phone', 'documentId', 'birthDate', 'baptized', 'address', 'campusId'] as const)
         .filter((k) => (existing[k] === null || existing[k] === '') && data[k] != null)
         .map((k) => [k, data[k]]),
     );
@@ -222,6 +253,7 @@ export async function linkMember(
       birthDate: data.birthDate,
       baptized: data.baptized,
       address: data.address,
+      campusId: data.campusId,
       joinedAt: new Date(),
       statuses: { create: defaults.map((s) => ({ statusId: s.id })) },
     },

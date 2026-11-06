@@ -14,11 +14,16 @@ export class CreateUserDto {
   @IsOptional() @IsString() @MaxLength(40) phone?: string;
   @IsString() @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' }) password: string;
   @IsArray() @ArrayUnique() @IsString({ each: true }) roleIds: string[];
+  /** Limita sus miembros y finanzas a `campusIds`. */
+  @IsOptional() @IsBoolean() campusRestricted?: boolean;
+  @IsOptional() @IsArray() @ArrayUnique() @IsString({ each: true }) campusIds?: string[];
 }
 
 export class UpdateUserDto {
   @IsOptional() @IsArray() @ArrayUnique() @IsString({ each: true }) roleIds?: string[];
   @IsOptional() @IsIn([UserStatus.ACTIVE, UserStatus.DISABLED]) status?: UserStatus;
+  @IsOptional() @IsBoolean() campusRestricted?: boolean;
+  @IsOptional() @IsArray() @ArrayUnique() @IsString({ each: true }) campusIds?: string[];
 }
 
 export class UpdateProfileDto {

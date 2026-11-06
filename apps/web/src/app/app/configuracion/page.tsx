@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, Copy, Pencil, Plus, QrCode as QrIcon, Search, ShieldCheck, Trash2 } from 'lucide-react';
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
+import { CampusAccessPicker } from '@/components/campuses';
+import { CampusSettings } from '@/components/campus-settings';
 import { ChurchClosure } from '@/components/church-closure';
 import { ChurchQrDialog, QrCode, registerLink } from '@/components/church-qr';
 import { CurrencyOptions } from '@/components/currency-options';
@@ -20,7 +22,7 @@ import { can, PERMISSION_GROUPS, PERMISSION_IMPLIES } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
 import type { Church, ChurchRole, Me, Paged, Permission, UserRow } from '@/lib/types';
 
-type Tab = 'church' | 'users' | 'roles';
+type Tab = 'church' | 'campuses' | 'users' | 'roles';
 
 const ALL_PERMISSIONS = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.value));
 const PERMISSION_LABEL = Object.fromEntries(PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => [i.value, i.label]))) as Record<Permission, string>;
@@ -36,7 +38,7 @@ const covers = (me: Me, perms: Permission[]) => me.isSuperAdmin || perms.every((
 export default function SettingsPage() {
   const { me } = useSession();
   const tabs = [
-    ...(can.churchSettings(me) ? [{ value: 'church' as Tab, label: 'Iglesia' }] : []),
+    ...(can.churchSettings(me) ? [{ value: 'church' as Tab, label: 'Iglesia' }, { value: 'campuses' as Tab, label: 'Sedes' }] : []),
     ...(can.viewUsers(me) ? [{ value: 'users' as Tab, label: 'Usuarios' }] : []),
     ...(can.viewUsers(me) || can.manageRoles(me) ? [{ value: 'roles' as Tab, label: 'Roles y permisos' }] : []),
   ];
@@ -45,13 +47,13 @@ export default function SettingsPage() {
   if (!tab) return <ErrorState error={new Error('No tienes permisos para acceder a la configuración')} />;
   return (
     <>
-      <PageHeader title="Configuración" description="Datos de la iglesia, usuarios, roles y permisos." />
+      <PageHeader title="Configuración" description="Datos de la iglesia, sedes, usuarios, roles y permisos." />
       {tabs.length > 1 && (
         <div className="mb-6">
           <Tabs value={tab} onChange={setTab} items={tabs} />
         </div>
       )}
-      {tab === 'church' ? <ChurchSettings /> : tab === 'users' ? <UsersSettings /> : <RolesSettings />}
+      {tab === 'church' ? <ChurchSettings /> : tab === 'campuses' ? <CampusSettings /> : tab === 'users' ? <UsersSettings /> : <RolesSettings />}
     </>
   );
 }
@@ -258,6 +260,7 @@ function UsersSettings() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {u.status !== 'ACTIVE' && <Badge tone={u.status === 'PENDING' ? 'warning' : 'neutral'}>{USER_STATUS_LABEL[u.status]}</Badge>}
+                    {u.campusRestricted && <Badge tone="warning">Solo {u.campuses.map((c) => c.campus.name).join(', ') || 'ninguna sede'}</Badge>}
                     {u.roles.length === 0 ? (
                       <Badge>Miembro</Badge>
                     ) : (
@@ -270,7 +273,7 @@ function UsersSettings() {
                     {allowed && (
                       <ActionMenu
                         items={[
-                          { label: 'Editar roles', icon: ShieldCheck, hidden: !editable, onClick: () => setEditing(u) },
+                          { label: 'Editar roles y sedes', icon: ShieldCheck, hidden: !editable, onClick: () => setEditing(u) },
                           {
                             label: u.status === 'ACTIVE' ? 'Deshabilitar' : 'Habilitar',
                             icon: Ban,
@@ -339,8 +342,14 @@ function RolePicker({ roles, selected, onChange }: { roles: ChurchRole[]; select
 
 function EditUserRoles({ user, roles, onClose }: { user: UserRow; roles: ChurchRole[]; onClose: () => void }) {
   const [selected, setSelected] = useState(() => user.roles.map((r) => r.role.id));
-  const save = useAction(() => api(`/users/${user.id}`, { method: 'PATCH', body: { roleIds: selected } }), {
-    success: 'Roles actualizados',
+  const [access, setAccess] = useState(() => ({ restricted: user.campusRestricted, campusIds: user.campuses.map((c) => c.campus.id) }));
+  const body = {
+    roleIds: selected,
+    campusRestricted: access.restricted,
+    ...(access.restricted && { campusIds: access.campusIds }),
+  };
+  const save = useAction(() => api(`/users/${user.id}`, { method: 'PATCH', body }), {
+    success: 'Usuario actualizado',
     invalidate: ROLE_QUERIES,
     onSuccess: onClose,
   });
@@ -348,7 +357,7 @@ function EditUserRoles({ user, roles, onClose }: { user: UserRow; roles: ChurchR
     <Dialog
       open
       onClose={onClose}
-      title={`Roles de ${fullName(user)}`}
+      title={`Acceso de ${fullName(user)}`}
       description="Los cambios aplican de inmediato."
       footer={
         <>
@@ -361,13 +370,17 @@ function EditUserRoles({ user, roles, onClose }: { user: UserRow; roles: ChurchR
         </>
       }
     >
-      <RolePicker roles={roles} selected={selected} onChange={setSelected} />
+      <div className="grid gap-5">
+        <RolePicker roles={roles} selected={selected} onChange={setSelected} />
+        <CampusAccessPicker restricted={access.restricted} campusIds={access.campusIds} onChange={setAccess} />
+      </div>
     </Dialog>
   );
 }
 
 function CreateUser({ roles, onClose }: { roles: ChurchRole[]; onClose: () => void }) {
   const [roleIds, setRoleIds] = useState<string[]>([]);
+  const [access, setAccess] = useState<{ restricted: boolean; campusIds: string[] }>({ restricted: false, campusIds: [] });
   const save = useAction((body: Record<string, unknown>) => api('/users', { method: 'POST', body }), {
     success: 'Usuario creado',
     invalidate: [['users'], ['members'], ['hosts'], ['roles']],
@@ -395,7 +408,7 @@ function CreateUser({ roles, onClose }: { roles: ChurchRole[]; onClose: () => vo
         className="grid gap-4 sm:grid-cols-2"
         onSubmit={(e) => {
           e.preventDefault();
-          save.mutate({ ...formValues(e.currentTarget), roleIds });
+          save.mutate({ ...formValues(e.currentTarget), roleIds, campusRestricted: access.restricted, ...(access.restricted && { campusIds: access.campusIds }) });
         }}
       >
         <Field label="Nombre">
@@ -414,6 +427,9 @@ function CreateUser({ roles, onClose }: { roles: ChurchRole[]; onClose: () => vo
           <legend className="mb-2 text-sm font-medium">Roles</legend>
           <RolePicker roles={roles} selected={roleIds} onChange={setRoleIds} />
         </fieldset>
+        <div className="sm:col-span-2">
+          <CampusAccessPicker restricted={access.restricted} campusIds={access.campusIds} onChange={setAccess} />
+        </div>
       </form>
     </Dialog>
   );

@@ -1,6 +1,7 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Permission, Prisma } from '@prisma/client';
 import { AuthUser, can } from '../common/auth-user';
+import { assertAssignableCampus, assertCampusInScope, campusFilter, campusForNew, CampusScope } from '../common/campus-scope';
 import { paginate } from '../common/pagination';
 import { parseDay } from '../common/time';
 import { ROLE_NAMES_SELECT } from '../roles/roles.service';
@@ -18,10 +19,11 @@ const dateOrNull = (v?: string | null) => (v === undefined ? undefined : v === n
 export class MembersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  buildWhere(churchId: string, query: Partial<MembersQuery>): Prisma.MemberWhereInput {
+  buildWhere(churchId: string, scope: CampusScope, query: Partial<MembersQuery>): Prisma.MemberWhereInput {
     const terms = query.q?.trim().split(/\s+/).filter(Boolean) ?? [];
     return {
       churchId,
+      campusId: campusFilter(scope, query.campusId),
       familyId: query.familyId,
       ...(query.statusId && { statuses: { some: { statusId: query.statusId } } }),
       ...(query.ministryId && { ministries: { some: { ministryId: query.ministryId } } }),
@@ -38,13 +40,14 @@ export class MembersService {
     };
   }
 
-  async list(churchId: string, query: MembersQuery) {
-    const where = this.buildWhere(churchId, query);
+  async list(churchId: string, scope: CampusScope, query: MembersQuery) {
+    const where = this.buildWhere(churchId, scope, query);
     const [items, total] = await Promise.all([
       this.prisma.member.findMany({
         where,
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
         include: {
+          campus: { select: { id: true, name: true } },
           family: { select: { id: true, name: true } },
           ministries: { select: { ministry: { select: { id: true, name: true } } } },
           user: { select: { id: true, status: true, ...ROLE_NAMES_SELECT } },
@@ -57,38 +60,42 @@ export class MembersService {
     return { items, total, page: query.page, pageSize: query.pageSize };
   }
 
-  lookup(churchId: string, q: string) {
+  lookup(churchId: string, scope: CampusScope, q: string) {
     if (q.trim().length < 2) return [];
     return this.prisma.member.findMany({
-      where: this.buildWhere(churchId, { q }),
+      where: this.buildWhere(churchId, scope, { q }),
       select: { id: true, firstName: true, lastName: true, documentId: true },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       take: 10,
     });
   }
 
-  async stats(churchId: string) {
+  async stats(churchId: string, scope: CampusScope, requested?: string) {
+    const campusId = campusFilter(scope, requested);
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const [statuses, total, newThisMonth, fromApp, fromAppThisMonth] = await Promise.all([
       this.prisma.memberStatus.findMany({
         where: { churchId },
         orderBy: { position: 'asc' },
-        select: { id: true, name: true, color: true, _count: { select: { members: true } } },
+        select: { id: true, name: true, color: true, _count: { select: { members: { where: { member: { campusId } } } } } },
       }),
-      this.prisma.member.count({ where: { churchId } }),
-      this.prisma.member.count({ where: { churchId, createdAt: { gte: monthStart } } }),
-      this.prisma.member.count({ where: { churchId, userId: { not: null } } }),
-      this.prisma.member.count({ where: { churchId, userId: { not: null }, createdAt: { gte: monthStart } } }),
+      this.prisma.member.count({ where: { churchId, campusId } }),
+      this.prisma.member.count({ where: { churchId, campusId, createdAt: { gte: monthStart } } }),
+      this.prisma.member.count({ where: { churchId, campusId, userId: { not: null } } }),
+      this.prisma.member.count({ where: { churchId, campusId, userId: { not: null }, createdAt: { gte: monthStart } } }),
     ]);
     const byStatus = statuses.map(({ _count, ...s }) => ({ ...s, count: _count.members }));
     return { total, newThisMonth, fromApp, fromAppThisMonth, byStatus };
   }
 
   async get(churchId: string, id: string, viewer: AuthUser) {
+    const scope = viewer.campusScope;
+    const campusId = campusFilter(scope);
     const member = await this.prisma.member.findFirst({
-      where: { id, churchId },
+      where: { id, churchId, campusId },
       include: {
-        family: { include: { members: { select: { id: true, firstName: true, lastName: true, familyRole: true } } } },
+        campus: { select: { id: true, name: true } },
+        family: { include: { members: { where: { campusId }, select: { id: true, firstName: true, lastName: true, familyRole: true } } } },
         ministries: { include: { ministry: { select: { id: true, name: true } } } },
         user: { select: { id: true, email: true, status: true, lastLoginAt: true, ...ROLE_NAMES_SELECT } },
         ...STATUSES_SELECT,
@@ -99,7 +106,7 @@ export class MembersService {
     let giving = null;
     if (can(viewer, Permission.FINANCE_VIEW)) {
       giving = await this.prisma.transaction.findMany({
-        where: { churchId, memberId: id },
+        where: { churchId, memberId: id, account: { campusId } },
         orderBy: { date: 'desc' },
         take: 20,
         select: {
@@ -115,22 +122,29 @@ export class MembersService {
     return { ...member, giving };
   }
 
-  async create(churchId: string, dto: MemberDto) {
+  async create(churchId: string, scope: CampusScope, dto: MemberDto) {
     await this.assertRefs(churchId, dto);
+    const campusId = campusForNew(scope, dto.campusId);
+    await assertAssignableCampus(this.prisma, churchId, campusId);
     const { ministryIds, statusIds, ...data } = dto;
     return this.prisma.member.create({
       data: {
         ...this.mapDates(data),
         churchId,
+        campusId,
         ministries: ministryIds?.length ? { create: ministryIds.map((ministryId) => ({ ministryId })) } : undefined,
         statuses: statusIds?.length ? { create: statusIds.map((statusId) => ({ statusId })) } : undefined,
       },
     });
   }
 
-  async update(churchId: string, id: string, dto: MemberDto) {
-    const member = await this.ensure(churchId, id);
+  async update(churchId: string, scope: CampusScope, id: string, dto: MemberDto) {
+    const member = await this.ensure(churchId, scope, id);
     await this.assertRefs(churchId, dto);
+    if (dto.campusId !== undefined && dto.campusId !== member.campusId) {
+      assertCampusInScope(scope, dto.campusId);
+      await assertAssignableCampus(this.prisma, churchId, dto.campusId, member.campusId);
+    }
     const { ministryIds, statusIds, ...data } = dto;
     return this.prisma.$transaction(async (tx) => {
       if (member.userId) {
@@ -160,8 +174,8 @@ export class MembersService {
     });
   }
 
-  async remove(churchId: string, id: string) {
-    const member = await this.ensure(churchId, id);
+  async remove(churchId: string, scope: CampusScope, id: string) {
+    const member = await this.ensure(churchId, scope, id);
     if (member.userId) {
       throw new BadRequestException('El miembro tiene una cuenta de usuario. Deshabilita la cuenta o márcalo como inactivo.');
     }
@@ -171,11 +185,13 @@ export class MembersService {
 
   // Familias
 
-  families(churchId: string) {
+  families(churchId: string, scope: CampusScope) {
+    const campusId = campusFilter(scope);
     return this.prisma.family.findMany({
-      where: { churchId },
+      // Las familias no tienen sede: con acceso limitado se ven las de sus miembros y las que siguen vacías.
+      where: { churchId, ...(scope && { OR: [{ members: { some: { campusId } } }, { members: { none: {} } }] }) },
       orderBy: { name: 'asc' },
-      include: { members: { select: { id: true, firstName: true, lastName: true, familyRole: true } } },
+      include: { members: { where: { campusId }, select: { id: true, firstName: true, lastName: true, familyRole: true } } },
     });
   }
 
@@ -183,32 +199,35 @@ export class MembersService {
     return this.prisma.family.create({ data: { ...dto, churchId } });
   }
 
-  async updateFamily(churchId: string, id: string, dto: FamilyDto) {
+  async updateFamily(churchId: string, scope: CampusScope, id: string, dto: FamilyDto) {
     await this.ensureFamily(churchId, id);
+    await this.assertFamilyInScope(scope, id);
     return this.prisma.family.update({ where: { id }, data: dto });
   }
 
-  async removeFamily(churchId: string, id: string) {
+  async removeFamily(churchId: string, scope: CampusScope, id: string) {
     await this.ensureFamily(churchId, id);
+    await this.assertFamilyInScope(scope, id);
     await this.prisma.family.delete({ where: { id } });
     return { ok: true };
   }
 
   // Ministerios
 
-  ministries(churchId: string) {
+  ministries(churchId: string, scope: CampusScope) {
+    const campusId = campusFilter(scope);
     return this.prisma.ministry.findMany({
       where: { churchId },
       orderBy: { name: 'asc' },
       include: {
         leader: { select: { id: true, firstName: true, lastName: true } },
-        _count: { select: { members: true } },
+        _count: { select: { members: { where: { member: { campusId } } } } },
       },
     });
   }
 
   async createMinistry(churchId: string, dto: MinistryDto) {
-    if (dto.leaderId) await this.ensure(churchId, dto.leaderId);
+    if (dto.leaderId) await this.ensure(churchId, null, dto.leaderId);
     try {
       return await this.prisma.ministry.create({ data: { ...dto, churchId } });
     } catch (e) {
@@ -218,7 +237,7 @@ export class MembersService {
 
   async updateMinistry(churchId: string, id: string, dto: MinistryDto) {
     await this.ensureMinistry(churchId, id);
-    if (dto.leaderId) await this.ensure(churchId, dto.leaderId);
+    if (dto.leaderId) await this.ensure(churchId, null, dto.leaderId);
     try {
       return await this.prisma.ministry.update({ where: { id }, data: dto });
     } catch (e) {
@@ -234,11 +253,12 @@ export class MembersService {
 
   // Estados
 
-  memberStatuses(churchId: string) {
+  memberStatuses(churchId: string, scope: CampusScope) {
+    const campusId = campusFilter(scope);
     return this.prisma.memberStatus.findMany({
       where: { churchId },
       orderBy: { position: 'asc' },
-      include: { _count: { select: { members: true } } },
+      include: { _count: { select: { members: { where: { member: { campusId } } } } } },
     });
   }
 
@@ -297,8 +317,18 @@ export class MembersService {
     }
   }
 
-  private async ensure(churchId: string, id: string) {
-    const m = await this.prisma.member.findFirst({ where: { id, churchId } });
+  /** Una familia compartida con otra sede solo la cambia quien ve toda la iglesia. */
+  private async assertFamilyInScope(scope: CampusScope, id: string) {
+    if (!scope) return;
+    const others = await this.prisma.member.count({
+      where: { familyId: id, OR: [{ campusId: null }, { campusId: { notIn: [...scope] } }] },
+    });
+    if (others > 0) throw new ForbiddenException('Esta familia tiene integrantes de otras sedes');
+  }
+
+  /** Fuera de su alcance, una ficha se comporta como si no existiera. */
+  private async ensure(churchId: string, scope: CampusScope, id: string) {
+    const m = await this.prisma.member.findFirst({ where: { id, churchId, campusId: campusFilter(scope) } });
     if (!m) throw new NotFoundException('Miembro no encontrado');
     return m;
   }

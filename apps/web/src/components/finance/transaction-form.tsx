@@ -6,6 +6,7 @@ import { FileText, Loader2, Paperclip, X } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/dialog';
+import { useFinanceCampus } from '@/components/finance/finance-campus';
 import { MemberPicker } from '@/components/member-picker';
 import { Button, Field, Input, Select } from '@/components/ui';
 import { api, fileUrl, upload } from '@/lib/api';
@@ -20,7 +21,8 @@ export function TransactionForm({ item, type: initialType = 'INCOME', onClose }:
   const [receipt, setReceipt] = useState(item?.receiptKey ?? '');
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { data: accounts = [] } = useQuery({ queryKey: ['finance', 'accounts'], queryFn: () => api<Account[]>('/finance/accounts') });
+  const { campusId } = useFinanceCampus();
+  const { data: accounts = [] } = useQuery({ queryKey: ['finance', 'accounts', campusId], queryFn: () => api<Account[]>('/finance/accounts', { query: { campusId } }) });
   const { data: categories = [] } = useQuery({ queryKey: ['finance', 'categories'], queryFn: () => api<Category[]>('/finance/categories') });
 
   const cats = categories.filter((c) => c.type === type && (c.active || c.id === item?.categoryId));
@@ -123,6 +125,7 @@ export function TransactionForm({ item, type: initialType = 'INCOME', onClose }:
                 .map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.currency})
+                    {a.campus && ` · ${a.campus.name}`}
                   </option>
                 ))}
             </Select>

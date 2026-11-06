@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppointmentStatus, Permission, Prisma } from '@prisma/client';
 import { AuthUser, can } from '../common/auth-user';
+import { campusFilter, campusSql } from '../common/campus-scope';
 import { ChurchId, CurrentUser } from '../common/decorators';
 import { todayIn } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,10 +36,11 @@ export class DashboardController {
 
     const result: Record<string, unknown> = { announcements, events, live, myAppointments };
 
+    const campusId = campusFilter(user.campusScope);
     if (can(user, Permission.MEMBERS_VIEW)) {
       const [members, newMembers] = await Promise.all([
-        this.prisma.member.count({ where: { churchId, statuses: { none: { status: { inactive: true } } } } }),
-        this.prisma.member.count({ where: { churchId, createdAt: { gte: monthStart } } }),
+        this.prisma.member.count({ where: { churchId, campusId, statuses: { none: { status: { inactive: true } } } } }),
+        this.prisma.member.count({ where: { churchId, campusId, createdAt: { gte: monthStart } } }),
       ]);
       result.people = { members, newMembers };
     }
@@ -47,7 +49,7 @@ export class DashboardController {
       const rows = await this.prisma.$queryRaw<{ currency: string; type: string; total: Prisma.Decimal }[]>`
         SELECT a."currency", t."type", SUM(t."amount") AS total
         FROM "Transaction" t JOIN "FinanceAccount" a ON a."id" = t."accountId"
-        WHERE t."churchId" = ${churchId} AND t."date" >= ${monthStart}
+        WHERE t."churchId" = ${churchId} AND t."date" >= ${monthStart} ${campusSql(user.campusScope)}
         GROUP BY 1, 2`;
       result.finance = { month: today.slice(0, 7), rows };
     }

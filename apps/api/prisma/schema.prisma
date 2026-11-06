@@ -268,9 +268,12 @@ model Church {
   billingGraceUntil    DateTime?
   /// Último aviso de falta de pago; se limpia al regularizarse.
   billingNoticeAt      DateTime?
+  /// Opción de Configuración: habilita las sedes en los filtros y formularios.
+  campusesEnabled      Boolean   @default(false)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
+  campuses       Campus[]
   users          User[]
   roles          ChurchRole[]
   members        Member[]
@@ -298,6 +301,39 @@ enum ChurchRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// Sede de una iglesia. Se archiva en lugar de borrarse cuando ya tiene datos.
+model Campus {
+  id        String   @id @default(cuid())
+  churchId  String
+  church    Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  name      String
+  city      String?
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members    Member[]
+  accounts   FinanceAccount[]
+  userAccess UserCampus[]
+
+  @@unique([churchId, name])
+  /// Permite que las fichas y cuentas referencien la sede junto con su iglesia: la base impide cruzar iglesias.
+  @@unique([id, churchId])
+}
+
+/// Sedes que puede ver un usuario con `campusRestricted`. Sin filas no ve ninguna.
+model UserCampus {
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campusId String
+  campus   Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([userId, campusId])
+  @@index([campusId])
 }
 
 /// Pedido público de alta de una iglesia. Un super admin lo revisa y, al aprobarlo, se crea la iglesia con estos datos.
@@ -370,29 +406,32 @@ model ChurchAgreement {
 }
 
 model User {
-  id             String     @id @default(cuid())
-  churchId       String?
-  church         Church?    @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  email          String     @unique
+  id               String     @id @default(cuid())
+  churchId         String?
+  church           Church?    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  email            String     @unique
   /// Null en cuentas creadas con Google o Apple que todavía no definieron contraseña.
-  passwordHash   String?
-  firstName      String
-  lastName       String
-  phone          String?
+  passwordHash     String?
+  firstName        String
+  lastName         String
+  phone            String?
   /// Administrador de la plataforma: opera sobre cualquier iglesia con todos los permisos.
-  isSuperAdmin   Boolean    @default(false)
-  status         UserStatus @default(PENDING)
+  isSuperAdmin     Boolean    @default(false)
+  status           UserStatus @default(PENDING)
   /// Incrementar invalida todos los refresh tokens emitidos.
-  tokenVersion   Int        @default(0)
-  consentAt      DateTime?
+  tokenVersion     Int        @default(0)
+  consentAt        DateTime?
   /// Versión de la política de privacidad aceptada.
-  consentVersion String?
-  lastLoginAt    DateTime?
+  consentVersion   String?
+  lastLoginAt      DateTime?
   /// Token secreto del feed de calendario personal (.ics). Se crea al pedirlo por primera vez.
-  calendarToken  String?    @unique
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  calendarToken    String?    @unique
+  /// Limita miembros y finanzas a las sedes de `campuses`. El rol de administración lo ignora.
+  campusRestricted Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
+  campuses               UserCampus[]
   identities             UserIdentity[]
   pushSubscriptions      PushSubscription[]
   roles                  UserRole[]
@@ -496,6 +535,9 @@ model Member {
   familyRole  String?
   notes       String?
   photoKey    String?
+  /// Null: sin sede asignada.
+  campusId    String?
+  campus      Campus?   @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -505,6 +547,7 @@ model Member {
   ledMinistries Ministry[]               @relation("MinistryLeader")
 
   @@index([churchId, lastName])
+  @@index([churchId, campusId, lastName])
 }
 
 /// Estado definido por cada iglesia (visitante, bautizado, etc.). Un miembro puede tener varios.
@@ -584,11 +627,16 @@ model FinanceAccount {
   currency       Currency @default(ARS)
   initialBalance Decimal  @default(0) @db.Decimal(14, 2)
   active         Boolean  @default(true)
+  /// Null: cuenta general de la iglesia. Los movimientos pertenecen a la sede de su cuenta.
+  campusId       String?
+  campus         Campus?  @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
   createdAt      DateTime @default(now())
 
   transactions Transaction[]
 
-  @@unique([churchId, name])
+  // El nombre es único dentro de cada sede y entre las cuentas generales: son índices parciales,
+  // que Prisma no puede expresar (ver la migración campuses).
+  @@index([churchId, campusId])
 }
 
 model FinanceCategory {

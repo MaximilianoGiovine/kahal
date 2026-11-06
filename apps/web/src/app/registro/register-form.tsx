@@ -34,6 +34,12 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(() => oauthErrorMessage(params.get('oauth_error')));
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const { data: registering } = useQuery({
+    queryKey: ['public-church', account?.church],
+    queryFn: () => api<{ campuses: { id: string; name: string; city: string | null }[] }>(`/public/churches/${account?.church}`),
+    enabled: !!account?.church,
+  });
+  const campuses = registering?.campuses ?? [];
 
   /** Paso 1: cuenta (iglesia, email y contraseña). Se valida el email antes de pedir el resto. */
   async function onAccount(e: FormEvent<HTMLFormElement>) {
@@ -83,6 +89,7 @@ export function RegisterForm() {
           baptized: fd.get('baptized') === 'skip' ? undefined : fd.get('baptized') === 'yes',
           phone: fd.get('phone'),
           address: fd.get('address'),
+          campusId: fd.get('campusId') || undefined,
           consent: fd.get('consent') === 'on',
         },
       });
@@ -215,6 +222,19 @@ export function RegisterForm() {
         <Field label="Dirección del domicilio">
           <Input name="address" required minLength={4} maxLength={200} autoComplete="street-address" />
         </Field>
+        {campuses.length > 0 && (
+          <Field label="¿A qué sede asistes?">
+            <Select name="campusId" defaultValue="">
+              <option value="">Todavía no lo sé</option>
+              {campuses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.city ? ` · ${c.city}` : ''}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
         <Checkbox
           name="consent"
           required

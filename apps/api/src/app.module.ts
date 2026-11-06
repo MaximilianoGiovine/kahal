@@ -15,6 +15,7 @@ import { ChurchesModule } from './churches/churches.module';
 import { AuthGuard } from './common/auth.guard';
 import { PermissionsGuard } from './common/permissions.guard';
 import { CalendarModule } from './calendar/calendar.module';
+import { CampusesModule } from './campuses/campuses.module';
 import { ContentModule } from './content/content.module';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { FilesModule } from './files/files.module';
@@ -62,6 +63,7 @@ import { UsersModule } from './users/users.module';
     ActivityModule,
     AuthModule,
     ChurchesModule,
+    CampusesModule,
     RolesModule,
     UsersModule,
     MembersModule,

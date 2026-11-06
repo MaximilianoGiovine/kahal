@@ -23,6 +23,8 @@ export class MembersQuery extends PageQuery {
   @IsOptional() @IsString() statusId?: string;
   @IsOptional() @IsString() ministryId?: string;
   @IsOptional() @IsString() familyId?: string;
+  /** Id de una sede, o `none` para quienes no tienen ninguna. */
+  @IsOptional() @IsString() campusId?: string;
   /** app: se registró (tiene cuenta) · manual: cargado por la iglesia. */
   @IsOptional() @IsIn(['app', 'manual']) source?: 'app' | 'manual';
 }
@@ -43,6 +45,7 @@ export class MemberDto {
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsDateString() baptismDate?: string | null;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsBoolean() baptized?: boolean | null;
   @IsOptional() @Transform(emptyToNull) @IsString() familyId?: string | null;
+  @IsOptional() @Transform(emptyToNull) @IsString() campusId?: string | null;
   @IsOptional() @Transform(emptyToNull) @IsString() @MaxLength(40) familyRole?: string | null;
   @IsOptional() @Transform(emptyToNull) @IsString() @MaxLength(2000) notes?: string | null;
   @IsOptional() @Transform(emptyToNull) @IsString() photoKey?: string | null;

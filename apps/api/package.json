@@ -10,7 +10,8 @@
     "prisma:migrate": "prisma migrate dev",
     "seed": "ts-node prisma/seed.ts",
     "seed:prod": "node dist/prisma/seed.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:campuses": "node --require ts-node/register --test test/campuses.e2e.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1154.0",

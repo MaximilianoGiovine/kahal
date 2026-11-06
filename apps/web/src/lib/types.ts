@@ -61,13 +61,15 @@ export interface Me {
   roles: UserRoles;
   /** Permisos efectivos (unión de todos sus roles). */
   permissions: Permission[];
+  /** Sedes a las que se limitan sus miembros y finanzas. `null`: toda la iglesia. */
+  campusScope: string[] | null;
   status: UserStatus;
   /** Falso en cuentas creadas con Google o Apple que todavía no definieron contraseña. */
   hasPassword: boolean;
   identities: { provider: 'GOOGLE' | 'APPLE'; email: string | null }[];
   church: ChurchBrief | null;
   /** Ficha del padrón vinculada a la cuenta (los datos que se piden al registrarse). */
-  member: { id: string; documentId: string | null; birthDate: string | null; baptized: boolean | null; address: string | null } | null;
+  member: { id: string; documentId: string | null; birthDate: string | null; baptized: boolean | null; address: string | null; campus: CampusRef | null } | null;
 }
 
 export interface Church extends ChurchBrief {
@@ -84,6 +86,31 @@ export interface Church extends ChurchBrief {
   billingExempt: boolean;
 }
 
+export interface CampusRef {
+  id: string;
+  name: string;
+}
+
+export interface CampusList {
+  enabled: boolean;
+  items: (CampusRef & { city: string | null; active: boolean })[];
+}
+
+export interface CampusRow extends CampusRef {
+  city: string | null;
+  address: string | null;
+  phone: string | null;
+  active: boolean;
+  _count: { members: number; accounts: number; userAccess: number };
+}
+
+export interface CampusManage {
+  enabled: boolean;
+  items: CampusRow[];
+  unassignedMembers: number;
+  restrictedUsers: number;
+}
+
 export interface UserRow {
   id: string;
   email: string;
@@ -95,6 +122,8 @@ export interface UserRow {
   createdAt: string;
   lastLoginAt: string | null;
   member: { id: string } | null;
+  campusRestricted: boolean;
+  campuses: { campus: CampusRef }[];
 }
 
 /** Estado de miembro tal como se muestra junto a cada persona. */
@@ -134,6 +163,8 @@ export interface Member {
   notes: string | null;
   photoKey: string | null;
   createdAt: string;
+  campusId: string | null;
+  campus?: CampusRef | null;
   family?: { id: string; name: string } | null;
   ministries?: { ministry: { id: string; name: string } }[];
   user?: { id: string; roles: UserRoles; status: UserStatus; email?: string; lastLoginAt?: string | null } | null;
@@ -166,6 +197,8 @@ export interface Account {
   initialBalance: string;
   balance: string;
   active: boolean;
+  campusId: string | null;
+  campus: CampusRef | null;
 }
 
 export interface Category {
@@ -189,7 +222,7 @@ export interface Transaction {
   accountId: string;
   categoryId: string;
   memberId: string | null;
-  account: { id: string; name: string; currency: Currency };
+  account: { id: string; name: string; currency: Currency; campus: CampusRef | null };
   category: { id: string; name: string; color: string | null; isTithe: boolean };
   member: { id: string; firstName: string; lastName: string } | null;
   createdBy: { id: string; firstName: string; lastName: string } | null;

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Currency, Prisma } from '@prisma/client';
+import { CampusScope, NO_CAMPUS } from '../common/campus-scope';
 import { addTableSheet, DATE_FMT, MONEY_FMT, newWorkbook, styleHeader } from '../common/excel';
 import { TRANSACTION_TYPE_LABEL } from '../common/labels';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +11,13 @@ import { LOCALE } from '../common/locale';
 const fmtDay = (d?: string) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '');
 const num = (d: Prisma.Decimal | null | undefined) => (d ? d.toNumber() : 0);
 
+/** Título del reporte: la sede filtrada, o el conjunto completo que el usuario puede ver. */
+function campusLabel(requested: string | undefined, accounts: { campus: { id: string; name: string } | null }[], transactions: { account: { campus: { id: string; name: string } | null } }[]) {
+  if (requested === NO_CAMPUS) return 'Cuentas generales';
+  if (!requested) return 'Todas';
+  return [...accounts.map((a) => a.campus), ...transactions.map((t) => t.account.campus)].find((c) => c?.id === requested)?.name ?? '—';
+}
+
 @Injectable()
 export class FinanceExportService {
   constructor(
@@ -17,12 +25,12 @@ export class FinanceExportService {
     private readonly finance: FinanceService,
   ) {}
 
-  async build(churchId: string, q: Partial<TransactionsQuery>) {
+  async build(churchId: string, scope: CampusScope, q: Partial<TransactionsQuery>) {
     const church = await this.prisma.church.findUniqueOrThrow({ where: { id: churchId } });
-    const where = this.finance.transactionWhere(churchId, q);
+    const where = this.finance.transactionWhere(churchId, scope, q);
     const [transactions, summary] = await Promise.all([
       this.prisma.transaction.findMany({ where, include: TRANSACTION_INCLUDE, orderBy: [{ date: 'asc' }, { createdAt: 'asc' }] }),
-      this.finance.summary(churchId, { from: q.from, to: q.to, currency: q.currency }),
+      this.finance.summary(churchId, scope, { from: q.from, to: q.to, currency: q.currency, campusId: q.campusId }),
     ]);
 
     const wb = newWorkbook();
@@ -34,6 +42,7 @@ export class FinanceExportService {
     ws.addRow([church.name]).font = { bold: true, size: 16 };
     ws.addRow(['Reporte financiero']).font = { size: 12, color: { argb: 'FF57534E' } };
     ws.addRow([`Período: ${period}`]);
+    if (church.campusesEnabled) ws.addRow([`Sede: ${campusLabel(q.campusId, summary.accounts, transactions)}`]);
     ws.addRow([`Generado: ${new Date().toLocaleString(LOCALE, { timeZone: church.timezone })}`]);
     ws.addRow([]);
     styleHeader(ws.addRow(['Moneda', 'Ingresos', 'Egresos', 'Resultado']));
@@ -43,9 +52,9 @@ export class FinanceExportService {
     }
     if (!Object.keys(summary.totals).length) ws.addRow(['Sin movimientos en el período']);
     ws.addRow([]);
-    styleHeader(ws.addRow(['Cuenta', 'Moneda', 'Saldo actual', 'Estado']));
+    styleHeader(ws.addRow(['Cuenta', 'Moneda', 'Saldo actual', 'Estado', ...(church.campusesEnabled ? ['Sede'] : [])]));
     for (const a of summary.accounts) {
-      const r = ws.addRow([a.name, a.currency, num(a.balance), a.active ? 'Activa' : 'Inactiva']);
+      const r = ws.addRow([a.name, a.currency, num(a.balance), a.active ? 'Activa' : 'Inactiva', ...(church.campusesEnabled ? [a.campus?.name ?? 'General'] : [])]);
       r.getCell(3).numFmt = MONEY_FMT;
     }
 
@@ -65,6 +74,7 @@ export class FinanceExportService {
         { header: 'Descripción', key: 'description', width: 36 },
         { header: 'Referencia', key: 'reference', width: 16 },
         { header: 'Registrado por', key: 'createdBy', width: 20 },
+        ...(church.campusesEnabled ? [{ header: 'Sede', key: 'campus', width: 20 }] : []),
       ],
       transactions.map((t) => ({
         date: t.date,
@@ -78,6 +88,7 @@ export class FinanceExportService {
         description: t.description ?? '',
         reference: t.reference ?? '',
         createdBy: t.createdBy ? `${t.createdBy.firstName} ${t.createdBy.lastName}` : '',
+        campus: t.account.campus?.name ?? 'General',
       })),
     );
     if (transactions.length) {

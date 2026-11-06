@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Currency, Prisma, TransactionType } from '@prisma/client';
+import { assertAssignableCampus, assertCampusInScope, campusFilter, campusForNew, CampusScope, campusSql } from '../common/campus-scope';
 import { paginate } from '../common/pagination';
 import { parseDay } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,7 +9,7 @@ import { AccountDto, CategoryDto, RangeQuery, TransactionDto, TransactionsQuery 
 const D = Prisma.Decimal;
 
 export const TRANSACTION_INCLUDE = {
-  account: { select: { id: true, name: true, currency: true } },
+  account: { select: { id: true, name: true, currency: true, campus: { select: { id: true, name: true } } } },
   category: { select: { id: true, name: true, color: true, isTithe: true } },
   member: { select: { id: true, firstName: true, lastName: true } },
   createdBy: { select: { id: true, firstName: true, lastName: true } },
@@ -20,10 +21,15 @@ export class FinanceService {
 
   // Cuentas
 
-  async accounts(churchId: string) {
+  async accounts(churchId: string, scope: CampusScope, requested?: string) {
+    const campusId = campusFilter(scope, requested);
     const [accounts, sums] = await Promise.all([
-      this.prisma.financeAccount.findMany({ where: { churchId }, orderBy: [{ active: 'desc' }, { name: 'asc' }] }),
-      this.prisma.transaction.groupBy({ by: ['accountId', 'type'], where: { churchId }, _sum: { amount: true } }),
+      this.prisma.financeAccount.findMany({
+        where: { churchId, campusId },
+        include: { campus: { select: { id: true, name: true } } },
+        orderBy: [{ active: 'desc' }, { name: 'asc' }],
+      }),
+      this.prisma.transaction.groupBy({ by: ['accountId', 'type'], where: { churchId, account: { campusId } }, _sum: { amount: true } }),
     ]);
     return accounts.map((a) => {
       const income = sums.find((s) => s.accountId === a.id && s.type === 'INCOME')?._sum.amount ?? new D(0);
@@ -32,19 +38,25 @@ export class FinanceService {
     });
   }
 
-  async createAccount(churchId: string, dto: AccountDto) {
+  async createAccount(churchId: string, scope: CampusScope, dto: AccountDto) {
+    const campusId = campusForNew(scope, dto.campusId);
+    await assertAssignableCampus(this.prisma, churchId, campusId);
     try {
-      return await this.prisma.financeAccount.create({ data: { ...dto, churchId } });
+      return await this.prisma.financeAccount.create({ data: { ...dto, campusId, churchId } });
     } catch (e) {
       throw uniqueError(e, 'Ya existe una cuenta con ese nombre');
     }
   }
 
-  async updateAccount(churchId: string, id: string, dto: AccountDto) {
-    const account = await this.prisma.financeAccount.findFirst({ where: { id, churchId }, include: { _count: { select: { transactions: true } } } });
+  async updateAccount(churchId: string, scope: CampusScope, id: string, dto: AccountDto) {
+    const account = await this.prisma.financeAccount.findFirst({ where: { id, churchId, campusId: campusFilter(scope) }, include: { _count: { select: { transactions: true } } } });
     if (!account) throw new NotFoundException('Cuenta no encontrada');
     if (dto.currency && dto.currency !== account.currency && account._count.transactions > 0) {
       throw new BadRequestException('No se puede cambiar la moneda de una cuenta con movimientos');
+    }
+    if (dto.campusId !== undefined && dto.campusId !== account.campusId) {
+      assertCampusInScope(scope, dto.campusId);
+      await assertAssignableCampus(this.prisma, churchId, dto.campusId, account.campusId);
     }
     try {
       return await this.prisma.financeAccount.update({ where: { id }, data: dto });
@@ -55,11 +67,12 @@ export class FinanceService {
 
   // Categorías
 
-  categories(churchId: string) {
+  categories(churchId: string, scope: CampusScope) {
+    const campusId = campusFilter(scope);
     return this.prisma.financeCategory.findMany({
       where: { churchId },
       orderBy: [{ type: 'asc' }, { active: 'desc' }, { name: 'asc' }],
-      include: { _count: { select: { transactions: true } } },
+      include: { _count: { select: { transactions: { where: { account: { campusId } } } } } },
     });
   }
 
@@ -86,14 +99,15 @@ export class FinanceService {
 
   // Movimientos
 
-  transactionWhere(churchId: string, q: Partial<TransactionsQuery>): Prisma.TransactionWhereInput {
+  transactionWhere(churchId: string, scope: CampusScope, q: Partial<TransactionsQuery>): Prisma.TransactionWhereInput {
+    const campusId = campusFilter(scope, q.campusId);
     return {
       churchId,
       type: q.type,
       accountId: q.accountId,
       categoryId: q.categoryId,
       memberId: q.memberId,
-      ...(q.currency && { account: { currency: q.currency } }),
+      account: { currency: q.currency, campusId },
       date: { gte: q.from ? parseDay(q.from) : undefined, lte: q.to ? parseDay(q.to) : undefined },
       ...(q.q && {
         OR: [
@@ -106,8 +120,8 @@ export class FinanceService {
     };
   }
 
-  async transactions(churchId: string, q: TransactionsQuery) {
-    const where = this.transactionWhere(churchId, q);
+  async transactions(churchId: string, scope: CampusScope, q: TransactionsQuery) {
+    const where = this.transactionWhere(churchId, scope, q);
     const [items, total, sums] = await Promise.all([
       this.prisma.transaction.findMany({
         where,
@@ -123,17 +137,17 @@ export class FinanceService {
     return { items, total, page: q.page, pageSize: q.pageSize, totals: { income, expense, net: income.minus(expense) } };
   }
 
-  async createTransaction(churchId: string, userId: string, dto: TransactionDto) {
-    const type = await this.validateRefs(churchId, dto);
+  async createTransaction(churchId: string, scope: CampusScope, userId: string, dto: TransactionDto) {
+    const type = await this.validateRefs(churchId, scope, dto);
     return this.prisma.transaction.create({
       data: { ...dto, type, date: parseDay(dto.date.slice(0, 10)), churchId, createdById: userId },
       include: TRANSACTION_INCLUDE,
     });
   }
 
-  async updateTransaction(churchId: string, id: string, dto: TransactionDto) {
-    await this.ensureTransaction(churchId, id);
-    const type = await this.validateRefs(churchId, dto);
+  async updateTransaction(churchId: string, scope: CampusScope, id: string, dto: TransactionDto) {
+    const current = await this.ensureTransaction(churchId, scope, id);
+    const type = await this.validateRefs(churchId, scope, dto, current.memberId);
     return this.prisma.transaction.update({
       where: { id },
       data: { ...dto, type, date: parseDay(dto.date.slice(0, 10)) },
@@ -141,21 +155,21 @@ export class FinanceService {
     });
   }
 
-  async removeTransaction(churchId: string, id: string) {
-    await this.ensureTransaction(churchId, id);
+  async removeTransaction(churchId: string, scope: CampusScope, id: string) {
+    await this.ensureTransaction(churchId, scope, id);
     await this.prisma.transaction.delete({ where: { id } });
     return { ok: true };
   }
 
   // Resumen
 
-  async summary(churchId: string, q: RangeQuery) {
-    const where = this.transactionWhere(churchId, q);
+  async summary(churchId: string, scope: CampusScope, q: RangeQuery) {
+    const where = this.transactionWhere(churchId, scope, q);
     const [byCategory, categories, accounts, monthly] = await Promise.all([
       this.prisma.transaction.groupBy({ by: ['categoryId', 'type', 'accountId'], where, _sum: { amount: true }, _count: true }),
       this.prisma.financeCategory.findMany({ where: { churchId }, select: { id: true, name: true, color: true } }),
-      this.accounts(churchId),
-      this.monthly(churchId, q),
+      this.accounts(churchId, scope, q.campusId),
+      this.monthly(churchId, scope, q),
     ]);
 
     const currencyOf = new Map(accounts.map((a) => [a.id, a.currency]));
@@ -187,36 +201,38 @@ export class FinanceService {
   }
 
   /** Ingresos/egresos por mes y moneda. Sin rango: últimos 12 meses. */
-  async monthly(churchId: string, q: RangeQuery) {
+  async monthly(churchId: string, scope: CampusScope, q: RangeQuery) {
     const to = q.to ? parseDay(q.to) : new Date();
     const from = q.from ? parseDay(q.from) : new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth() - 11, 1));
     const rows = await this.prisma.$queryRaw<{ month: Date; type: TransactionType; currency: Currency; total: Prisma.Decimal }[]>`
       SELECT date_trunc('month', t."date") AS month, t."type", a."currency", SUM(t."amount") AS total
       FROM "Transaction" t JOIN "FinanceAccount" a ON a."id" = t."accountId"
-      WHERE t."churchId" = ${churchId} AND t."date" >= ${from} AND t."date" <= ${to}
+      WHERE t."churchId" = ${churchId} AND t."date" >= ${from} AND t."date" <= ${to} ${campusSql(scope, q.campusId)}
       GROUP BY 1, 2, 3 ORDER BY 1`;
     return rows.map((r) => ({ month: r.month.toISOString().slice(0, 7), type: r.type, currency: r.currency, total: r.total }));
   }
 
   // Helpers
 
-  private async validateRefs(churchId: string, dto: TransactionDto): Promise<TransactionType> {
+  /** `currentMemberId`: el aporte ya asociado se conserva aunque la persona sea de otra sede. */
+  private async validateRefs(churchId: string, scope: CampusScope, dto: TransactionDto, currentMemberId?: string | null): Promise<TransactionType> {
     const [account, category] = await Promise.all([
-      this.prisma.financeAccount.findFirst({ where: { id: dto.accountId, churchId } }),
+      this.prisma.financeAccount.findFirst({ where: { id: dto.accountId, churchId, campusId: campusFilter(scope) } }),
       this.prisma.financeCategory.findFirst({ where: { id: dto.categoryId, churchId } }),
     ]);
     if (!account) throw new BadRequestException('Cuenta inválida');
     if (!category) throw new BadRequestException('Categoría inválida');
-    if (dto.memberId && !(await this.prisma.member.findFirst({ where: { id: dto.memberId, churchId } }))) {
+    const memberCampus = dto.memberId === currentMemberId ? undefined : campusFilter(scope);
+    if (dto.memberId && !(await this.prisma.member.findFirst({ where: { id: dto.memberId, churchId, campusId: memberCampus } }))) {
       throw new BadRequestException('Miembro inválido');
     }
     return category.type;
   }
 
-  private async ensureTransaction(churchId: string, id: string) {
-    if (!(await this.prisma.transaction.findFirst({ where: { id, churchId } }))) {
-      throw new NotFoundException('Movimiento no encontrado');
-    }
+  private async ensureTransaction(churchId: string, scope: CampusScope, id: string) {
+    const transaction = await this.prisma.transaction.findFirst({ where: { id, churchId, account: { campusId: campusFilter(scope) } } });
+    if (!transaction) throw new NotFoundException('Movimiento no encontrado');
+    return transaction;
   }
 }
 

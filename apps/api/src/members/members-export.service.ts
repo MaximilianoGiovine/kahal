@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { CampusScope } from '../common/campus-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { addTableSheet, DATE_FMT, newWorkbook } from '../common/excel';
 import { MembersQuery } from './members.dto';
@@ -11,12 +12,12 @@ export class MembersExportService {
     private readonly members: MembersService,
   ) {}
 
-  async build(churchId: string, query: Partial<MembersQuery>) {
+  async build(churchId: string, scope: CampusScope, query: Partial<MembersQuery>) {
     const church = await this.prisma.church.findUniqueOrThrow({ where: { id: churchId } });
     const rows = await this.prisma.member.findMany({
-      where: this.members.buildWhere(churchId, query),
+      where: this.members.buildWhere(churchId, scope, query),
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      include: { family: true, ministries: { include: { ministry: true } }, statuses: { include: { status: true } } },
+      include: { campus: true, family: true, ministries: { include: { ministry: true } }, statuses: { include: { status: true } } },
     });
     const wb = newWorkbook();
     addTableSheet(
@@ -25,6 +26,7 @@ export class MembersExportService {
       [
         { header: 'Apellido', key: 'lastName', width: 18 },
         { header: 'Nombre', key: 'firstName', width: 18 },
+        ...(church.campusesEnabled ? [{ header: 'Sede', key: 'campus', width: 20 }] : []),
         { header: 'Estados', key: 'statuses', width: 22 },
         { header: 'Email', key: 'email', width: 28 },
         { header: 'Teléfono', key: 'phone', width: 16 },
@@ -39,6 +41,7 @@ export class MembersExportService {
       ],
       rows.map((m) => ({
         ...m,
+        campus: m.campus?.name ?? '',
         statuses: m.statuses.map((x) => x.status.name).join(', '),
         baptized: m.baptized === null ? '' : m.baptized ? 'Sí' : 'No',
         family: m.family?.name ?? '',

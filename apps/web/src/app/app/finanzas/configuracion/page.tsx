@@ -3,8 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Pencil, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { CampusField } from '@/components/campuses';
 import { CurrencyOptions } from '@/components/currency-options';
 import { Dialog } from '@/components/dialog';
+import { useFinanceCampus } from '@/components/finance/finance-campus';
 import { Badge, Button, Card, CardHeader, Checkbox, ErrorState, Field, Input, Loading, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { money } from '@/lib/format';
@@ -13,7 +15,11 @@ import { useSession } from '@/lib/session';
 import type { Account, Category, TxType } from '@/lib/types';
 
 export default function FinanceSettingsPage() {
-  const accounts = useQuery({ queryKey: ['finance', 'accounts'], queryFn: () => api<Account[]>('/finance/accounts') });
+  const { me } = useSession();
+  // Las categorías son comunes a todas las sedes: solo las cambia quien gestiona toda la iglesia.
+  const editCategories = me.campusScope === null;
+  const { campusId } = useFinanceCampus();
+  const accounts = useQuery({ queryKey: ['finance', 'accounts', campusId], queryFn: () => api<Account[]>('/finance/accounts', { query: { campusId } }) });
   const categories = useQuery({ queryKey: ['finance', 'categories'], queryFn: () => api<Category[]>('/finance/categories') });
   const [account, setAccount] = useState<Account | 'new' | null>(null);
   const [category, setCategory] = useState<Category | { type: TxType } | null>(null);
@@ -41,6 +47,7 @@ export default function FinanceSettingsPage() {
                   {a.name} {!a.active && <Badge className="ml-1">Inactiva</Badge>}
                 </p>
                 <p className="text-xs text-muted">
+                  {a.campus ? `${a.campus.name} · ` : ''}
                   {a.currency} · Saldo inicial {money(a.initialBalance, a.currency)}
                 </p>
               </div>
@@ -59,9 +66,11 @@ export default function FinanceSettingsPage() {
             <CardHeader
               title={type === 'INCOME' ? 'Categorías de ingreso' : 'Categorías de egreso'}
               action={
-                <Button size="sm" variant="secondary" onClick={() => setCategory({ type })}>
-                  <Plus className="size-4" /> Agregar
-                </Button>
+                editCategories && (
+                  <Button size="sm" variant="secondary" onClick={() => setCategory({ type })}>
+                    <Plus className="size-4" /> Agregar
+                  </Button>
+                )
               }
             />
             <ul className="divide-y divide-border">
@@ -73,9 +82,11 @@ export default function FinanceSettingsPage() {
                     <span className={`flex-1 text-sm ${c.active ? '' : 'text-muted line-through'}`}>{c.name}</span>
                     {c.isTithe && <Badge tone="accent">Diezmo</Badge>}
                     <span className="tabular text-xs text-subtle">{c._count?.transactions ?? 0} mov.</span>
-                    <Button variant="ghost" size="sm" onClick={() => setCategory(c)} aria-label={`Editar ${c.name}`}>
-                      <Pencil className="size-4" />
-                    </Button>
+                    {editCategories && (
+                      <Button variant="ghost" size="sm" onClick={() => setCategory(c)} aria-label={`Editar ${c.name}`}>
+                        <Pencil className="size-4" />
+                      </Button>
+                    )}
                   </li>
                 ))}
             </ul>
@@ -131,6 +142,7 @@ function AccountForm({ item, onClose }: { item: Account | null; onClose: () => v
             <Input name="initialBalance" inputMode="decimal" pattern="^-?\d+([.,]\d{1,2})?$" defaultValue={item?.initialBalance ?? '0'} />
           </Field>
         </div>
+        <CampusField current={item?.campusId} emptyLabel="General (toda la iglesia)" hint="Sus movimientos cuentan para esta sede. Si la cambias, el historial de la cuenta pasa con ella." />
         {item && <Checkbox name="active" label="Cuenta activa" defaultChecked={item.active} />}
       </form>
     </Dialog>

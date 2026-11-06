@@ -85,6 +85,11 @@ export default function ProfilePage() {
             <Field label="Email">
               <Input value={me.email} disabled />
             </Field>
+            {m?.campus && (
+              <Field label="Sede" hint="Si cambiaste de sede, avísale a tu iglesia.">
+                <Input value={m.campus.name} disabled />
+              </Field>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Nombre">
                 <Input name="firstName" required minLength={2} defaultValue={me.firstName} />

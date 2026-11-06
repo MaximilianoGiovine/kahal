@@ -19,6 +19,7 @@ const PUBLIC_FIELDS = {
   youtubeUrl: true,
   facebookUrl: true,
   twitchUrl: true,
+  campusesEnabled: true,
 } as const;
 
 @Injectable()
@@ -36,7 +37,11 @@ export class ChurchesService {
   async getPublic(slug: string) {
     const church = await this.prisma.church.findFirst({ where: { slug, active: true, deletionScheduledFor: null }, select: PUBLIC_FIELDS });
     if (!church) throw new NotFoundException('Iglesia no encontrada');
-    const [events, live] = await Promise.all([
+    const [campuses, events, live] = await Promise.all([
+      // Para elegir sede al registrarse. Dirección y teléfono no salen de la app.
+      church.campusesEnabled
+        ? this.prisma.campus.findMany({ where: { churchId: church.id, active: true }, select: { id: true, name: true, city: true }, orderBy: { name: 'asc' } })
+        : [],
       this.prisma.event.findMany({
         where: { churchId: church.id, isPublic: true, startsAt: { gte: new Date() } },
         orderBy: { startsAt: 'asc' },
@@ -48,7 +53,7 @@ export class ChurchesService {
         select: { id: true, title: true, url: true, platform: true },
       }),
     ]);
-    return { ...church, events, live };
+    return { ...church, campuses, events, live };
   }
 
   async get(churchId: string) {

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
+import { CampusFilter, useCampuses } from '@/components/campuses';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { MemberForm } from '@/components/member-form';
 import { StatusBadge, StatusBadges, useMemberStatuses } from '@/components/member-statuses';
@@ -53,19 +54,21 @@ function MembersTab() {
   const [status, setStatus] = useState('');
   const [ministryId, setMinistryId] = useState('');
   const [source, setSource] = useState<'' | 'app' | 'manual'>('');
+  const [campusId, setCampusId] = useState('');
+  const showCampus = !!useCampuses().data?.enabled;
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const filters = { q: query, statusId: status, ministryId, source };
+  const filters = { q: query, statusId: status, ministryId, source, campusId };
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['members', filters, page],
     queryFn: () => api<Paged<Member>>('/members', { query: { ...filters, page, pageSize: 25 } }),
     placeholderData: (prev) => prev,
   });
   const { data: stats } = useQuery({
-    queryKey: ['members', 'stats'],
-    queryFn: () => api<{ total: number; newThisMonth: number; fromApp: number; fromAppThisMonth: number; byStatus: (StatusRef & { count: number })[] }>('/members/stats'),
+    queryKey: ['members', 'stats', campusId],
+    queryFn: () => api<{ total: number; newThisMonth: number; fromApp: number; fromAppThisMonth: number; byStatus: (StatusRef & { count: number })[] }>('/members/stats', { query: { campusId } }),
   });
   const { data: ministries = [] } = useQuery({ queryKey: ['ministries'], queryFn: () => api<Ministry[]>('/ministries') });
   const { data: statuses = [] } = useMemberStatuses();
@@ -135,7 +138,8 @@ function MembersTab() {
               aria-label="Buscar miembros"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:order-last lg:basis-full">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:order-last lg:basis-full lg:auto-cols-fr lg:grid-flow-col">
+            <CampusFilter value={campusId} onChange={(id) => (setCampusId(id), setPage(1))} noneLabel="Sin sede" className="col-span-2 sm:col-span-1" />
             <Select value={source} onChange={(e) => (setSource(e.target.value as typeof source), setPage(1))} aria-label="Origen" className="col-span-2 sm:col-span-1">
               <option value="">Todos los orígenes</option>
               <option value="app">Registrados en la app</option>
@@ -184,6 +188,7 @@ function MembersTab() {
                 <thead className="border-b border-border bg-surface-2/50">
                   <tr>
                     <th className={th}>Nombre</th>
+                    {showCampus && <th className={th}>Sede</th>}
                     <th className={th}>Estado</th>
                     <th className={th}>Contacto</th>
                     <th className={th}>Ministerios</th>
@@ -208,6 +213,7 @@ function MembersTab() {
                           </div>
                         </div>
                       </td>
+                      {showCampus && <td className={`${td} whitespace-nowrap text-muted`}>{m.campus?.name ?? '—'}</td>}
                       <td className={td}>
                         <StatusBadges statuses={m.statuses} />
                       </td>
@@ -232,7 +238,10 @@ function MembersTab() {
                     <Avatar name={m} size={36} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{fullName(m)}</p>
-                      <p className="truncate text-xs text-muted">{m.phone ?? m.email ?? '—'}</p>
+                      <p className="truncate text-xs text-muted">
+                        {showCampus && m.campus && `${m.campus.name} · `}
+                        {m.phone ?? m.email ?? '—'}
+                      </p>
                     </div>
                     <span className="max-w-[45%] text-right">
                       <StatusBadges statuses={m.statuses} empty="" />
@@ -370,7 +379,9 @@ function NameDialog({ title, initial, onClose, onSubmit, loading }: { title: str
 }
 
 function MinistriesTab() {
-  const editor = can.editMembers(useSession().me);
+  const { me } = useSession();
+  // Los ministerios son comunes a todas las sedes: solo los cambia quien gestiona toda la iglesia.
+  const editor = can.editMembers(me) && me.campusScope === null;
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['ministries'], queryFn: () => api<Ministry[]>('/ministries') });
   const [editing, setEditing] = useState<Ministry | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Ministry | null>(null);

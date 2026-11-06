@@ -17,6 +17,8 @@ import { randomUUID } from 'crypto';
 import { Response } from 'express';
 import { AuthUser, can } from '../common/auth-user';
 import { ChurchId, CurrentUser, Public } from '../common/decorators';
+import { campusFilter } from '../common/campus-scope';
+import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from './storage.service';
 
 const KINDS = ['logo', 'image', 'receipt', 'photo'] as const;
@@ -32,7 +34,10 @@ const MIME_EXT: Record<string, string> = {
 
 @Controller('files')
 export class FilesController {
-  constructor(private readonly storage: StorageService) {}
+  constructor(
+    private readonly storage: StorageService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
@@ -66,6 +71,16 @@ export class FilesController {
       if (!sameChurch) throw new ForbiddenException();
       if (kind === 'receipt' && !can(user, Permission.FINANCE_VIEW)) {
         throw new ForbiddenException();
+      }
+      if (kind === 'receipt' && user.campusScope) {
+        // Con acceso limitado no alcanza con conocer la URL: el comprobante debe ser de un movimiento de sus sedes.
+        // Uno recién subido todavía no tiene movimiento y solo lo conoce quien lo subió.
+        const receiptKey = `${churchId}/receipt/${name}`;
+        const linked = await this.prisma.transaction.findMany({ where: { churchId, receiptKey }, select: { account: { select: { campusId: true } } } });
+        const allowed = campusFilter(user.campusScope) as { in: string[] };
+        if (linked.length && !linked.some((t) => t.account.campusId && allowed.in.includes(t.account.campusId))) {
+          throw new ForbiddenException();
+        }
       }
     }
     const ext = name.split('.').pop() ?? '';

@@ -11,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthProvider, Prisma, User, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { AccessPayload } from '../common/auth.guard';
+import { assertAssignableCampus } from '../common/campus-scope';
 import { AuthUser } from '../common/auth-user';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PRIVACY } from '../legal/documents';
@@ -90,6 +91,8 @@ export class AuthService {
     const church = await this.prisma.church.findUnique({ where: { slug: dto.churchSlug } });
     if (!church || !church.active || church.deletionScheduledFor) throw new NotFoundException('Iglesia no encontrada');
 
+    await assertAssignableCampus(this.prisma, church.id, dto.campusId);
+
     const email = social ? social.email : dto.email.toLowerCase().trim();
     if (await this.prisma.user.findUnique({ where: { email } })) {
       throw new ConflictException('Ya existe una cuenta con ese email');
@@ -126,6 +129,7 @@ export class AuthService {
         birthDate,
         baptized: dto.baptized,
         address: dto.address.trim(),
+        campusId: dto.campusId,
       });
       return user;
     }).catch((err) => {
@@ -186,12 +190,12 @@ export class AuthService {
         identities: { select: { provider: true, email: true }, orderBy: { provider: 'asc' } },
         ...ROLE_NAMES_SELECT,
         church: { select: { id: true, name: true, slug: true, logoKey: true, primaryColor: true, timezone: true, defaultCurrency: true } },
-        member: { select: { id: true, documentId: true, birthDate: true, baptized: true, address: true } },
+        member: { select: { id: true, documentId: true, birthDate: true, baptized: true, address: true, campus: { select: { id: true, name: true } } } },
       },
     });
     if (!user) throw new UnauthorizedException();
     const { passwordHash, ...rest } = user;
-    return { ...rest, hasPassword: !!passwordHash, permissions: auth.permissions };
+    return { ...rest, hasPassword: !!passwordHash, permissions: auth.permissions, campusScope: auth.campusScope };
   }
 
   /** Nunca deja una cuenta sin ninguna forma de ingresar. */

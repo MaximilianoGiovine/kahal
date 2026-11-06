@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Cake, Droplets, IdCard, Mail, MapPin, Pencil, Phone, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Cake, Church, Droplets, IdCard, Mail, MapPin, Pencil, Phone, Trash2, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
@@ -74,6 +74,7 @@ export default function MemberPage() {
         <Card className="lg:col-span-2">
           <CardHeader title="Datos personales" />
           <dl className="grid gap-x-6 gap-y-5 p-5 sm:grid-cols-2">
+            {m.campus && <Item icon={<Church />} label="Sede" value={m.campus.name} />}
             <Item icon={<Mail />} label="Email" value={m.email} />
             <Item icon={<Phone />} label="Teléfono" value={m.phone} />
             <Item icon={<IdCard />} label="Número de documento" value={m.documentId} />

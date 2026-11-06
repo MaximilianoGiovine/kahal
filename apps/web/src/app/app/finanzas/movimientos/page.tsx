@@ -2,9 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDownLeft, ArrowUpRight, Download, Paperclip, Pencil, Receipt, Search, Trash2 } from 'lucide-react';
-import { useDeferredValue, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/dialog';
+import { useFinanceCampus } from '@/components/finance/finance-campus';
 import { PeriodPicker, resolvePeriod, type Period } from '@/components/finance/period';
 import { TransactionForm } from '@/components/finance/transaction-form';
 import { ActionMenu } from '@/components/menu';
@@ -30,10 +31,16 @@ export default function TransactionsPage() {
   const [deleting, setDeleting] = useState<Transaction | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const { data: accounts = [] } = useQuery({ queryKey: ['finance', 'accounts'], queryFn: () => api<Account[]>('/finance/accounts') });
+  const { campusId } = useFinanceCampus();
+  // Una cuenta elegida antes de cambiar de sede dejaría la lista vacía sin explicación.
+  useEffect(() => {
+    setAccountId('');
+    setPage(1);
+  }, [campusId]);
+  const { data: accounts = [] } = useQuery({ queryKey: ['finance', 'accounts', campusId], queryFn: () => api<Account[]>('/finance/accounts', { query: { campusId } }) });
   const { data: categories = [] } = useQuery({ queryKey: ['finance', 'categories'], queryFn: () => api<Category[]>('/finance/categories') });
 
-  const filters = { from: period.from, to: period.to, type, accountId, categoryId, q: search };
+  const filters = { from: period.from, to: period.to, type, accountId, categoryId, q: search, campusId };
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['finance', 'transactions', filters, page],
     queryFn: () => api<Paged<Transaction> & { totals: Totals }>('/finance/transactions', { query: { ...filters, page, pageSize: 30 } }),
@@ -178,7 +185,10 @@ export default function TransactionsPage() {
                           </p>
                         </div>
                       </td>
-                      <td className={`${td} whitespace-nowrap text-muted`}>{t.account.name}</td>
+                      <td className={`${td} whitespace-nowrap text-muted`}>
+                        {t.account.name}
+                        {t.account.campus && <span className="block text-xs">{t.account.campus.name}</span>}
+                      </td>
                       <td className={`${td} tabular text-right font-medium whitespace-nowrap`}>
                         <span className={t.type === 'EXPENSE' ? 'text-fg' : 'text-success'}>
                           {t.type === 'EXPENSE' ? '−' : '+'}

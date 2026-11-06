@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Permission } from '@prisma/client';
 import { AuthUser } from './auth-user';
+import { CampusScope } from './campus-scope';
 
 export const IS_PUBLIC = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC, true);
@@ -23,6 +24,11 @@ export const AllowWhenBlocked = () => SetMetadata(ALLOW_WHEN_BLOCKED, true);
 
 export const CurrentUser = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): AuthUser => ctx.switchToHttp().getRequest().user,
+);
+
+/** Sedes que puede ver el usuario de la request (`null`: toda la iglesia). */
+export const UserCampusScope = createParamDecorator(
+  (_: unknown, ctx: ExecutionContext): CampusScope => (ctx.switchToHttp().getRequest().user as AuthUser).campusScope,
 );
 
 /** Id de la iglesia sobre la que opera la request. Falla si no hay ninguna. */

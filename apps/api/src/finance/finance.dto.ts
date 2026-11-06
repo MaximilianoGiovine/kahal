@@ -22,6 +22,8 @@ export class AccountDto {
   @IsOptional() @IsEnum(Currency) currency?: Currency;
   @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) initialBalance?: number;
   @IsOptional() @IsBoolean() active?: boolean;
+  /** Null: cuenta general de la iglesia. */
+  @IsOptional() @Transform(emptyToNull) @IsString() campusId?: string | null;
 }
 
 export class CategoryDto {
@@ -53,6 +55,12 @@ export class RangeQuery {
   @IsOptional() @IsDateString() from?: string;
   @IsOptional() @IsDateString() to?: string;
   @IsOptional() @IsEnum(Currency) currency?: Currency;
+  /** Id de una sede, o `none` para las cuentas generales. */
+  @IsOptional() @IsString() campusId?: string;
+}
+
+export class AccountsQuery {
+  @IsOptional() @IsString() campusId?: string;
 }
 
 export class TransactionsQuery extends PageQuery {
@@ -63,4 +71,5 @@ export class TransactionsQuery extends PageQuery {
   @IsOptional() @IsString() categoryId?: string;
   @IsOptional() @IsString() memberId?: string;
   @IsOptional() @IsEnum(Currency) currency?: Currency;
+  @IsOptional() @IsString() campusId?: string;
 }
