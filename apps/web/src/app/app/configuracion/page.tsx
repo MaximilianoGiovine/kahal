@@ -4,9 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, Copy, Pencil, Plus, QrCode as QrIcon, Search, ShieldCheck, Trash2 } from 'lucide-react';
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
+import { ChurchClosure } from '@/components/church-closure';
 import { ChurchQrDialog, QrCode, registerLink } from '@/components/church-qr';
 import { CurrencyOptions } from '@/components/currency-options';
-import { DeleteConfirm } from '@/components/delete-confirm';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
 import { TimezoneOptions } from '@/components/region-fields';
@@ -172,59 +172,6 @@ function ChurchSettings() {
       </div>
       {showQr && <ChurchQrDialog church={data} onClose={() => setShowQr(false)} />}
     </div>
-  );
-}
-
-/** Baja de la iglesia: se programa con un plazo durante el que se puede cancelar. */
-function ChurchClosure({ church }: { church: Church }) {
-  const { me } = useSession();
-  const qc = useQueryClient();
-  const [confirming, setConfirming] = useState(false);
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ['church'] });
-    qc.invalidateQueries({ queryKey: ['admin'] });
-  };
-  const schedule = useAction((body: { confirm: string; password?: string }) => api('/church/deletion', { method: 'POST', body }), {
-    success: 'Baja programada',
-    onSuccess: () => {
-      setConfirming(false);
-      refresh();
-    },
-  });
-  const cancel = useAction(() => api('/church/deletion', { method: 'DELETE' }), { success: 'Baja cancelada', onSuccess: refresh });
-
-  return (
-    <Card className="p-5">
-      <p className="font-medium">Baja de la iglesia</p>
-      {church.deletionScheduledFor ? (
-        <>
-          <p className="mt-1 text-sm text-danger">Sus datos y archivos se borrarán a partir del {dateTime(church.deletionScheduledFor, { dateStyle: 'long' })}.</p>
-          <p className="mt-1 text-sm text-muted">Hasta entonces puedes cancelar la baja y exportar la información.</p>
-          <Button variant="secondary" className="mt-3" loading={cancel.isPending} onClick={() => cancel.mutate()}>
-            Cancelar la baja
-          </Button>
-        </>
-      ) : (
-        <>
-          <p className="mt-1 text-sm text-muted">Borra la iglesia con sus usuarios, miembros, finanzas y archivos, tras un plazo de 30 días para cancelar.</p>
-          <Button variant="danger" className="mt-3" onClick={() => setConfirming(true)}>
-            <Trash2 className="size-4" /> Pedir la baja
-          </Button>
-        </>
-      )}
-      {confirming && (
-        <DeleteConfirm
-          title="Pedir la baja de la iglesia"
-          description="La iglesia dejará de aparecer en público y no admitirá registros nuevos. Pasados 30 días se borrará todo de forma definitiva. Exporta antes lo que debas conservar. Solo quien administra la iglesia puede hacerlo."
-          word={church.slug}
-          askPassword={me.hasPassword}
-          confirmLabel="Programar la baja"
-          loading={schedule.isPending}
-          onClose={() => setConfirming(false)}
-          onConfirm={(values) => schedule.mutate(values)}
-        />
-      )}
-    </Card>
   );
 }
 

@@ -81,6 +81,7 @@ export interface Church extends ChurchBrief {
   facebookUrl: string | null;
   twitchUrl: string | null;
   deletionScheduledFor: string | null;
+  billingExempt: boolean;
 }
 
 export interface UserRow {

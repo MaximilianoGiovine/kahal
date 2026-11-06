@@ -40,6 +40,18 @@ enum Gender {
   FEMALE
 }
 
+enum PaymentGateway {
+  MERCADOPAGO
+  PAYPAL
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
 enum Currency {
   ARS
   USD
@@ -250,6 +262,12 @@ model Church {
   /// Baja pedida: mientras no venza el plazo se puede cancelar.
   deletionRequestedAt  DateTime?
   deletionScheduledFor DateTime?
+  /// No necesita suscripción: iglesias de demostración o acuerdos especiales.
+  billingExempt        Boolean   @default(false)
+  /// Hasta cuándo puede funcionar sin suscripción. Las iglesias nuevas no tienen plazo.
+  billingGraceUntil    DateTime?
+  /// Último aviso de falta de pago; se limpia al regularizarse.
+  billingNoticeAt      DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -271,6 +289,7 @@ model Church {
   activity       ActivityLog[]
   churchRequests ChurchRequest[]
   agreements     ChurchAgreement[]
+  subscriptions  ChurchSubscription[]
 
   @@index([deletionScheduledFor])
 }
@@ -741,4 +760,26 @@ model ActivityLog {
   createdAt DateTime       @default(now())
 
   @@index([churchId, createdAt])
+}
+
+/// Suscripción de una iglesia en una pasarela. Se conserva tras borrar la iglesia, por obligaciones fiscales.
+model ChurchSubscription {
+  id               String             @id @default(cuid())
+  churchId         String?
+  church           Church?            @relation(fields: [churchId], references: [id], onDelete: SetNull)
+  churchName       String
+  gateway          PaymentGateway
+  externalId       String             @unique
+  amount           Decimal            @db.Decimal(12, 2)
+  currency         Currency
+  status           SubscriptionStatus @default(PENDING)
+  /// Hasta cuándo está cubierta la iglesia. Sigue vigente después de cancelar.
+  currentPeriodEnd DateTime?
+  lastPaymentAt    DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([churchId, status])
+  @@index([status])
 }

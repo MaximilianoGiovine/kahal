@@ -42,6 +42,10 @@ export default function AdminChurchesPage() {
     invalidate: [['admin']],
     onSuccess: () => setClosing(null),
   });
+  const exempt = useAction(({ id, billingExempt }: { id: string; billingExempt: boolean }) => api(`/admin/churches/${id}`, { method: 'PATCH', body: { billingExempt } }), {
+    success: 'Iglesia actualizada',
+    invalidate: [['admin']],
+  });
   const cancelClosing = useAction((id: string) => api(`/admin/churches/${id}/deletion`, { method: 'DELETE' }), { success: 'Baja cancelada', invalidate: [['admin']] });
 
   if (!isSuperAdmin) return <ErrorState error={new Error('Solo disponible para super administradores')} />;
@@ -104,6 +108,7 @@ export default function AdminChurchesPage() {
                     <td className={`${td} text-muted`}>{dayLabel(c.createdAt)}</td>
                     <td className={td}>
                       <Badge tone={c.active ? 'success' : 'neutral'}>{c.active ? 'Activa' : 'Deshabilitada'}</Badge>
+                      {c.billingExempt && <Badge className="ml-1">Exenta de pago</Badge>}
                       {c.deletionScheduledFor && <p className="mt-1 text-xs whitespace-nowrap text-danger">Se borra el {dateTime(c.deletionScheduledFor, { dateStyle: 'medium' })}</p>}
                     </td>
                     <td className={`${td} text-right`}>
@@ -116,6 +121,9 @@ export default function AdminChurchesPage() {
                         </Link>
                         <Button size="sm" variant="ghost" onClick={() => toggle.mutate({ id: c.id, active: !c.active })}>
                           {c.active ? 'Deshabilitar' : 'Habilitar'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => exempt.mutate({ id: c.id, billingExempt: !c.billingExempt })}>
+                          {c.billingExempt ? 'Exigir pago' : 'Eximir de pago'}
                         </Button>
                         {c.deletionScheduledFor ? (
                           <Button size="sm" variant="ghost" onClick={() => cancelClosing.mutate(c.id)}>

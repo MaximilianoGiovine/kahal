@@ -131,7 +131,7 @@ export const PRIVACY: LegalDocument = {
 export const CONTRACT: LegalDocument = {
   key: 'contract',
   title: 'Contrato de uso de Kahal para iglesias',
-  version: '1.0',
+  version: '1.1',
   effectiveDate: '2026-11-06',
   sections: [
     {
@@ -152,10 +152,10 @@ export const CONTRACT: LegalDocument = {
     {
       title: '3. Suscripción',
       paragraphs: [
-        'El uso de Kahal requiere una suscripción mensual a cargo de la Iglesia. La Iglesia elige voluntariamente el importe, que debe ser mayor que cero y alcanzar el mínimo que admita el medio de pago, y puede cambiarlo para los períodos siguientes. Todos los importes dan acceso a las mismas funciones. El pago retribuye el servicio y no constituye una donación.',
-        'El cobro se hace cada mes por adelantado, en la moneda del medio de pago disponible para el país de la Iglesia, a través de pasarelas de pago de terceros, que tienen sus propias condiciones. Kahal no recibe ni guarda los números de tarjeta.',
-        'La Iglesia puede cancelar la suscripción en cualquier momento: la cancelación rige para el período siguiente y no da derecho a devolver lo ya pagado, salvo el derecho de arrepentimiento u otro que la ley le reconozca. Kahal avisará con al menos 30 días si establece un importe mínimo o cambia estas condiciones.',
-        'Si vence un período sin que se acredite el pago, Kahal puede bloquear temporalmente el acceso de la Iglesia y de todos sus usuarios, tras avisar a quien la administra. El acceso se restablece al acreditarse el pago de un nuevo período, y los meses bloqueados no generan deuda. Si el bloqueo continúa durante 90 días, Kahal puede dar por terminado el contrato y aplicar la baja prevista en la cláusula 6. Mientras Kahal no ofrezca un medio de pago para el país de la Iglesia, puede usar el servicio sin abonar la suscripción.',
+        'El uso de Kahal requiere una suscripción mensual a cargo de la Iglesia. La Iglesia elige voluntariamente el importe, que no puede ser inferior a 20.000 pesos argentinos si paga con Mercado Pago ni a 15 dólares estadounidenses si paga con PayPal, y puede cambiarlo para los períodos siguientes. Todos los importes dan acceso a las mismas funciones. El pago retribuye el servicio y no constituye una donación.',
+        'El cobro se hace cada mes por adelantado, a través de pasarelas de pago de terceros, que tienen sus propias condiciones: Mercado Pago, en pesos argentinos, para las iglesias de Argentina, y PayPal, en dólares estadounidenses, para las de otros países. Kahal no recibe ni guarda los números de tarjeta.',
+        'La Iglesia puede cancelar la suscripción en cualquier momento: la cancelación rige para el período siguiente y no da derecho a devolver lo ya pagado, salvo el derecho de arrepentimiento u otro que la ley le reconozca. Kahal avisará con al menos 30 días si cambia los importes mínimos o estas condiciones.',
+        'Una Iglesia nueva debe activar la suscripción para empezar a usar el servicio. Si vence un período sin que se acredite el pago, Kahal puede bloquear temporalmente el acceso de la Iglesia y de todos sus usuarios, tras avisar a quien la administra. El acceso se restablece al acreditarse el pago de un nuevo período, y los meses bloqueados no generan deuda. Si el bloqueo continúa durante 90 días, Kahal puede dar por terminado el contrato y aplicar la baja prevista en la cláusula 6. Mientras Kahal no ofrezca un medio de pago para el país de la Iglesia, puede usar el servicio sin abonar la suscripción.',
       ],
     },
     {

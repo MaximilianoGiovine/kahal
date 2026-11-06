@@ -103,6 +103,17 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 ### 📊 Nuevos registros
 El super admin ve cuántas cuentas nuevas se crean por día y la tasa de crecimiento, en total o por iglesia.
 
+### 💳 Suscripción de las iglesias
+Quien administra la iglesia elige su importe mensual en **Suscripción** y sigue el pago en la pasarela: Mercado Pago para Argentina (desde ARS 20.000) y PayPal para los demás países (desde USD 15). Sin sus variables, la pasarela no se ofrece y sus iglesias no se bloquean.
+
+Una iglesia sin suscripción vigente queda bloqueada hasta pagar, salvo las exentas desde el panel de super admin. Las que ya existían al activar esto tienen 30 días.
+
+Para activarlas:
+
+- **Comunes:** define `PUBLIC_URL` con la dirección pública en `https`.
+- **Mercado Pago:** define `MERCADOPAGO_ACCESS_TOKEN`. Registra el webhook `https://TU-DOMINIO/api/public/billing/webhooks/mercadopago` con el evento de suscripciones, y copia su clave en `MERCADOPAGO_WEBHOOK_SECRET`. No hace falta crear un plan: cada importe es distinto.
+- **PayPal:** el id de cliente y el plan ya vienen definidos; el plan debe ser mensual, en USD y sin período de prueba. Define `PAYPAL_CLIENT_SECRET`. Registra el webhook `https://TU-DOMINIO/api/public/billing/webhooks/paypal` con los eventos `BILLING.SUBSCRIPTION.*` y `PAYMENT.SALE.*`, y copia su id en `PAYPAL_WEBHOOK_ID`.
+
 ### 🌐 Presencia de cada iglesia
 - Página pública con la descripción, los datos de contacto, los canales, las próximas actividades y el aviso de transmisión en vivo.
 - Directorio de iglesias en la portada.

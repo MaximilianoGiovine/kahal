@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
+  CreditCard,
   HandCoins,
   History,
   Home,
@@ -26,8 +27,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError } from '@/lib/api';
+import { accessQuery, billingQuery } from '@/lib/billing';
 import { churchRequestsQuery } from '@/lib/church-requests';
-import { fullName, roleNames } from '@/lib/format';
+import { dayLabel, fullName, roleNames } from '@/lib/format';
 import { disablePush, syncPush } from '@/lib/push';
 import { can } from '@/lib/permissions';
 import { SessionProvider, useMe, useSession } from '@/lib/session';
@@ -35,7 +37,7 @@ import type { Me } from '@/lib/types';
 import { BrandIcon } from './brand';
 import { PushPrompt } from './push-settings';
 import { ThemeToggle } from './theme-toggle';
-import { Avatar, Card, ErrorState, Loading, Select } from './ui';
+import { Avatar, ButtonLink, Card, ErrorState, Loading, Select } from './ui';
 
 interface NavItem {
   badge?: number;
@@ -59,6 +61,7 @@ const ADMIN: NavItem[] = [
   { href: '/app/miembros', label: 'Miembros', icon: Users, show: can.people },
   { href: '/app/finanzas', label: 'Finanzas', icon: HandCoins, show: can.financeRead },
   { href: '/app/actividad', label: 'Registro', icon: History, show: can.activity },
+  { href: '/app/suscripcion', label: 'Suscripción', icon: CreditCard, show: can.churchSettings },
   { href: '/app/configuracion', label: 'Configuración', icon: Settings, show: can.settings },
 ];
 
@@ -104,6 +107,10 @@ function Shell({ children }: { children: ReactNode }) {
 
   useEffect(() => setDrawer(false), [pathname]);
   useEffect(() => void syncPush().catch(() => {}), []);
+
+  const { data: access, isLoading: accessLoading } = useQuery({ ...accessQuery, enabled: !isSuperAdmin && !!church });
+  const blocked = !!access?.blocked;
+  const freePath = pathname === '/app/perfil' || pathname.startsWith('/app/suscripcion');
 
   const needsChurch = isSuperAdmin && !church && !pathname.startsWith('/app/admin') && pathname !== '/app/perfil';
 
@@ -161,8 +168,9 @@ function Shell({ children }: { children: ReactNode }) {
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12">
-        {pathname !== '/app/perfil' && <PushPrompt />}
-        {needsChurch ? <ChurchPicker /> : children}
+        {pathname !== '/app/perfil' && !blocked && <PushPrompt />}
+        {!freePath && !blocked && <SubscriptionNotice />}
+        {needsChurch ? <ChurchPicker /> : accessLoading && !freePath ? <Loading /> : blocked && !freePath ? <BlockedScreen /> : children}
       </main>
 
       {/* Navegación inferior móvil */}
@@ -182,6 +190,44 @@ function Shell({ children }: { children: ReactNode }) {
         })}
       </nav>
     </div>
+  );
+}
+
+/** El servidor ya rechaza las solicitudes: esto explica qué pasa y qué se puede hacer. */
+function BlockedScreen() {
+  const { me } = useSession();
+  const admin = can.churchSettings(me);
+  return (
+    <Card className="mx-auto mt-10 max-w-lg p-6 text-center">
+      <CreditCard className="mx-auto size-8 text-accent-ink" />
+      <h1 className="font-display mt-3 text-xl font-semibold">Acceso bloqueado temporalmente</h1>
+      <p className="mt-2 text-sm text-muted">
+        {admin ? 'Tu iglesia necesita una suscripción activa para usar Kahal. Los datos se conservan y el acceso se restablece al pagar.' : 'Tu iglesia necesita renovar su suscripción. Habla con quien la administra. Tu cuenta y tus datos se conservan.'}
+      </p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {admin && <ButtonLink href="/app/suscripcion">Activar la suscripción</ButtonLink>}
+        <ButtonLink href="/app/perfil" variant="secondary">
+          Mi perfil
+        </ButtonLink>
+      </div>
+    </Card>
+  );
+}
+
+/** Solo para quien gestiona la iglesia, y solo si su pasarela ya está habilitada. */
+function SubscriptionNotice() {
+  const { me, church, isSuperAdmin } = useSession();
+  const { data } = useQuery({ ...billingQuery, enabled: !isSuperAdmin && !!church && can.churchSettings(me) });
+  const lapsed = data?.current?.status === 'ACTIVE' && !!data.access.until;
+  if (!data?.plan.available || (data.current?.status === 'ACTIVE' && !lapsed)) return null;
+  return (
+    <Link href="/app/suscripcion" className="glass mb-5 flex items-center gap-3 rounded-2xl p-4 text-sm transition hover:bg-surface-2">
+      <CreditCard className="size-5 shrink-0 text-accent-ink" />
+      <span>
+        <span className="font-medium">{lapsed ? 'No pudimos cobrar tu suscripción.' : data.current?.status === 'PAUSED' ? 'Los cobros de tu suscripción están pausados.' : 'Tu iglesia aún no tiene una suscripción activa.'}</span>{' '}
+        <span className="text-muted">{data.access.until ? `Actívala antes del ${dayLabel(data.access.until, 'long')} para evitar el bloqueo.` : 'Elige tu importe mensual y actívala.'}</span>
+      </span>
+    </Link>
   );
 }
 

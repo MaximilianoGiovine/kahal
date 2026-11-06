@@ -1,10 +1,11 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthUser } from '../common/auth-user';
-import { CurrentUser } from '../common/decorators';
+import { AllowWhenBlocked, CurrentUser } from '../common/decorators';
 import { SubscribeDto, UnsubscribeDto } from './push.dto';
 import { PushService } from './push.service';
 
+@AllowWhenBlocked()
 @Controller('push')
 export class PushController {
   constructor(private readonly push: PushService) {}

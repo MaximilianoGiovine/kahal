@@ -17,6 +17,10 @@ export const RequirePermissions = (...perms: Permission[]) => SetMetadata(PERMIS
 export const SUPER_ADMIN_ONLY = 'superAdminOnly';
 export const SuperAdminOnly = () => SetMetadata(SUPER_ADMIN_ONLY, true);
 
+export const ALLOW_WHEN_BLOCKED = 'allowWhenBlocked';
+/** Sigue disponible para una iglesia bloqueada por falta de pago. */
+export const AllowWhenBlocked = () => SetMetadata(ALLOW_WHEN_BLOCKED, true);
+
 export const CurrentUser = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): AuthUser => ctx.switchToHttp().getRequest().user,
 );

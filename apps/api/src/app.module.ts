@@ -9,6 +9,8 @@ import { ActivityModule } from './activity/activity.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
+import { BillingModule } from './billing/billing.module';
+import { SubscriptionGuard } from './billing/subscription.guard';
 import { ChurchesModule } from './churches/churches.module';
 import { AuthGuard } from './common/auth.guard';
 import { PermissionsGuard } from './common/permissions.guard';
@@ -69,12 +71,14 @@ import { UsersModule } from './users/users.module';
     AppointmentsModule,
     ArticlesModule,
     LegalModule,
+    BillingModule,
   ],
   controllers: [HealthController, DashboardController],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
   ],
 })
 export class AppModule {}

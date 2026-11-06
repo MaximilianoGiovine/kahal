@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Permission } from '@prisma/client';
 import { AuthUser } from '../common/auth-user';
-import { ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
+import { AllowWhenBlocked, ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
 import { CreateUserDto, UpdateProfileDto, UpdateUserDto, UsersQuery } from './users.dto';
 import { UsersService } from './users.service';
 
@@ -20,6 +20,7 @@ export class UsersController {
     return this.users.hosts(churchId);
   }
 
+  @AllowWhenBlocked()
   @Patch('me')
   updateProfile(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
     return this.users.updateProfile(user.id, dto);

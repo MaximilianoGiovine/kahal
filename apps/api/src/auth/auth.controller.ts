@@ -4,12 +4,13 @@ import { AuthProvider } from '@prisma/client';
 import { Request, Response } from 'express';
 import { AuthUser } from '../common/auth-user';
 import { REFRESH_COOKIE } from '../common/auth.guard';
-import { CurrentUser, Public } from '../common/decorators';
+import { AllowWhenBlocked, CurrentUser, Public } from '../common/decorators';
 import { ChangePasswordDto, EmailQuery, LoginDto, RegisterDto } from './auth.dto';
 import { clearPendingIdentity, clearSessionCookies, PENDING_COOKIE, setSessionCookies } from './auth-cookies';
 import { AuthService } from './auth.service';
 import { OAuthService } from './oauth.service';
 
+@AllowWhenBlocked()
 @Controller('auth')
 export class AuthController {
   constructor(

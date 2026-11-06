@@ -2,7 +2,7 @@ import { Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { AuthUser } from '../common/auth-user';
-import { Public } from '../common/decorators';
+import { AllowWhenBlocked, Public } from '../common/decorators';
 import { clearPendingIdentity, clearStateCookie, PENDING_COOKIE, setPendingIdentity, setSessionCookies, setStateCookie, STATE_COOKIE } from './auth-cookies';
 import { OAuthFlowError, OAuthService, OAuthState, PENDING_TTL_SECONDS, ProviderSlug, STATE_TTL_SECONDS } from './oauth.service';
 
@@ -15,6 +15,7 @@ const safeNext = (v: unknown) => {
   return next && /^\/app(?:[/?#]|$)/.test(next) && !next.includes('\\') ? next : undefined;
 };
 
+@AllowWhenBlocked()
 @Controller('auth/oauth')
 export class OAuthController {
   constructor(private readonly oauth: OAuthService) {}

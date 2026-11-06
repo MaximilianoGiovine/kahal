@@ -108,6 +108,7 @@ async function seedChurch(def: (typeof DEMO_CHURCHES)[number], passwordHash: str
       email: `contacto@${def.slug}.demo`,
       primaryColor: def.primaryColor,
       description: def.description,
+      billingExempt: true,
     },
   });
   const { roles, statuses } = await setupChurchDefaults(prisma, church.id, church.defaultCurrency);

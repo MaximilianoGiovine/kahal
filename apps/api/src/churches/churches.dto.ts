@@ -62,4 +62,5 @@ export class CreateChurchDto {
 
 export class AdminUpdateChurchDto extends UpdateChurchDto {
   @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsBoolean() billingExempt?: boolean;
 }

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { UserStatus } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
+import { BillingService } from '../billing/billing.service';
 import { AuthUser } from '../common/auth-user';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildCalendar } from './ics';
@@ -13,7 +14,10 @@ const newToken = () => randomBytes(32).toString('base64url');
 
 @Injectable()
 export class CalendarService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly billing: BillingService,
+  ) {}
 
   async subscription(user: AuthUser) {
     this.assertHasChurch(user);
@@ -37,6 +41,7 @@ export class CalendarService {
       select: { status: true, church: { select: { id: true, name: true, timezone: true, active: true } } },
     });
     if (!user?.church?.active || user.status !== UserStatus.ACTIVE) throw new NotFoundException();
+    if (await this.billing.isBlocked(user.church.id)) throw new NotFoundException();
 
     const events = await this.prisma.event.findMany({
       where: { churchId: user.church.id, startsAt: { gte: new Date(Date.now() - PAST_WINDOW_MS) } },

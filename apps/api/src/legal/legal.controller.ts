@@ -3,7 +3,7 @@ import { Permission } from '@prisma/client';
 import { Request, Response } from 'express';
 import { clearSessionCookies } from '../auth/auth-cookies';
 import { AuthUser } from '../common/auth-user';
-import { ChurchId, CurrentUser, Public, RequirePermissions, SuperAdminOnly } from '../common/decorators';
+import { AllowWhenBlocked, ChurchId, CurrentUser, Public, RequirePermissions, SuperAdminOnly } from '../common/decorators';
 import { AgreementsService } from './agreements.service';
 import { DeletionService } from './deletion.service';
 import { LEGAL_DOCUMENTS } from './documents';
@@ -41,6 +41,7 @@ export class LegalController {
     return this.agreements.sendPdf(id, res);
   }
 
+  @AllowWhenBlocked()
   @Post('account/delete')
   @HttpCode(200)
   async deleteAccount(@CurrentUser() user: AuthUser, @Body() dto: DeleteAccountDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -56,12 +57,14 @@ export class LegalController {
     return { ok: true };
   }
 
+  @AllowWhenBlocked()
   @RequirePermissions(Permission.CHURCH_SETTINGS)
   @Post('church/deletion')
   scheduleDeletion(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: ScheduleChurchDeletionDto) {
     return this.deletion.scheduleChurchDeletion(churchId, user, dto);
   }
 
+  @AllowWhenBlocked()
   @RequirePermissions(Permission.CHURCH_SETTINGS)
   @Delete('church/deletion')
   cancelDeletion(@ChurchId() churchId: string, @CurrentUser() user: AuthUser) {
