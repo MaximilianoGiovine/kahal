@@ -1,14 +1,17 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { Download } from 'lucide-react';
+import { Download, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
+import { DeleteConfirm } from '@/components/delete-confirm';
 import { PushSettings } from '@/components/push-settings';
 import { ConnectedAccounts } from '@/components/social-auth';
 import { Badge, Button, Card, CardHeader, Field, Input, PageHeader, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { roleNames } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
+import { forgetPushOnDevice } from '@/lib/push';
 import { useSession } from '@/lib/session';
 
 interface InstallPrompt extends Event {
@@ -19,6 +22,7 @@ export default function ProfilePage() {
   const { me, church } = useSession();
   const qc = useQueryClient();
   const [install, setInstall] = useState<InstallPrompt | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -43,8 +47,18 @@ export default function ProfilePage() {
     e.preventDefault();
     const v = formValues(e.currentTarget);
     if (!m) return profile.mutate({ firstName: v.firstName, lastName: v.lastName, phone: v.phone });
-    profile.mutate({ ...v, birthDate: v.birthDate || undefined, baptized: v.baptized === 'yes' ? true : v.baptized === 'no' ? false : undefined });
+    profile.mutate({ ...v, birthDate: v.birthDate || undefined, baptized: v.baptized === 'yes' ? true : v.baptized === 'no' ? false : null });
   }
+  const removeAccount = useAction(
+    async (body: { confirm: string; password?: string }) => {
+      await api('/account/delete', { method: 'POST', body });
+      await forgetPushOnDevice().catch(() => {});
+    },
+    {
+      // Sin sesión, cualquier otro pedido a la API llevaría a la pantalla de ingreso: se sale de la app directamente.
+      onSuccess: () => window.location.replace('/'),
+    },
+  );
   const password = useAction((body: Record<string, unknown>) => api('/auth/change-password', { method: 'POST', body }), {
     success: me.hasPassword ? 'Contraseña actualizada' : 'Contraseña creada',
     invalidate: [['me']],
@@ -92,9 +106,7 @@ export default function ProfilePage() {
             {m && (
               <Field label="¿Estás bautizado/a?">
                 <Select name="baptized" defaultValue={m.baptized == null ? '' : m.baptized ? 'yes' : 'no'}>
-                  <option value="" disabled>
-                    Elige una opción
-                  </option>
+                  <option value="">Prefiero no responder</option>
                   <option value="yes">Sí</option>
                   <option value="no">No</option>
                 </Select>
@@ -160,7 +172,38 @@ export default function ProfilePage() {
             )}
           </div>
         </Card>
+        {!me.isSuperAdmin && (
+          <Card className="p-5 lg:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium">Eliminar mi cuenta</p>
+                <p className="mt-1 text-sm text-muted">
+                  Borra tu cuenta, tu ficha en la iglesia y tus citas. Conoce los detalles en la{' '}
+                  <Link href="/privacidad" target="_blank" className="underline">
+                    Política de Privacidad
+                  </Link>
+                  .
+                </p>
+              </div>
+              <Button variant="danger" onClick={() => setDeleting(true)}>
+                <Trash2 className="size-4" /> Eliminar cuenta
+              </Button>
+            </div>
+          </Card>
+        )}
       </div>
+      {deleting && (
+        <DeleteConfirm
+          title="Eliminar mi cuenta"
+          description="Esta acción no se puede deshacer. Los movimientos financieros de la iglesia se conservan sin tu nombre, y lo borrado puede permanecer hasta 6 meses en las copias de seguridad."
+          word="ELIMINAR"
+          askPassword={me.hasPassword}
+          confirmLabel="Eliminar definitivamente"
+          loading={removeAccount.isPending}
+          onClose={() => setDeleting(false)}
+          onConfirm={(values) => removeAccount.mutate(values)}
+        />
+      )}
     </>
   );
 }

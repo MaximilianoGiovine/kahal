@@ -18,6 +18,7 @@ import { DashboardController } from './dashboard/dashboard.controller';
 import { FilesModule } from './files/files.module';
 import { FinanceModule } from './finance/finance.module';
 import { HealthController } from './health/health.controller';
+import { LegalModule } from './legal/legal.module';
 import { MailModule } from './mail/mail.module';
 import { MembersModule } from './members/members.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -67,6 +68,7 @@ import { UsersModule } from './users/users.module';
     CalendarModule,
     AppointmentsModule,
     ArticlesModule,
+    LegalModule,
   ],
   controllers: [HealthController, DashboardController],
   providers: [

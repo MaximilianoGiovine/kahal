@@ -13,6 +13,7 @@ import * as bcrypt from 'bcryptjs';
 import { AccessPayload } from '../common/auth.guard';
 import { AuthUser } from '../common/auth-user';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
+import { PRIVACY } from '../legal/documents';
 import { PrismaService } from '../prisma/prisma.service';
 import { ROLE_NAMES_SELECT } from '../roles/roles.service';
 import { linkMember } from '../users/users.service';
@@ -87,7 +88,7 @@ export class AuthService {
     if (!dto.password && !social) throw new BadRequestException('La contraseña debe tener al menos 8 caracteres');
 
     const church = await this.prisma.church.findUnique({ where: { slug: dto.churchSlug } });
-    if (!church || !church.active) throw new NotFoundException('Iglesia no encontrada');
+    if (!church || !church.active || church.deletionScheduledFor) throw new NotFoundException('Iglesia no encontrada');
 
     const email = social ? social.email : dto.email.toLowerCase().trim();
     if (await this.prisma.user.findUnique({ where: { email } })) {
@@ -112,6 +113,7 @@ export class AuthService {
           phone,
           status: UserStatus.ACTIVE,
           consentAt: new Date(),
+          consentVersion: PRIVACY.version,
           ...(social && { identities: { create: { provider: social.provider, subject: social.subject, email: social.email } } }),
         },
       });

@@ -1,6 +1,7 @@
 import { CalendarClock, HandCoins, Megaphone, MonitorPlay, Users } from 'lucide-react';
 import { Brand } from '@/components/brand';
 import { ThemeToggle } from '@/components/theme-toggle';
+import Link from 'next/link';
 import { ButtonLink } from '@/components/ui';
 import { ChurchDirectory } from './church-directory';
 
@@ -80,7 +81,15 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-border py-8 text-center text-sm text-muted">Kahal · Gestión de iglesias</footer>
+      <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-border px-4 py-8 text-center text-sm text-muted">
+        <span>Kahal · Gestión de iglesias</span>
+        <Link href="/privacidad" className="hover:underline">
+          Política de Privacidad
+        </Link>
+        <Link href="/contrato" className="hover:underline">
+          Contrato para iglesias
+        </Link>
+      </footer>
     </div>
   );
 }

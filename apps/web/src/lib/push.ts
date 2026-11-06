@@ -54,3 +54,11 @@ export async function syncPush() {
   const subscription = await currentSubscription();
   if (subscription) await api('/push/subscribe', { method: 'POST', body: subscription.toJSON() });
 }
+
+/** Solo olvida la suscripción de este dispositivo: tras borrar la cuenta ya no hay sesión para avisarle a la API. */
+export async function forgetPushOnDevice() {
+  if (!('serviceWorker' in navigator)) return;
+  const registration = await navigator.serviceWorker.getRegistration();
+  const subscription = await registration?.pushManager.getSubscription();
+  await subscription?.unsubscribe();
+}

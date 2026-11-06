@@ -30,7 +30,16 @@ export class SubmitChurchRequestDto {
 
   @IsString() @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' }) @MaxLength(100) password: string;
 
+  @Transform(trim) @IsString() @MinLength(4, { message: 'Ingresa tu número de documento' }) @MaxLength(30) signerDocument: string;
+
+  @Transform(trim) @IsString() @MinLength(2, { message: 'Ingresa tu cargo en la iglesia' }) @MaxLength(80) signerRole: string;
+
   @Equals(true, { message: 'Debes aceptar el tratamiento de tus datos personales' }) consent: boolean;
+
+  @Equals(true, { message: 'Debes aceptar el contrato para enviar la solicitud' }) contract: boolean;
+
+  /** La versión que vio quien firma: evita registrar la aceptación de un texto que no leyó. */
+  @IsString() @MaxLength(20) contractVersion: string;
 }
 
 export class ApproveChurchRequestDto {

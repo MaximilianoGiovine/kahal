@@ -39,8 +39,10 @@ export class RegisterDto {
   @IsDateString({}, { message: 'Fecha de nacimiento inválida' })
   birthDate: string;
 
+  /** Dato sensible: nadie puede ser obligado a informarlo. */
+  @IsOptional()
   @IsBoolean({ message: 'Indica si estás bautizado/a' })
-  baptized: boolean;
+  baptized?: boolean;
 
   @IsString()
   @MinLength(4, { message: 'Ingresa tu dirección' })

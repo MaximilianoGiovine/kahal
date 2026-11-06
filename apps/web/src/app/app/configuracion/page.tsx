@@ -6,13 +6,14 @@ import { useDeferredValue, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ChurchQrDialog, QrCode, registerLink } from '@/components/church-qr';
 import { CurrencyOptions } from '@/components/currency-options';
+import { DeleteConfirm } from '@/components/delete-confirm';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
 import { TimezoneOptions } from '@/components/region-fields';
 import { ActionMenu } from '@/components/menu';
 import { Avatar, Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Pagination, Select, Tabs, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
-import { dayLabel, fullName, USER_STATUS_LABEL } from '@/lib/format';
+import { dateTime, dayLabel, fullName, USER_STATUS_LABEL } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
 import { STREAM_CHANNELS } from '@/lib/embed';
 import { can, PERMISSION_GROUPS, PERMISSION_IMPLIES } from '@/lib/permissions';
@@ -139,6 +140,7 @@ function ChurchSettings() {
         </form>
       </Card>
       <div className="space-y-6">
+        <ChurchClosure church={data} />
         <Card>
           <CardHeader title="Código QR de registro" description="Fijo para la iglesia: imprímelo y quien lo escanee se registra directamente aquí." />
           <div className="flex flex-col items-center gap-4 p-5">
@@ -173,6 +175,59 @@ function ChurchSettings() {
   );
 }
 
+/** Baja de la iglesia: se programa con un plazo durante el que se puede cancelar. */
+function ChurchClosure({ church }: { church: Church }) {
+  const { me } = useSession();
+  const qc = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['church'] });
+    qc.invalidateQueries({ queryKey: ['admin'] });
+  };
+  const schedule = useAction((body: { confirm: string; password?: string }) => api('/church/deletion', { method: 'POST', body }), {
+    success: 'Baja programada',
+    onSuccess: () => {
+      setConfirming(false);
+      refresh();
+    },
+  });
+  const cancel = useAction(() => api('/church/deletion', { method: 'DELETE' }), { success: 'Baja cancelada', onSuccess: refresh });
+
+  return (
+    <Card className="p-5">
+      <p className="font-medium">Baja de la iglesia</p>
+      {church.deletionScheduledFor ? (
+        <>
+          <p className="mt-1 text-sm text-danger">Sus datos y archivos se borrarán a partir del {dateTime(church.deletionScheduledFor, { dateStyle: 'long' })}.</p>
+          <p className="mt-1 text-sm text-muted">Hasta entonces puedes cancelar la baja y exportar la información.</p>
+          <Button variant="secondary" className="mt-3" loading={cancel.isPending} onClick={() => cancel.mutate()}>
+            Cancelar la baja
+          </Button>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-muted">Borra la iglesia con sus usuarios, miembros, finanzas y archivos, tras un plazo de 30 días para cancelar.</p>
+          <Button variant="danger" className="mt-3" onClick={() => setConfirming(true)}>
+            <Trash2 className="size-4" /> Pedir la baja
+          </Button>
+        </>
+      )}
+      {confirming && (
+        <DeleteConfirm
+          title="Pedir la baja de la iglesia"
+          description="La iglesia dejará de aparecer en público y no admitirá registros nuevos. Pasados 30 días se borrará todo de forma definitiva. Exporta antes lo que debas conservar. Solo quien administra la iglesia puede hacerlo."
+          word={church.slug}
+          askPassword={me.hasPassword}
+          confirmLabel="Programar la baja"
+          loading={schedule.isPending}
+          onClose={() => setConfirming(false)}
+          onConfirm={(values) => schedule.mutate(values)}
+        />
+      )}
+    </Card>
+  );
+}
+
 function useRoles() {
   return useQuery({ queryKey: ['roles'], queryFn: () => api<ChurchRole[]>('/roles') });
 }
@@ -195,6 +250,12 @@ function UsersSettings() {
   const update = useAction(({ id, ...body }: { id: string; status: string }) => api(`/users/${id}`, { method: 'PATCH', body }), {
     success: 'Usuario actualizado',
     invalidate: [['users'], ['hosts']],
+  });
+  const [removing, setRemoving] = useState<UserRow | null>(null);
+  const remove = useAction((id: string) => api(`/users/${id}`, { method: 'DELETE' }), {
+    success: 'Usuario eliminado',
+    invalidate: [['users'], ['hosts'], ['members']],
+    onSuccess: () => setRemoving(null),
   });
 
   /** Permisos efectivos de un usuario según los roles que tiene. */
@@ -233,7 +294,8 @@ function UsersSettings() {
           <ul className="divide-y divide-border">
             {data.items.map((u) => {
               const self = u.id === me.id;
-              const editable = manage && !self && (u.status === 'ACTIVE' || u.status === 'DISABLED') && covers(me, userPermissions(u));
+              const allowed = manage && !self && covers(me, userPermissions(u));
+              const editable = allowed && (u.status === 'ACTIVE' || u.status === 'DISABLED');
               return (
                 <li key={u.id} className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -258,16 +320,18 @@ function UsersSettings() {
                         </Badge>
                       ))
                     )}
-                    {editable && (
+                    {allowed && (
                       <ActionMenu
                         items={[
-                          { label: 'Editar roles', icon: ShieldCheck, onClick: () => setEditing(u) },
+                          { label: 'Editar roles', icon: ShieldCheck, hidden: !editable, onClick: () => setEditing(u) },
                           {
                             label: u.status === 'ACTIVE' ? 'Deshabilitar' : 'Habilitar',
                             icon: Ban,
+                            hidden: !editable,
                             danger: u.status === 'ACTIVE',
                             onClick: () => update.mutate({ id: u.id, status: u.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' }),
                           },
+                          { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => setRemoving(u) },
                         ]}
                       />
                     )}
@@ -284,6 +348,16 @@ function UsersSettings() {
       </p>
       {creating && <CreateUser roles={roles} onClose={() => setCreating(false)} />}
       {editing && <EditUserRoles user={editing} roles={roles} onClose={() => setEditing(null)} />}
+      <ConfirmDialog
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => removing && remove.mutate(removing.id)}
+        title="Eliminar usuario"
+        message={`Se borrarán la cuenta y la ficha de ${removing ? fullName(removing) : ''}, junto con sus citas. Sus movimientos financieros quedan sin su nombre. No se puede deshacer.`}
+        confirmLabel="Eliminar"
+        danger
+        loading={remove.isPending}
+      />
     </Card>
   );
 }
@@ -357,7 +431,7 @@ function CreateUser({ roles, onClose }: { roles: ChurchRole[]; onClose: () => vo
       open
       onClose={onClose}
       title="Nuevo usuario"
-      description="La cuenta queda activa de inmediato. Comparte la contraseña inicial con la persona."
+      description="La cuenta queda activa de inmediato. Comparte la contraseña inicial con la persona: si no ingresa en 30 días, la cuenta se borra y su ficha se conserva."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>

@@ -196,7 +196,9 @@ docs           Guía de instalación e imágenes
 - **Datos aislados por iglesia** dentro de una misma instalación.
 - **Sesiones en cookies `httpOnly`**, con límite de intentos en el ingreso y el registro.
 - **Permisos verificados en cada pedido**: un cambio de roles aplica al instante.
-- **Consentimiento de datos personales** al registrarse.
+- **Consentimiento registrado** con la versión aceptada de la Política de Privacidad.
+- **Avales**: quien solicita el alta de una iglesia acepta el contrato, y el super admin conserva una constancia con el texto íntegro y su huella.
+- **Borrado**: cada persona elimina su cuenta, las iglesias tienen 30 días para cancelar su baja, y los registros sin terminar se borran a los 30 días.
 - **Backups automáticos** de la base: 7 diarios, 4 semanales y 6 mensuales.
 
 ## 🚀 Instalación

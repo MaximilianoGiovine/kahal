@@ -27,14 +27,14 @@ export class ChurchesService {
 
   listPublic() {
     return this.prisma.church.findMany({
-      where: { active: true },
+      where: { active: true, deletionScheduledFor: null },
       select: { name: true, slug: true, city: true, logoKey: true },
       orderBy: { name: 'asc' },
     });
   }
 
   async getPublic(slug: string) {
-    const church = await this.prisma.church.findFirst({ where: { slug, active: true }, select: PUBLIC_FIELDS });
+    const church = await this.prisma.church.findFirst({ where: { slug, active: true, deletionScheduledFor: null }, select: PUBLIC_FIELDS });
     if (!church) throw new NotFoundException('Iglesia no encontrada');
     const [events, live] = await Promise.all([
       this.prisma.event.findMany({

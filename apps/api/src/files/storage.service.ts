@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createReadStream, promises as fs } from 'fs';
@@ -66,6 +66,29 @@ export class StorageService implements OnModuleInit {
       throw new NotFoundException('Archivo no encontrado');
     }
     return createReadStream(path);
+  }
+
+  async delete(key: string) {
+    if (this.s3) {
+      await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+      return;
+    }
+    await fs.rm(this.localPath(key), { force: true });
+  }
+
+  /** Borra todos los archivos bajo un prefijo, como la carpeta de una iglesia. */
+  async deletePrefix(prefix: string) {
+    if (this.s3) {
+      let token: string | undefined;
+      do {
+        const page = await this.s3.send(new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix, ContinuationToken: token }));
+        const objects = (page.Contents ?? []).map((o) => ({ Key: o.Key! }));
+        if (objects.length) await this.s3.send(new DeleteObjectsCommand({ Bucket: this.bucket, Delete: { Objects: objects } }));
+        token = page.NextContinuationToken;
+      } while (token);
+      return;
+    }
+    await fs.rm(this.localPath(prefix.replace(/\/+$/, '')), { recursive: true, force: true });
   }
 
   private localPath(key: string) {

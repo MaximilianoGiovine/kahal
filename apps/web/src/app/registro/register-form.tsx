@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { PROVIDER_NAMES, SocialButtons } from '@/components/social-auth';
 import { Button, ButtonLink, Checkbox, Field, Input, Loading, Select } from '@/components/ui';
@@ -79,7 +80,7 @@ export function RegisterForm() {
           lastName: fd.get('lastName'),
           documentId: fd.get('documentId'),
           birthDate: fd.get('birthDate'),
-          baptized: fd.get('baptized') === 'yes',
+          baptized: fd.get('baptized') === 'skip' ? undefined : fd.get('baptized') === 'yes',
           phone: fd.get('phone'),
           address: fd.get('address'),
           consent: fd.get('consent') === 'on',
@@ -193,10 +194,11 @@ export function RegisterForm() {
         </Field>
         <fieldset>
           <legend className="mb-2 text-sm font-medium">¿Estás bautizado/a?</legend>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {[
               { value: 'yes', label: 'Sí' },
               { value: 'no', label: 'No' },
+              { value: 'skip', label: 'No responder' },
             ].map((o) => (
               <label key={o.value} className="cursor-pointer">
                 <input type="radio" name="baptized" value={o.value} required className="peer sr-only" />
@@ -218,8 +220,11 @@ export function RegisterForm() {
           required
           label={
             <span className="text-muted">
-              Acepto que la iglesia almacene y trate mis datos personales para la gestión de la membresía y la comunicación de actividades, conforme a la Ley 25.326 de
-              Protección de Datos Personales.
+              Leí y acepto la{' '}
+              <Link href="/privacidad" target="_blank" className="font-medium text-accent-ink underline">
+                Política de Privacidad
+              </Link>
+              . Autorizo a la iglesia y a Kahal a tratar mis datos, incluidos los que revelan mi pertenencia religiosa, para gestionar mi membresía y comunicar actividades.
             </span>
           }
         />

@@ -1,17 +1,22 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
+import { LegalSections } from '@/components/legal-document';
 import { RegionFields } from '@/components/region-fields';
 import { Button, ButtonLink, Checkbox, Field, Input, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
 import { slugify } from '@/lib/format';
+import { legalDocumentQuery } from '@/lib/legal';
 
 export function RequestForm() {
   const [slug, setSlug] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const { data: contract, error: contractError, refetch: reloadContract } = useQuery(legalDocumentQuery('contract'));
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -37,7 +42,11 @@ export function RequestForm() {
           email: fd.get('email'),
           phone: fd.get('phone'),
           password: fd.get('password'),
+          signerDocument: fd.get('signerDocument'),
+          signerRole: fd.get('signerRole'),
           consent: fd.get('consent') === 'on',
+          contract: fd.get('contract') === 'on',
+          contractVersion: contract?.version,
         },
       });
       setDone(true);
@@ -80,6 +89,14 @@ export function RequestForm() {
           <Input name="lastName" required minLength={2} maxLength={60} placeholder="Apellido(s)" aria-label="Apellido(s)" autoComplete="family-name" />
         </div>
       </fieldset>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Número de documento">
+          <Input name="signerDocument" required minLength={4} maxLength={30} autoComplete="off" />
+        </Field>
+        <Field label="Cargo en la iglesia">
+          <Input name="signerRole" required minLength={2} maxLength={80} placeholder="Pastor, secretaria…" />
+        </Field>
+      </div>
       <Field label="Correo electrónico">
         <Input name="email" type="email" required autoComplete="email" />
       </Field>
@@ -98,10 +115,47 @@ export function RequestForm() {
       <Checkbox
         name="consent"
         required
-        label={<span className="text-muted">Acepto que Kahal almacene y trate estos datos para evaluar la solicitud y administrar la cuenta, conforme a la Ley 25.326 de Protección de Datos Personales.</span>}
+        label={
+          <span className="text-muted">
+            Leí y acepto la{' '}
+            <Link href="/privacidad" target="_blank" className="font-medium text-accent-ink underline">
+              Política de Privacidad
+            </Link>
+            . Autorizo a Kahal a tratar estos datos para evaluar la solicitud y administrar la cuenta.
+          </span>
+        }
+      />
+      <div>
+        <p className="mb-1.5 text-sm font-medium">Contrato de uso de Kahal</p>
+        {contract ? (
+          <div className="max-h-56 overflow-y-auto rounded-lg border border-border p-3" tabIndex={0} aria-label="Texto del contrato">
+            <LegalSections document={contract} />
+          </div>
+        ) : contractError ? (
+          <button type="button" onClick={() => reloadContract()} className="text-sm text-danger underline">
+            No se pudo cargar el contrato. Reintentar
+          </button>
+        ) : (
+          <p className="text-sm text-muted">Cargando el contrato…</p>
+        )}
+      </div>
+      <Checkbox
+        name="contract"
+        required
+        disabled={!contract}
+        label={
+          <span className="text-muted">
+            Leí y acepto el{' '}
+            <Link href="/contrato" target="_blank" className="font-medium text-accent-ink underline">
+              contrato{contract ? ` (versión ${contract.version})` : ''}
+            </Link>{' '}
+            en nombre de la iglesia. Declaro que los datos son verdaderos y que tengo facultades para representarla. Mi aceptación, con la fecha, la dirección IP y el navegador, queda
+            registrada como constancia.
+          </span>
+        }
       />
       {error && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>}
-      <Button type="submit" loading={loading} className="mt-2">
+      <Button type="submit" loading={loading} disabled={!contract} className="mt-2">
         Enviar solicitud
       </Button>
     </form>

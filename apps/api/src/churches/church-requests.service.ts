@@ -4,6 +4,8 @@ import * as bcrypt from 'bcryptjs';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
+import { AgreementsService } from '../legal/agreements.service';
+import { CONTRACT, PRIVACY } from '../legal/documents';
 import { createChurchWithAdmin } from './church-defaults';
 import { ApproveChurchRequestDto, RejectChurchRequestDto, SubmitChurchRequestDto } from './church-requests.dto';
 
@@ -17,9 +19,13 @@ export class ChurchRequestsService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly push: PushService,
+    private readonly agreements: AgreementsService,
   ) {}
 
-  async submit(dto: SubmitChurchRequestDto) {
+  async submit(dto: SubmitChurchRequestDto, origin: { ipAddress?: string; userAgent?: string }) {
+    if (dto.contractVersion !== CONTRACT.version) {
+      throw new ConflictException('El contrato se actualizó. Recarga la página, revísalo y vuelve a aceptarlo.');
+    }
     const adminEmail = dto.email.toLowerCase().trim();
     await this.assertAvailable(dto.slug, adminEmail);
     const pending = await this.prisma.churchRequest.findFirst({
@@ -32,8 +38,10 @@ export class ChurchRequestsService {
       );
     }
 
-    await this.prisma.churchRequest.create({
-      data: {
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    await this.prisma.$transaction(async (tx) => {
+      const request = await tx.churchRequest.create({
+        data: {
         name: dto.name,
         slug: dto.slug,
         city: dto.city,
@@ -44,9 +52,26 @@ export class ChurchRequestsService {
         adminLastName: dto.lastName,
         adminEmail,
         adminPhone: dto.phone,
-        adminPasswordHash: await bcrypt.hash(dto.password, 10),
+        adminPasswordHash: passwordHash,
         consentAt: new Date(),
-      },
+        consentVersion: PRIVACY.version,
+        },
+      });
+      await this.agreements.create(tx, {
+        requestId: request.id,
+        churchName: dto.name,
+        churchSlug: dto.slug,
+        churchCity: dto.city,
+        timezone: dto.timezone,
+        currency: dto.currency,
+        signerFirstName: dto.firstName,
+        signerLastName: dto.lastName,
+        signerEmail: adminEmail,
+        signerPhone: dto.phone,
+        signerDocument: dto.signerDocument,
+        signerRole: dto.signerRole,
+        ...origin,
+      });
     });
 
     await this.notifySuperAdmins(dto, adminEmail);
@@ -94,9 +119,11 @@ export class ChurchRequestsService {
             phone: request.adminPhone,
             passwordHash: request.adminPasswordHash!,
             consentAt: request.consentAt,
+            consentVersion: request.consentVersion,
           },
         });
         await tx.churchRequest.update({ where: { id }, data: { churchId: church.id } });
+        await tx.churchAgreement.updateMany({ where: { requestId: id }, data: { churchId: church.id } });
         return church;
       })
       .catch((err) => {
@@ -121,9 +148,11 @@ export class ChurchRequestsService {
 
   async reject(id: string, dto: RejectChurchRequestDto, reviewerId: string) {
     const request = await this.getPending(id);
-    await this.prisma.$transaction((tx) =>
-      this.markReviewed(tx, id, reviewerId, { status: ChurchRequestStatus.REJECTED, rejectionReason: dto.reason }),
-    );
+    // Sin aprobación no hay contrato: no queda constancia que conservar.
+    await this.prisma.$transaction(async (tx) => {
+      await this.markReviewed(tx, id, reviewerId, { status: ChurchRequestStatus.REJECTED, rejectionReason: dto.reason });
+      await tx.churchAgreement.deleteMany({ where: { requestId: id } });
+    });
     await this.mail.send({
       to: request.adminEmail,
       subject: `Tu solicitud para ${request.name}`,

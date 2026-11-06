@@ -1,5 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { Request } from 'express';
 import { AuthUser } from '../common/auth-user';
 import { CurrentUser, Public, SuperAdminOnly } from '../common/decorators';
 import { ApproveChurchRequestDto, RejectChurchRequestDto, SubmitChurchRequestDto } from './church-requests.dto';
@@ -13,8 +14,8 @@ export class ChurchRequestsController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60 * 60_000 } })
   @Post('public/church-requests')
-  submit(@Body() dto: SubmitChurchRequestDto) {
-    return this.requests.submit(dto);
+  submit(@Body() dto: SubmitChurchRequestDto, @Req() req: Request) {
+    return this.requests.submit(dto, { ipAddress: req.ip, userAgent: req.headers['user-agent']?.slice(0, 300) });
   }
 
   @SuperAdminOnly()

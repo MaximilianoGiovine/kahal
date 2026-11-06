@@ -230,25 +230,28 @@ enum ActivityEntity {
 
 /// Una iglesia es un tenant: todos los datos operativos cuelgan de ella.
 model Church {
-  id              String   @id @default(cuid())
-  name            String
-  slug            String   @unique
+  id                   String    @id @default(cuid())
+  name                 String
+  slug                 String    @unique
   /// Canales de transmisión de la iglesia (links a YouTube, Facebook y Twitch).
-  youtubeUrl      String?
-  facebookUrl     String?
-  twitchUrl       String?
-  description     String?
-  city            String?
-  address         String?
-  phone           String?
-  email           String?
-  logoKey         String?
-  primaryColor    String?
-  timezone        String   @default("America/Argentina/Buenos_Aires")
-  defaultCurrency Currency @default(ARS)
-  active          Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  youtubeUrl           String?
+  facebookUrl          String?
+  twitchUrl            String?
+  description          String?
+  city                 String?
+  address              String?
+  phone                String?
+  email                String?
+  logoKey              String?
+  primaryColor         String?
+  timezone             String    @default("America/Argentina/Buenos_Aires")
+  defaultCurrency      Currency  @default(ARS)
+  active               Boolean   @default(true)
+  /// Baja pedida: mientras no venza el plazo se puede cancelar.
+  deletionRequestedAt  DateTime?
+  deletionScheduledFor DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   users          User[]
   roles          ChurchRole[]
@@ -267,6 +270,9 @@ model Church {
   articles       Article[]
   activity       ActivityLog[]
   churchRequests ChurchRequest[]
+  agreements     ChurchAgreement[]
+
+  @@index([deletionScheduledFor])
 }
 
 enum ChurchRequestStatus {
@@ -292,6 +298,8 @@ model ChurchRequest {
   /// Contraseña elegida por el solicitante, siempre hasheada. Se borra al resolver la solicitud.
   adminPasswordHash String?
   consentAt         DateTime
+  /// Versión de la política de privacidad aceptada.
+  consentVersion    String?
   rejectionReason   String?
   reviewedAt        DateTime?
   reviewedById      String?
@@ -301,31 +309,70 @@ model ChurchRequest {
   church            Church?             @relation(fields: [churchId], references: [id], onDelete: SetNull)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
+  agreement         ChurchAgreement?
 
   @@index([status, createdAt])
 }
 
+/// Constancia de la aceptación del contrato al solicitar el alta. Sobrevive al borrado de la iglesia
+/// hasta `retainUntil`, por eso copia los datos en lugar de referenciarlos. No se edita.
+model ChurchAgreement {
+  id              String         @id @default(cuid())
+  requestId       String?        @unique
+  request         ChurchRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  churchId        String?
+  church          Church?        @relation(fields: [churchId], references: [id], onDelete: SetNull)
+  churchName      String
+  churchSlug      String
+  churchCity      String?
+  timezone        String?
+  currency        Currency?
+  signerFirstName String
+  signerLastName  String
+  signerEmail     String
+  signerPhone     String
+  signerDocument  String
+  signerRole      String
+  contractVersion String
+  /// Texto íntegro aceptado y su huella SHA-256.
+  contractText    String
+  contractHash    String
+  privacyVersion  String
+  ipAddress       String?
+  userAgent       String?
+  acceptedAt      DateTime
+  /// Huella SHA-256 de todo lo aceptado, para detectar cambios posteriores.
+  recordHash      String
+  churchEndedAt   DateTime?
+  retainUntil     DateTime?
+
+  @@index([churchId])
+  @@index([acceptedAt])
+}
+
 model User {
-  id            String     @id @default(cuid())
-  churchId      String?
-  church        Church?    @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  email         String     @unique
+  id             String     @id @default(cuid())
+  churchId       String?
+  church         Church?    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  email          String     @unique
   /// Null en cuentas creadas con Google o Apple que todavía no definieron contraseña.
-  passwordHash  String?
-  firstName     String
-  lastName      String
-  phone         String?
+  passwordHash   String?
+  firstName      String
+  lastName       String
+  phone          String?
   /// Administrador de la plataforma: opera sobre cualquier iglesia con todos los permisos.
-  isSuperAdmin  Boolean    @default(false)
-  status        UserStatus @default(PENDING)
+  isSuperAdmin   Boolean    @default(false)
+  status         UserStatus @default(PENDING)
   /// Incrementar invalida todos los refresh tokens emitidos.
-  tokenVersion  Int        @default(0)
-  consentAt     DateTime?
-  lastLoginAt   DateTime?
+  tokenVersion   Int        @default(0)
+  consentAt      DateTime?
+  /// Versión de la política de privacidad aceptada.
+  consentVersion String?
+  lastLoginAt    DateTime?
   /// Token secreto del feed de calendario personal (.ics). Se crea al pedirlo por primera vez.
-  calendarToken String?    @unique
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  calendarToken  String?    @unique
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   identities             UserIdentity[]
   pushSubscriptions      PushSubscription[]

@@ -81,7 +81,7 @@ export async function createChurchWithAdmin(
     /** Solo faltan en solicitudes anteriores a que se pidieran: ahí rige el valor por defecto de la base. */
     timezone?: string | null;
     defaultCurrency?: Currency | null;
-    admin: { firstName: string; lastName: string; email: string; phone?: string | null; passwordHash: string; consentAt?: Date };
+    admin: { firstName: string; lastName: string; email: string; phone?: string | null; passwordHash: string; consentAt?: Date; consentVersion?: string | null };
   },
 ) {
   const { admin } = data;
@@ -98,6 +98,7 @@ export async function createChurchWithAdmin(
       lastName: admin.lastName,
       phone: admin.phone,
       consentAt: admin.consentAt,
+      consentVersion: admin.consentVersion,
       status: UserStatus.ACTIVE,
       roles: { create: { roleId: roles.pastor } },
     },

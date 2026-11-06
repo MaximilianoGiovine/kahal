@@ -5,12 +5,13 @@ import { Building2, ExternalLink, Plus, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { ChurchQrDialog } from '@/components/church-qr';
+import { DeleteConfirm } from '@/components/delete-confirm';
 import { Dialog } from '@/components/dialog';
 import { RegionFields } from '@/components/region-fields';
 import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Tabs, td, th } from '@/components/ui';
 import { api } from '@/lib/api';
 import { churchRequestsQuery } from '@/lib/church-requests';
-import { dayLabel, number, slugify } from '@/lib/format';
+import { dateTime, dayLabel, number, slugify } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
 import { useSession } from '@/lib/session';
 import type { Church } from '@/lib/types';
@@ -19,7 +20,8 @@ import { ChurchRequests } from './church-requests';
 type AdminChurch = Church & { createdAt: string; _count: { members: number; users: number } };
 
 export default function AdminChurchesPage() {
-  const { isSuperAdmin, selectChurch } = useSession();
+  const { isSuperAdmin, selectChurch, me } = useSession();
+  const [closing, setClosing] = useState<AdminChurch | null>(null);
   const [creating, setCreating] = useState(false);
   const [qrFor, setQrFor] = useState<AdminChurch | null>(null);
   const [tab, setTab] = useState<'churches' | 'requests'>('churches');
@@ -34,6 +36,13 @@ export default function AdminChurchesPage() {
     success: 'Iglesia actualizada',
     invalidate: [['admin']],
   });
+
+  const schedule = useAction(({ id, ...body }: { id: string; confirm: string; password?: string }) => api(`/admin/churches/${id}/deletion`, { method: 'POST', body }), {
+    success: 'Baja programada',
+    invalidate: [['admin']],
+    onSuccess: () => setClosing(null),
+  });
+  const cancelClosing = useAction((id: string) => api(`/admin/churches/${id}/deletion`, { method: 'DELETE' }), { success: 'Baja cancelada', invalidate: [['admin']] });
 
   if (!isSuperAdmin) return <ErrorState error={new Error('Solo disponible para super administradores')} />;
 
@@ -95,6 +104,7 @@ export default function AdminChurchesPage() {
                     <td className={`${td} text-muted`}>{dayLabel(c.createdAt)}</td>
                     <td className={td}>
                       <Badge tone={c.active ? 'success' : 'neutral'}>{c.active ? 'Activa' : 'Deshabilitada'}</Badge>
+                      {c.deletionScheduledFor && <p className="mt-1 text-xs whitespace-nowrap text-danger">Se borra el {dateTime(c.deletionScheduledFor, { dateStyle: 'medium' })}</p>}
                     </td>
                     <td className={`${td} text-right`}>
                       <div className="flex justify-end gap-2">
@@ -107,6 +117,15 @@ export default function AdminChurchesPage() {
                         <Button size="sm" variant="ghost" onClick={() => toggle.mutate({ id: c.id, active: !c.active })}>
                           {c.active ? 'Deshabilitar' : 'Habilitar'}
                         </Button>
+                        {c.deletionScheduledFor ? (
+                          <Button size="sm" variant="ghost" onClick={() => cancelClosing.mutate(c.id)}>
+                            Cancelar baja
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="ghost" onClick={() => setClosing(c)}>
+                            Dar de baja
+                          </Button>
+                        )}
                         <Link href="/app" onClick={() => selectChurch(c.id)} className="inline-flex h-8 items-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-surface-2">
                           Operar
                         </Link>
@@ -121,6 +140,18 @@ export default function AdminChurchesPage() {
       </Card>}
       {creating && <CreateChurch onClose={() => setCreating(false)} />}
       {qrFor && <ChurchQrDialog church={qrFor} onClose={() => setQrFor(null)} />}
+      {closing && (
+        <DeleteConfirm
+          title={`Dar de baja ${closing.name}`}
+          description="Se avisa a quienes la administran y hay 30 días para cancelar. Después se borran sus usuarios, miembros, finanzas y archivos. Su aval se conserva."
+          word={closing.slug}
+          askPassword={me.hasPassword}
+          confirmLabel="Programar la baja"
+          loading={schedule.isPending}
+          onClose={() => setClosing(null)}
+          onConfirm={(values) => schedule.mutate({ id: closing.id, ...values })}
+        />
+      )}
     </>
   );
 }
