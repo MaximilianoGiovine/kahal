@@ -100,6 +100,9 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 - Nadie puede otorgar permisos que no tiene, y siempre queda al menos un usuario activo con el rol de administración.
 - **Registro de actividad**: quién creó, modificó o eliminó novedades, artículos, eventos y transmisiones, más las citas de cada persona.
 
+### 📊 Nuevos registros
+El super admin ve cuántas cuentas nuevas se crean por día y la tasa de crecimiento, en total o por iglesia.
+
 ### 🌐 Presencia de cada iglesia
 - Página pública con la descripción, los datos de contacto, los canales, las próximas actividades y el aviso de transmisión en vivo.
 - Directorio de iglesias en la portada.

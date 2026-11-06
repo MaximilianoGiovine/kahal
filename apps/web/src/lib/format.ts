@@ -34,6 +34,9 @@ export function dayLabel(iso: string | null | undefined, style: 'short' | 'mediu
   return new Intl.DateTimeFormat(LOCALE, { ...opts, timeZone: 'UTC' }).format(new Date(iso));
 }
 
+/** "5 nov" a partir de una fecha "solo día". */
+export const dayMonth = (iso: string) => new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`)).replace('.', '');
+
 export function dateTime(iso: string | null | undefined, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }) {
   if (!iso) return '—';
   return new Intl.DateTimeFormat(LOCALE, { hourCycle: 'h23', ...opts, timeZone: tz }).format(new Date(iso));

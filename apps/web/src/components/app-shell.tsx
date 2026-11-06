@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
+  BarChart3,
   BookOpen,
   Building2,
   CalendarClock,
@@ -92,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 function isActive(pathname: string, href: string) {
-  return href === '/app' ? pathname === '/app' : pathname === href || pathname.startsWith(`${href}/`);
+  return href === '/app' || href === '/app/admin' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -270,6 +271,7 @@ function Sidebar() {
           <>
             <p className="px-3.5 pt-6 pb-2 text-[11px] font-medium tracking-wider text-subtle uppercase">Plataforma</p>
             {link({ href: '/app/admin', label: 'Iglesias', icon: Building2, badge: pendingRequests })}
+            {link({ href: '/app/admin/metricas', label: 'Registros', icon: BarChart3 })}
           </>
         )}
       </nav>
