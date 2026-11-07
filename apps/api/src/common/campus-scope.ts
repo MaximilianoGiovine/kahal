@@ -93,6 +93,9 @@ export function hostAudienceWhere(audience: CampusScope): Prisma.UserWhereInput 
   return { AND: [{ OR: [{ member: { is: null } }, { member: { campusId: null } }, { member: { campusId: { in: [...audience] } } }] }] };
 }
 
+/** Lo mismo que `hostAudienceWhere`, para una lista de líderes ya leída. */
+export const hostInAudience = (audience: CampusScope, campusId?: string | null) => !audience || !campusId || audience.includes(campusId);
+
 /**
  * Sede con la que se guarda una publicación. `undefined` en una edición: no se toca.
  * Si el área es compartida se ignora lo pedido: al volver a separarla, cada cosa sigue en su sede.

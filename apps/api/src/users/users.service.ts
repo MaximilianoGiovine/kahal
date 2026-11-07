@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Permission, Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { AuthUser, coversAll, effectivePermissions } from '../common/auth-user';
-import { hostAudienceWhere } from '../common/campus-scope';
+import { hostInAudience } from '../common/campus-scope';
 import { paginate } from '../common/pagination';
 import { parseDay } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
@@ -54,20 +54,21 @@ export class UsersService {
   }
 
   /** Pastores/líderes que reciben citas. */
-  hosts(churchId: string, viewer: AuthUser) {
-    return this.prisma.user.findMany({
+  async hosts(churchId: string, viewer: AuthUser) {
+    const hosts = await this.prisma.user.findMany({
       where: {
         churchId,
         status: UserStatus.ACTIVE,
-        ...hostAudienceWhere(viewer.audiences.APPOINTMENTS),
         OR: [
           { roles: { some: { role: { OR: [{ isAdmin: true }, { permissions: { has: Permission.APPOINTMENTS_HOST } }] } } } },
           { availability: { some: {} } },
         ],
       },
-      select: { id: true, firstName: true, lastName: true, ...ROLE_NAMES_SELECT, _count: { select: { availability: true } } },
+      select: { id: true, firstName: true, lastName: true, member: { select: { campusId: true } }, ...ROLE_NAMES_SELECT, _count: { select: { availability: true } } },
       orderBy: { firstName: 'asc' },
     });
+    // Los líderes son pocos: filtrarlos aquí evita unir Member varias veces en SQL, que con miles de usuarios tarda segundos.
+    return hosts.filter((h) => hostInAudience(viewer.audiences.APPOINTMENTS, h.member?.campusId)).map(({ member: _member, ...host }) => host);
   }
 
   async create(churchId: string, actor: AuthUser, dto: CreateUserDto) {

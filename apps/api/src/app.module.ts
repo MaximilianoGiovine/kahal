@@ -1,7 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -27,6 +27,7 @@ import { MembersModule } from './members/members.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PushModule } from './push/push.module';
 import { RolesModule } from './roles/roles.module';
+import { CampusGoneFilter } from './common/campus-gone.filter';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -77,6 +78,7 @@ import { UsersModule } from './users/users.module';
   ],
   controllers: [HealthController, DashboardController],
   providers: [
+    { provide: APP_FILTER, useClass: CampusGoneFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

@@ -518,6 +518,31 @@ describe('áreas separadas por sede', () => {
       assert.ok(!titles((await memberNorte.get('/announcements')).body.items).includes(named('Del super')));
     });
 
+    it('marcar en vivo a la vez deja una sola transmisión por sede y ningún error', async () => {
+      await setSeparated(['STREAMS']);
+      const ids: string[] = [];
+      for (let i = 0; i < 8; i++) ids.push((await admin.post('/streams', { title: named(`Carrera ${i}`), url: 'https://youtu.be/x', campusId: sur })).body.id);
+      for (let round = 0; round < 3; round++) {
+        const results = await Promise.all(ids.map((id) => admin.post(`/streams/${id}/live`, { isLive: true })));
+        assert.deepEqual([...new Set(results.map((r) => r.status))], [201]);
+        assert.equal(await db.liveStream.count({ where: { churchId: churchA, campusId: sur, isLive: true } }), 1);
+      }
+    });
+
+    it('publicar en una sede mientras se borra nunca da un error de servidor', async () => {
+      await setSeparated(['ANNOUNCEMENTS']);
+      for (let i = 0; i < 6; i++) {
+        const campus = await admin.post('/campuses', { name: named(`Efímera ${i}`) });
+        assert.equal(campus.status, 201);
+        const [removed, ...published] = await Promise.all([
+          admin.del(`/campuses/${campus.body.id}`),
+          ...Array.from({ length: 4 }, () => admin.post('/announcements', { title: named('Carrera'), body: 'x', campusId: campus.body.id })),
+        ]);
+        assert.ok([200, 409].includes(removed.status), `borrar: ${removed.status}`);
+        for (const r of published) assert.ok([201, 400].includes(r.status), `publicar: ${r.status}`);
+      }
+    });
+
     it('si se apagan las sedes, todos vuelven a ver todo y lo guardado no se pierde', async () => {
       await db.user.updateMany({ where: { churchId: churchA }, data: { campusRestricted: false } });
       assert.equal((await admin.put('/campuses/settings', { enabled: false })).status, 200);

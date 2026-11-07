@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ActivityAction, ActivityEntity, CampusAspect, Permission, StreamPlatform } from '@prisma/client';
+import { ActivityAction, ActivityEntity, CampusAspect, Permission, Prisma, StreamPlatform } from '@prisma/client';
 import { ActivityService, changedFields } from '../activity/activity.service';
 import { AuthUser, can } from '../common/auth-user';
 import { assertCampusInScope, audienceWhere, campusToSave, ContentAspect } from '../common/campus-scope';
@@ -139,6 +139,7 @@ export class ContentService {
   async createStream(churchId: string, user: AuthUser, dto: StreamDto) {
     const campusId = await this.campusToSave(churchId, user, CampusAspect.STREAMS, dto.campusId);
     const item = await this.prisma.$transaction(async (tx) => {
+      if (dto.isLive) await this.takeLiveLock(tx, churchId);
       if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, ...this.liveRival(user, campusId ?? null) }, data: { isLive: false } });
       return tx.liveStream.create({ data: { ...dto, campusId, platform: detectPlatform(dto.url), churchId }, include: { campus: CAMPUS } });
     });
@@ -152,6 +153,7 @@ export class ContentService {
     const campusId = await this.campusToSave(churchId, user, CampusAspect.STREAMS, dto.campusId, current);
     const target = campusId === undefined ? current.campusId : campusId;
     const item = await this.prisma.$transaction(async (tx) => {
+      if (dto.isLive) await this.takeLiveLock(tx, churchId);
       if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id }, ...this.liveRival(user, target) }, data: { isLive: false } });
       return tx.liveStream.update({ where: { id }, data: { ...dto, campusId, platform: detectPlatform(dto.url) }, include: { campus: CAMPUS } });
     });
@@ -165,6 +167,7 @@ export class ContentService {
     const current = await this.ensureStream(churchId, id);
     assertCampusInScope(user.campusScopes.STREAMS, current.campusId);
     const item = await this.prisma.$transaction(async (tx) => {
+      if (isLive) await this.takeLiveLock(tx, churchId);
       if (isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id }, ...this.liveRival(user, current.campusId) }, data: { isLive: false } });
       return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date() }) }, include: { campus: CAMPUS } });
     });
@@ -179,6 +182,11 @@ export class ContentService {
     await this.prisma.liveStream.delete({ where: { id } });
     await this.track(churchId, user.id, ActivityAction.DELETE, ActivityEntity.STREAM, current);
     return { ok: true };
+  }
+
+  /** Una a la vez por iglesia: sin esto, dos que empiezan juntas pueden quedar ambas en vivo o bloquearse entre sí. */
+  private takeLiveLock(tx: Prisma.TransactionClient, churchId: string) {
+    return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${churchId}, 0))`;
   }
 
   /** Qué transmisiones deja de lado una que empieza: las de su misma sede, o todas si son compartidas. */
