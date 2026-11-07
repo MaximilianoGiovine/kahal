@@ -2,7 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { UserStatus } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { BillingService } from '../billing/billing.service';
-import { AuthUser } from '../common/auth-user';
+import { AuthUser, CAMPUS_ACCESS_SELECT, campusAccess } from '../common/auth-user';
+import { audienceWhere } from '../common/campus-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildCalendar } from './ics';
 
@@ -38,13 +39,13 @@ export class CalendarService {
   async feed(token: string) {
     const user = await this.prisma.user.findUnique({
       where: { calendarToken: token },
-      select: { status: true, church: { select: { id: true, name: true, timezone: true, active: true } } },
+      select: { ...CAMPUS_ACCESS_SELECT, status: true, church: { select: { id: true, name: true, timezone: true, active: true, campusesEnabled: true, campusSeparated: true } } },
     });
     if (!user?.church?.active || user.status !== UserStatus.ACTIVE) throw new NotFoundException();
     if (await this.billing.isBlocked(user.church.id)) throw new NotFoundException();
 
     const events = await this.prisma.event.findMany({
-      where: { churchId: user.church.id, startsAt: { gte: new Date(Date.now() - PAST_WINDOW_MS) } },
+      where: { churchId: user.church.id, ...audienceWhere(campusAccess(user, user.church).audiences.EVENTS), startsAt: { gte: new Date(Date.now() - PAST_WINDOW_MS) } },
       orderBy: { startsAt: 'asc' },
       take: MAX_EVENTS,
     });

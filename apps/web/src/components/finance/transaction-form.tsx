@@ -6,6 +6,7 @@ import { FileText, Loader2, Paperclip, X } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/dialog';
+import { useCampusAspect } from '@/components/campuses';
 import { useFinanceCampus } from '@/components/finance/finance-campus';
 import { MemberPicker } from '@/components/member-picker';
 import { Button, Field, Input, Select } from '@/components/ui';
@@ -22,6 +23,7 @@ export function TransactionForm({ item, type: initialType = 'INCOME', onClose }:
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { campusId } = useFinanceCampus();
+  const showCampus = useCampusAspect('FINANCE');
   const { data: accounts = [] } = useQuery({ queryKey: ['finance', 'accounts', campusId], queryFn: () => api<Account[]>('/finance/accounts', { query: { campusId } }) });
   const { data: categories = [] } = useQuery({ queryKey: ['finance', 'categories'], queryFn: () => api<Category[]>('/finance/categories') });
 
@@ -125,7 +127,7 @@ export function TransactionForm({ item, type: initialType = 'INCOME', onClose }:
                 .map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.currency})
-                    {a.campus && ` · ${a.campus.name}`}
+                    {showCampus && a.campus && ` · ${a.campus.name}`}
                   </option>
                 ))}
             </Select>

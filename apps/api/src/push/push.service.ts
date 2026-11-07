@@ -68,8 +68,20 @@ export class PushService {
   }
 
   /** A toda la congregación activa, salvo a quien generó el aviso. */
-  async sendToChurch(churchId: string, payload: PushPayload, exceptUserId?: string) {
-    await this.enqueue({ user: { churchId, status: UserStatus.ACTIVE, id: { not: exceptUserId }, church: { active: true } } }, payload);
+  /** Con `campusId`, solo a los miembros de esa sede y a quienes están limitados a ella. */
+  async sendToChurch(churchId: string, payload: PushPayload, exceptUserId?: string, campusId?: string | null) {
+    await this.enqueue(
+      {
+        user: {
+          churchId,
+          status: UserStatus.ACTIVE,
+          id: { not: exceptUserId },
+          church: { active: true },
+          ...(campusId && { OR: [{ member: { campusId } }, { campusRestricted: true, campuses: { some: { campusId } } }] }),
+        },
+      },
+      payload,
+    );
   }
 
   async sendToUsers(userIds: string[], payload: PushPayload) {

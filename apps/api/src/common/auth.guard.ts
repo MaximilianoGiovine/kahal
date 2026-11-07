@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserStatus } from '@prisma/client';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthUser, campusAccess } from './auth-user';
+import { AuthUser, CAMPUS_ACCESS_SELECT, campusAccess } from './auth-user';
 import { IS_PUBLIC } from './decorators';
 
 export const ACCESS_COOKIE = 'kahal_at';
@@ -46,14 +46,7 @@ export class AuthGuard implements CanActivate {
     // Los permisos se leen en cada request: un cambio de roles aplica al instante.
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: {
-        isSuperAdmin: true,
-        churchId: true,
-        status: true,
-        campusRestricted: true,
-        campuses: { select: { campusId: true } },
-        roles: { select: { role: { select: { isAdmin: true, permissions: true } } } },
-      },
+      select: { ...CAMPUS_ACCESS_SELECT, churchId: true, status: true },
     });
     if (!user || user.status !== UserStatus.ACTIVE) {
       if (isPublic) return true;
@@ -61,16 +54,18 @@ export class AuthGuard implements CanActivate {
     }
 
     let activeChurchId = user.churchId;
+    let church = user.church;
     if (user.isSuperAdmin) {
       const header = req.headers['x-church-id'];
       activeChurchId = (Array.isArray(header) ? header[0] : header) || null;
+      church = activeChurchId ? await this.prisma.church.findUnique({ where: { id: activeChurchId }, select: { campusesEnabled: true, campusSeparated: true } }) : null;
     }
     req.user = {
       id: payload.sub,
       isSuperAdmin: user.isSuperAdmin,
       churchId: user.churchId,
       activeChurchId,
-      ...campusAccess(user),
+      ...campusAccess(user, church),
     };
     return true;
   }

@@ -1,5 +1,5 @@
-import { Permission } from '@prisma/client';
-import { CampusScope } from './campus-scope';
+import { CampusAspect, Permission, Prisma } from '@prisma/client';
+import { CampusScope, ContentAspect } from './campus-scope';
 
 export interface AuthUser {
   id: string;
@@ -10,8 +10,12 @@ export interface AuthUser {
   activeChurchId: string | null;
   /** Permisos efectivos: unión de los permisos de todos sus roles. */
   permissions: Permission[];
-  /** Sedes a las que se limitan sus miembros y finanzas. `null`: toda la iglesia. */
-  campusScope: CampusScope;
+  /** Áreas que la iglesia separa por sede. Vacío si no usa sedes. */
+  campusSeparated: CampusAspect[];
+  /** Sedes sobre las que opera en cada área. `null`: toda la iglesia, también cuando el área es compartida. */
+  campusScopes: Record<CampusAspect, CampusScope>;
+  /** Sedes cuyo contenido ve, además del general. `null`: todo. */
+  audiences: Record<ContentAspect, CampusScope>;
 }
 
 export const ALL_PERMISSIONS = Object.values(Permission);
@@ -49,21 +53,77 @@ const CHURCH_WIDE_PERMISSIONS: Permission[] = [
   Permission.ROLES_MANAGE,
   Permission.CHURCH_SETTINGS,
   Permission.MEMBER_STATUSES_MANAGE,
+  // El registro mezcla títulos de todas las sedes.
+  Permission.ACTIVITY_VIEW,
 ];
 
+/** Lo necesario para calcular `campusAccess`, también fuera de una request (feed de calendario). */
+export const CAMPUS_ACCESS_SELECT = {
+  isSuperAdmin: true,
+  campusRestricted: true,
+  campuses: { select: { campusId: true } },
+  member: { select: { campusId: true } },
+  church: { select: { campusesEnabled: true, campusSeparated: true } },
+  roles: { select: { role: { select: { isAdmin: true, permissions: true } } } },
+} satisfies Prisma.UserSelect;
+
+/** Con este permiso, y sin límite por sede, se gestiona el contenido de toda la iglesia. */
+const CONTENT_EDITOR: Record<ContentAspect, Permission> = {
+  ANNOUNCEMENTS: Permission.CONTENT_MANAGE,
+  EVENTS: Permission.CONTENT_MANAGE,
+  STREAMS: Permission.CONTENT_MANAGE,
+  ARTICLES: Permission.ARTICLES_MANAGE,
+  APPOINTMENTS: Permission.APPOINTMENTS_ALL,
+};
+
 /** Sedes y permisos reales de un usuario. La administración y el super admin siempre ven toda la iglesia. */
-export function campusAccess(user: {
-  isSuperAdmin: boolean;
-  campusRestricted: boolean;
-  campuses: { campusId: string }[];
-  roles: { role: { isAdmin: boolean; permissions: Permission[] } }[];
-}): Pick<AuthUser, 'permissions' | 'campusScope'> {
+export function campusAccess(
+  user: {
+    isSuperAdmin: boolean;
+    campusRestricted: boolean;
+    campuses: { campusId: string }[];
+    member: { campusId: string | null } | null;
+    roles: { role: { isAdmin: boolean; permissions: Permission[] } }[];
+  },
+  /** La iglesia sobre la que opera la request: para el super admin no es la propia. */
+  church: { campusesEnabled: boolean; campusSeparated: CampusAspect[] } | null,
+): Pick<AuthUser, 'permissions' | 'campusSeparated' | 'campusScopes' | 'audiences'> {
   const roles = user.roles.map((r) => r.role);
-  const permissions = effectivePermissions(roles);
-  if (user.isSuperAdmin || !user.campusRestricted || roles.some((r) => r.isAdmin)) return { permissions, campusScope: null };
+  const allPermissions = effectivePermissions(roles);
+  const wholeChurch = user.isSuperAdmin || roles.some((r) => r.isAdmin);
+  const restricted = !wholeChurch && user.campusRestricted;
+  const limit = user.campuses.map((c) => c.campusId);
+  const permissions = restricted ? allPermissions.filter((p) => !CHURCH_WIDE_PERMISSIONS.includes(p)) : allPermissions;
+  const campusSeparated = church?.campusesEnabled ? church.campusSeparated : [];
+
+  // El límite se mira contra la lista guardada, no contra la activa: si las sedes se apagaran, sigue fallando cerrado.
+  const scope = (aspect: CampusAspect): CampusScope => (restricted && church?.campusSeparated.includes(aspect) ? limit : null);
+  const audience = (aspect: ContentAspect): CampusScope => {
+    if (wholeChurch || !campusSeparated.includes(aspect)) return null;
+    if (!restricted && allPermissions.includes(CONTENT_EDITOR[aspect])) return null;
+    const own = user.member?.campusId ? [user.member.campusId] : [];
+    return restricted ? [...new Set([...limit, ...own])] : own;
+  };
+
   return {
-    permissions: permissions.filter((p) => !CHURCH_WIDE_PERMISSIONS.includes(p)),
-    campusScope: user.campuses.map((c) => c.campusId),
+    permissions,
+    campusSeparated,
+    campusScopes: {
+      MEMBERS: scope('MEMBERS'),
+      FINANCE: scope('FINANCE'),
+      ANNOUNCEMENTS: scope('ANNOUNCEMENTS'),
+      EVENTS: scope('EVENTS'),
+      ARTICLES: scope('ARTICLES'),
+      STREAMS: scope('STREAMS'),
+      APPOINTMENTS: scope('APPOINTMENTS'),
+    },
+    audiences: {
+      ANNOUNCEMENTS: audience('ANNOUNCEMENTS'),
+      EVENTS: audience('EVENTS'),
+      ARTICLES: audience('ARTICLES'),
+      STREAMS: audience('STREAMS'),
+      APPOINTMENTS: audience('APPOINTMENTS'),
+    },
   };
 }
 

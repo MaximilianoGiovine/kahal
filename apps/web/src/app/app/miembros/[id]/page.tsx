@@ -5,6 +5,7 @@ import { ArrowLeft, Cake, Church, Droplets, IdCard, Mail, MapPin, Pencil, Phone,
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
+import { useCampusAspect } from '@/components/campuses';
 import { ConfirmDialog } from '@/components/dialog';
 import { MemberForm } from '@/components/member-form';
 import { StatusBadges } from '@/components/member-statuses';
@@ -28,6 +29,7 @@ export default function MemberPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { me } = useSession();
+  const showCampus = useCampusAspect('MEMBERS');
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { data: m, isLoading, error, refetch } = useQuery({ queryKey: ['member', id], queryFn: () => api<MemberDetail>(`/members/${id}`) });
@@ -74,7 +76,7 @@ export default function MemberPage() {
         <Card className="lg:col-span-2">
           <CardHeader title="Datos personales" />
           <dl className="grid gap-x-6 gap-y-5 p-5 sm:grid-cols-2">
-            {m.campus && <Item icon={<Church />} label="Sede" value={m.campus.name} />}
+            {showCampus && m.campus && <Item icon={<Church />} label="Sede" value={m.campus.name} />}
             <Item icon={<Mail />} label="Email" value={m.email} />
             <Item icon={<Phone />} label="Teléfono" value={m.phone} />
             <Item icon={<IdCard />} label="Número de documento" value={m.documentId} />

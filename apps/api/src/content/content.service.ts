@@ -1,13 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ActivityAction, ActivityEntity, Permission, StreamPlatform } from '@prisma/client';
+import { ActivityAction, ActivityEntity, CampusAspect, Permission, StreamPlatform } from '@prisma/client';
 import { ActivityService, changedFields } from '../activity/activity.service';
 import { AuthUser, can } from '../common/auth-user';
-import { PageQuery, paginate } from '../common/pagination';
+import { assertCampusInScope, audienceWhere, campusToSave, ContentAspect } from '../common/campus-scope';
+import { paginate } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
-import { AnnouncementDto, EventDto, EventsQuery, StreamDto } from './content.dto';
+import { AnnouncementDto, AnnouncementsQuery, EventDto, EventsQuery, StreamDto, StreamsQuery } from './content.dto';
 
 const AUTHOR = { select: { id: true, firstName: true, lastName: true } };
+const CAMPUS = { select: { id: true, name: true } };
 
 export function detectPlatform(url: string): StreamPlatform {
   const host = new URL(url).hostname.replace(/^www\.|^m\./, '');
@@ -29,12 +31,12 @@ export class ContentService {
 
   // Novedades
 
-  async announcements(churchId: string, user: AuthUser, q: PageQuery) {
-    const where = { churchId, ...(!isEditor(user) && { published: true, publishedAt: { lte: new Date() } }) };
+  async announcements(churchId: string, user: AuthUser, q: AnnouncementsQuery) {
+    const where = { churchId, ...audienceWhere(user.audiences.ANNOUNCEMENTS, q.campusId), ...(!isEditor(user) && { published: true, publishedAt: { lte: new Date() } }) };
     const [items, total] = await Promise.all([
       this.prisma.announcement.findMany({
         where,
-        include: { author: AUTHOR },
+        include: { author: AUTHOR, campus: CAMPUS },
         orderBy: [{ pinned: 'desc' }, { publishedAt: 'desc' }],
         ...paginate(q),
       }),
@@ -43,80 +45,90 @@ export class ContentService {
     return { items, total, page: q.page, pageSize: q.pageSize };
   }
 
-  async createAnnouncement(churchId: string, userId: string, dto: AnnouncementDto) {
-    const item = await this.prisma.announcement.create({ data: { ...dto, churchId, authorId: userId }, include: { author: AUTHOR } });
-    await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.ANNOUNCEMENT, item);
-    if (item.published) await this.notifyAnnouncement(churchId, userId, item);
+  async createAnnouncement(churchId: string, user: AuthUser, dto: AnnouncementDto) {
+    const campusId = await this.campusToSave(churchId, user, CampusAspect.ANNOUNCEMENTS, dto.campusId);
+    const item = await this.prisma.announcement.create({ data: { ...dto, campusId, churchId, authorId: user.id }, include: { author: AUTHOR, campus: CAMPUS } });
+    await this.track(churchId, user.id, ActivityAction.CREATE, ActivityEntity.ANNOUNCEMENT, item);
+    if (item.published) await this.notifyAnnouncement(churchId, user, item);
     return item;
   }
 
-  async updateAnnouncement(churchId: string, userId: string, id: string, dto: AnnouncementDto) {
+  async updateAnnouncement(churchId: string, user: AuthUser, id: string, dto: AnnouncementDto) {
     const current = await this.prisma.announcement.findFirst({ where: { id, churchId } });
     if (!current) throw new NotFoundException('Novedad no encontrada');
+    const campusId = await this.campusToSave(churchId, user, CampusAspect.ANNOUNCEMENTS, dto.campusId, current);
     // Al publicar un borrador, la fecha de publicación pasa a ser ahora.
     const publishedAt = dto.published && !current.published ? new Date() : undefined;
-    const item = await this.prisma.announcement.update({ where: { id }, data: { ...dto, publishedAt }, include: { author: AUTHOR } });
-    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.ANNOUNCEMENT, item, changedFields(current, dto));
-    if (item.published && !current.published) await this.notifyAnnouncement(churchId, userId, item);
+    const item = await this.prisma.announcement.update({ where: { id }, data: { ...dto, campusId, publishedAt }, include: { author: AUTHOR, campus: CAMPUS } });
+    await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.ANNOUNCEMENT, item, changedFields(current, { ...dto, campusId }));
+    if (item.published && !current.published) await this.notifyAnnouncement(churchId, user, item);
     return item;
   }
 
-  async removeAnnouncement(churchId: string, userId: string, id: string) {
+  async removeAnnouncement(churchId: string, user: AuthUser, id: string) {
     const current = await this.prisma.announcement.findFirst({ where: { id, churchId } });
     if (!current) throw new NotFoundException('Novedad no encontrada');
+    assertCampusInScope(user.campusScopes.ANNOUNCEMENTS, current.campusId);
     await this.prisma.announcement.delete({ where: { id } });
-    await this.track(churchId, userId, ActivityAction.DELETE, ActivityEntity.ANNOUNCEMENT, current);
+    await this.track(churchId, user.id, ActivityAction.DELETE, ActivityEntity.ANNOUNCEMENT, current);
     return { ok: true };
   }
 
   // Eventos
 
-  events(churchId: string, q: EventsQuery) {
+  events(churchId: string, user: AuthUser, q: EventsQuery) {
     const from = q.from ? new Date(q.from) : new Date(Date.now() - 24 * 3600 * 1000);
     return this.prisma.event.findMany({
-      where: { churchId, startsAt: { gte: from, lte: q.to ? new Date(q.to) : undefined } },
+      where: { churchId, ...audienceWhere(user.audiences.EVENTS, q.campusId), startsAt: { gte: from, lte: q.to ? new Date(q.to) : undefined } },
+      include: { campus: CAMPUS },
       orderBy: { startsAt: 'asc' },
       take: 200,
     });
   }
 
-  async createEvent(churchId: string, userId: string, dto: EventDto) {
+  async createEvent(churchId: string, user: AuthUser, dto: EventDto) {
     this.checkRange(dto);
-    const item = await this.prisma.event.create({ data: { ...dto, churchId, createdById: userId } });
-    await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.EVENT, item);
-    if (item.startsAt > new Date()) await this.notifyChurch(churchId, userId, `Nuevo evento: ${item.title}`, '/app/eventos');
+    const campusId = await this.campusToSave(churchId, user, CampusAspect.EVENTS, dto.campusId);
+    const item = await this.prisma.event.create({ data: { ...dto, campusId, churchId, createdById: user.id }, include: { campus: CAMPUS } });
+    await this.track(churchId, user.id, ActivityAction.CREATE, ActivityEntity.EVENT, item);
+    if (item.startsAt > new Date()) await this.notifyChurch(churchId, user, CampusAspect.EVENTS, item, `Nuevo evento: ${item.title}`, '/app/eventos');
     return item;
   }
 
-  async updateEvent(churchId: string, userId: string, id: string, dto: EventDto) {
+  async updateEvent(churchId: string, user: AuthUser, id: string, dto: EventDto) {
     this.checkRange(dto);
     const current = await this.prisma.event.findFirst({ where: { id, churchId } });
     if (!current) throw new NotFoundException('Evento no encontrado');
-    const item = await this.prisma.event.update({ where: { id }, data: dto });
-    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.EVENT, item, changedFields(current, dto));
+    const campusId = await this.campusToSave(churchId, user, CampusAspect.EVENTS, dto.campusId, current);
+    const item = await this.prisma.event.update({ where: { id }, data: { ...dto, campusId }, include: { campus: CAMPUS } });
+    await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.EVENT, item, changedFields(current, { ...dto, campusId }));
     return item;
   }
 
-  async removeEvent(churchId: string, userId: string, id: string) {
+  async removeEvent(churchId: string, user: AuthUser, id: string) {
     const current = await this.prisma.event.findFirst({ where: { id, churchId } });
     if (!current) throw new NotFoundException('Evento no encontrado');
+    assertCampusInScope(user.campusScopes.EVENTS, current.campusId);
     await this.prisma.event.delete({ where: { id } });
-    await this.track(churchId, userId, ActivityAction.DELETE, ActivityEntity.EVENT, current);
+    await this.track(churchId, user.id, ActivityAction.DELETE, ActivityEntity.EVENT, current);
     return { ok: true };
   }
 
   // Transmisiones
 
-  async streams(churchId: string) {
+  async streams(churchId: string, user: AuthUser, q: StreamsQuery) {
+    const visible = { churchId, ...audienceWhere(user.audiences.STREAMS, q.campusId) };
     const [live, upcoming, past] = await Promise.all([
-      this.prisma.liveStream.findFirst({ where: { churchId, isLive: true }, orderBy: { updatedAt: 'desc' } }),
+      this.prisma.liveStream.findFirst({ where: { ...visible, isLive: true }, include: { campus: CAMPUS }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.liveStream.findMany({
-        where: { churchId, isLive: false, scheduledAt: { gte: new Date() } },
+        where: { ...visible, isLive: false, scheduledAt: { gte: new Date() } },
+        include: { campus: CAMPUS },
         orderBy: { scheduledAt: 'asc' },
         take: 10,
       }),
       this.prisma.liveStream.findMany({
-        where: { churchId, isLive: false, OR: [{ scheduledAt: { lt: new Date() } }, { scheduledAt: null }] },
+        where: { ...visible, isLive: false, OR: [{ scheduledAt: { lt: new Date() } }, { scheduledAt: null }] },
+        include: { campus: CAMPUS },
         orderBy: [{ scheduledAt: 'desc' }, { createdAt: 'desc' }],
         take: 30,
       }),
@@ -124,44 +136,58 @@ export class ContentService {
     return { live, upcoming, past };
   }
 
-  async createStream(churchId: string, userId: string, dto: StreamDto) {
+  async createStream(churchId: string, user: AuthUser, dto: StreamDto) {
+    const campusId = await this.campusToSave(churchId, user, CampusAspect.STREAMS, dto.campusId);
     const item = await this.prisma.$transaction(async (tx) => {
-      if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true }, data: { isLive: false } });
-      return tx.liveStream.create({ data: { ...dto, platform: detectPlatform(dto.url), churchId } });
+      if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, ...this.liveRival(user, campusId ?? null) }, data: { isLive: false } });
+      return tx.liveStream.create({ data: { ...dto, campusId, platform: detectPlatform(dto.url), churchId }, include: { campus: CAMPUS } });
     });
-    await this.track(churchId, userId, ActivityAction.CREATE, ActivityEntity.STREAM, item);
-    if (item.isLive) await this.notifyLive(churchId, userId, item);
+    await this.track(churchId, user.id, ActivityAction.CREATE, ActivityEntity.STREAM, item);
+    if (item.isLive) await this.notifyLive(churchId, user, item);
     return item;
   }
 
-  async updateStream(churchId: string, userId: string, id: string, dto: StreamDto) {
+  async updateStream(churchId: string, user: AuthUser, id: string, dto: StreamDto) {
     const current = await this.ensureStream(churchId, id);
+    const campusId = await this.campusToSave(churchId, user, CampusAspect.STREAMS, dto.campusId, current);
+    const target = campusId === undefined ? current.campusId : campusId;
     const item = await this.prisma.$transaction(async (tx) => {
-      if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id } }, data: { isLive: false } });
-      return tx.liveStream.update({ where: { id }, data: { ...dto, platform: detectPlatform(dto.url) } });
+      if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id }, ...this.liveRival(user, target) }, data: { isLive: false } });
+      return tx.liveStream.update({ where: { id }, data: { ...dto, campusId, platform: detectPlatform(dto.url) }, include: { campus: CAMPUS } });
     });
-    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, dto));
-    if (item.isLive && !current.isLive) await this.notifyLive(churchId, userId, item);
+    await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { ...dto, campusId }));
+    if (item.isLive && !current.isLive) await this.notifyLive(churchId, user, item);
     return item;
   }
 
-  /** Solo puede haber una transmisión en vivo por iglesia. */
-  async setLive(churchId: string, userId: string, id: string, isLive: boolean) {
+  /** Solo puede haber una transmisión en vivo por iglesia o, si se separan, por sede. */
+  async setLive(churchId: string, user: AuthUser, id: string, isLive: boolean) {
     const current = await this.ensureStream(churchId, id);
+    assertCampusInScope(user.campusScopes.STREAMS, current.campusId);
     const item = await this.prisma.$transaction(async (tx) => {
-      if (isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true }, data: { isLive: false } });
-      return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date() }) } });
+      if (isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id }, ...this.liveRival(user, current.campusId) }, data: { isLive: false } });
+      return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date() }) }, include: { campus: CAMPUS } });
     });
-    await this.track(churchId, userId, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { isLive }));
-    if (item.isLive && !current.isLive) await this.notifyLive(churchId, userId, item);
+    await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { isLive }));
+    if (item.isLive && !current.isLive) await this.notifyLive(churchId, user, item);
     return item;
   }
 
-  async removeStream(churchId: string, userId: string, id: string) {
+  async removeStream(churchId: string, user: AuthUser, id: string) {
     const current = await this.ensureStream(churchId, id);
+    assertCampusInScope(user.campusScopes.STREAMS, current.campusId);
     await this.prisma.liveStream.delete({ where: { id } });
-    await this.track(churchId, userId, ActivityAction.DELETE, ActivityEntity.STREAM, current);
+    await this.track(churchId, user.id, ActivityAction.DELETE, ActivityEntity.STREAM, current);
     return { ok: true };
+  }
+
+  /** Qué transmisiones deja de lado una que empieza: las de su misma sede, o todas si son compartidas. */
+  private liveRival(user: AuthUser, campusId: string | null) {
+    return user.campusSeparated.includes(CampusAspect.STREAMS) ? { campusId } : {};
+  }
+
+  private campusToSave(churchId: string, user: AuthUser, aspect: ContentAspect, requested: string | null | undefined, current?: { campusId: string | null }) {
+    return campusToSave(this.prisma, churchId, user, aspect, requested, current);
   }
 
   private async ensureStream(churchId: string, id: string) {
@@ -170,17 +196,18 @@ export class ContentService {
     return stream;
   }
 
-  private notifyAnnouncement(churchId: string, userId: string, item: { title: string }) {
-    return this.notifyChurch(churchId, userId, `Nueva novedad: ${item.title}`, '/app/novedades');
+  private notifyAnnouncement(churchId: string, user: AuthUser, item: { title: string; campusId: string | null }) {
+    return this.notifyChurch(churchId, user, CampusAspect.ANNOUNCEMENTS, item, `Nueva novedad: ${item.title}`, '/app/novedades');
   }
 
-  private notifyLive(churchId: string, userId: string, item: { title: string }) {
-    return this.notifyChurch(churchId, userId, `En vivo ahora: ${item.title}`, '/app/en-vivo');
+  private notifyLive(churchId: string, user: AuthUser, item: { title: string; campusId: string | null }) {
+    return this.notifyChurch(churchId, user, CampusAspect.STREAMS, item, `En vivo ahora: ${item.title}`, '/app/en-vivo');
   }
 
-  private async notifyChurch(churchId: string, userId: string, body: string, url: string) {
+  /** Lo de una sede se avisa solo en esa sede, mientras el área esté separada. */
+  private async notifyChurch(churchId: string, user: AuthUser, aspect: ContentAspect, item: { campusId: string | null }, body: string, url: string) {
     const { name } = await this.prisma.church.findUniqueOrThrow({ where: { id: churchId }, select: { name: true } });
-    await this.push.sendToChurch(churchId, { title: name, body, url }, userId);
+    await this.push.sendToChurch(churchId, { title: name, body, url }, user.id, user.campusSeparated.includes(aspect) ? item.campusId : null);
   }
 
   private track(churchId: string, userId: string, action: ActivityAction, entity: ActivityEntity, item: { id: string; title: string }, detail?: string | null) {

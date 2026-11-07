@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res } from '@nestjs/common';
-import { Permission } from '@prisma/client';
+import { CampusAspect, Permission } from '@prisma/client';
 import { Response } from 'express';
 import { AuthUser } from '../common/auth-user';
 import { assertWholeChurch, CampusScope } from '../common/campus-scope';
@@ -18,24 +18,24 @@ export class MembersController {
   ) {}
 
   @Get('members')
-  list(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Query() query: MembersQuery) {
+  list(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Query() query: MembersQuery) {
     return this.members.list(churchId, scope, query);
   }
 
   /** Búsqueda mínima (nombre y documento) para asociar diezmos: la usa también Tesorería. */
   @RequirePermissions(Permission.MEMBERS_VIEW, Permission.FINANCE_EDIT)
   @Get('members/lookup')
-  lookup(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Query('q') q = '') {
+  lookup(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Query('q') q = '') {
     return this.members.lookup(churchId, scope, q);
   }
 
   @Get('members/stats')
-  stats(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Query() query: MembersQuery) {
+  stats(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Query() query: MembersQuery) {
     return this.members.stats(churchId, scope, query.campusId);
   }
 
   @Get('members/export')
-  async export(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Query() query: MembersQuery, @Res() res: Response) {
+  async export(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Query() query: MembersQuery, @Res() res: Response) {
     const { wb, filename } = await this.exporter.build(churchId, scope, query);
     await sendWorkbook(res, wb, filename);
   }
@@ -47,24 +47,24 @@ export class MembersController {
 
   @RequirePermissions(Permission.MEMBERS_EDIT)
   @Post('members')
-  create(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Body() dto: MemberDto) {
+  create(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Body() dto: MemberDto) {
     return this.members.create(churchId, scope, dto);
   }
 
   @RequirePermissions(Permission.MEMBERS_EDIT)
   @Patch('members/:id')
-  update(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Param('id') id: string, @Body() dto: MemberDto) {
+  update(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Param('id') id: string, @Body() dto: MemberDto) {
     return this.members.update(churchId, scope, id, dto);
   }
 
   @RequirePermissions(Permission.MEMBERS_DELETE)
   @Delete('members/:id')
-  remove(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Param('id') id: string) {
+  remove(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Param('id') id: string) {
     return this.members.remove(churchId, scope, id);
   }
 
   @Get('families')
-  families(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope) {
+  families(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope) {
     return this.members.families(churchId, scope);
   }
 
@@ -76,18 +76,18 @@ export class MembersController {
 
   @RequirePermissions(Permission.MEMBERS_EDIT)
   @Patch('families/:id')
-  updateFamily(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Param('id') id: string, @Body() dto: FamilyDto) {
+  updateFamily(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Param('id') id: string, @Body() dto: FamilyDto) {
     return this.members.updateFamily(churchId, scope, id, dto);
   }
 
   @RequirePermissions(Permission.MEMBERS_EDIT)
   @Delete('families/:id')
-  removeFamily(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Param('id') id: string) {
+  removeFamily(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Param('id') id: string) {
     return this.members.removeFamily(churchId, scope, id);
   }
 
   @Get('member-statuses')
-  memberStatuses(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope) {
+  memberStatuses(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope) {
     return this.members.memberStatuses(churchId, scope);
   }
 
@@ -116,27 +116,27 @@ export class MembersController {
   }
 
   @Get('ministries')
-  ministries(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope) {
+  ministries(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope) {
     return this.members.ministries(churchId, scope);
   }
 
   @RequirePermissions(Permission.MEMBERS_EDIT)
   @Post('ministries')
-  createMinistry(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Body() dto: MinistryDto) {
+  createMinistry(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Body() dto: MinistryDto) {
     assertWholeChurch(scope);
     return this.members.createMinistry(churchId, dto);
   }
 
   @RequirePermissions(Permission.MEMBERS_EDIT)
   @Patch('ministries/:id')
-  updateMinistry(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Param('id') id: string, @Body() dto: MinistryDto) {
+  updateMinistry(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Param('id') id: string, @Body() dto: MinistryDto) {
     assertWholeChurch(scope);
     return this.members.updateMinistry(churchId, id, dto);
   }
 
   @RequirePermissions(Permission.MEMBERS_EDIT)
   @Delete('ministries/:id')
-  removeMinistry(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope, @Param('id') id: string) {
+  removeMinistry(@ChurchId() churchId: string, @UserCampusScope(CampusAspect.MEMBERS) scope: CampusScope, @Param('id') id: string) {
     assertWholeChurch(scope);
     return this.members.removeMinistry(churchId, id);
   }

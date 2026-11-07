@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Megaphone, Pencil, Pin, Plus, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { CampusBadge, CampusField, CampusFilter, useCanManageCampus } from '@/components/campuses';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
 import { ActionMenu } from '@/components/menu';
@@ -17,12 +18,14 @@ import type { Announcement, Paged } from '@/lib/types';
 export default function AnnouncementsPage() {
   const { me } = useSession();
   const editor = can.content(me);
+  const canManage = useCanManageCampus('ANNOUNCEMENTS');
+  const [campusId, setCampusId] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Announcement | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Announcement | null>(null);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['announcements', page],
-    queryFn: () => api<Paged<Announcement>>('/announcements', { query: { page, pageSize: 10 } }),
+    queryKey: ['announcements', campusId, page],
+    queryFn: () => api<Paged<Announcement>>('/announcements', { query: { campusId, page, pageSize: 10 } }),
   });
   const remove = useAction((id: string) => api(`/announcements/${id}`, { method: 'DELETE' }), {
     success: 'Novedad eliminada',
@@ -43,6 +46,7 @@ export default function AnnouncementsPage() {
           )
         }
       />
+      {editor && <CampusFilter aspect="ANNOUNCEMENTS" value={campusId} onChange={(id) => (setCampusId(id), setPage(1))} noneLabel="Generales" className="mb-4 sm:w-64" />}
       {isLoading ? (
         <Loading />
       ) : error || !data ? (
@@ -69,6 +73,7 @@ export default function AnnouncementsPage() {
                         </Badge>
                       )}
                       {!a.published && <Badge tone="warning">Borrador</Badge>}
+                      <CampusBadge aspect="ANNOUNCEMENTS" campus={a.campus} />
                     </div>
                     <h2 className="mt-1.5 text-lg font-semibold">{a.title}</h2>
                     <p className="mt-0.5 text-xs text-muted">
@@ -76,7 +81,7 @@ export default function AnnouncementsPage() {
                       {a.author && ` · ${fullName(a.author)}`}
                     </p>
                   </div>
-                  {editor && (
+                  {editor && canManage(a.campusId) && (
                     <ActionMenu
                       items={[
                         { label: 'Editar', icon: Pencil, onClick: () => setEditing(a) },
@@ -141,6 +146,7 @@ function AnnouncementForm({ item, onClose }: { item: Announcement | null; onClos
         <Field label="Título">
           <Input name="title" required minLength={2} maxLength={160} defaultValue={item?.title} />
         </Field>
+        <CampusField aspect="ANNOUNCEMENTS" current={item?.campusId} emptyLabel="Toda la iglesia" hint="Si eliges una sede, solo la ven y reciben el aviso quienes pertenecen a ella." />
         <Field label="Contenido">
           <Textarea name="body" required rows={7} defaultValue={item?.body} />
         </Field>

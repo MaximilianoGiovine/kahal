@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ActivityAction, ActivityEntity, Permission, Prisma } from '@prisma/client';
+import { ActivityAction, ActivityEntity, CampusAspect, Permission, Prisma } from '@prisma/client';
 import { ActivityService, changedFields } from '../activity/activity.service';
 import { AuthUser, can } from '../common/auth-user';
+import { assertCampusInScope, audienceWhere, campusToSave } from '../common/campus-scope';
 import { paginate } from '../common/pagination';
 import { StorageService } from '../files/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +11,7 @@ import { renderArticlePdf } from './article-pdf';
 import { ArticleDto, ArticlesQuery } from './articles.dto';
 
 const AUTHOR = { select: { id: true, firstName: true, lastName: true } };
+const CAMPUS = { select: { id: true, name: true } };
 
 export const isArticleEditor = (u: AuthUser) => can(u, Permission.ARTICLES_MANAGE);
 
@@ -21,14 +23,14 @@ export class ArticlesService {
     private readonly activity: ActivityService,
   ) {}
 
-  /** Los miembros solo ven los publicados. */
-  private visible(churchId: string, user: AuthUser): Prisma.ArticleWhereInput {
-    return { churchId, ...(!isArticleEditor(user) && { published: true, publishedAt: { lte: new Date() } }) };
+  /** Los miembros solo ven los publicados, y cada quien lo general más lo de sus sedes. */
+  private visible(churchId: string, user: AuthUser, campusId?: string): Prisma.ArticleWhereInput {
+    return { churchId, ...audienceWhere(user.audiences.ARTICLES, campusId), ...(!isArticleEditor(user) && { published: true, publishedAt: { lte: new Date() } }) };
   }
 
   async list(churchId: string, user: AuthUser, q: ArticlesQuery) {
     const where: Prisma.ArticleWhereInput = {
-      ...this.visible(churchId, user),
+      ...this.visible(churchId, user, q.campusId),
       ...(q.q && {
         OR: [{ title: { contains: q.q, mode: 'insensitive' } }, { summary: { contains: q.q, mode: 'insensitive' } }],
       }),
@@ -36,7 +38,7 @@ export class ArticlesService {
     const [items, total] = await Promise.all([
       this.prisma.article.findMany({
         where,
-        select: { id: true, title: true, summary: true, coverKey: true, published: true, publishedAt: true, updatedAt: true, author: AUTHOR },
+        select: { id: true, title: true, summary: true, coverKey: true, published: true, publishedAt: true, updatedAt: true, author: AUTHOR, campusId: true, campus: CAMPUS },
         orderBy: { publishedAt: 'desc' },
         ...paginate(q),
       }),
@@ -46,36 +48,39 @@ export class ArticlesService {
   }
 
   async get(churchId: string, user: AuthUser, id: string) {
-    const article = await this.prisma.article.findFirst({ where: { ...this.visible(churchId, user), id }, include: { author: AUTHOR } });
+    const article = await this.prisma.article.findFirst({ where: { ...this.visible(churchId, user), id }, include: { author: AUTHOR, campus: CAMPUS } });
     if (!article) throw new NotFoundException('Artículo no encontrado');
     return article;
   }
 
-  async create(churchId: string, userId: string, dto: ArticleDto) {
+  async create(churchId: string, user: AuthUser, dto: ArticleDto) {
+    const campusId = await campusToSave(this.prisma, churchId, user, CampusAspect.ARTICLES, dto.campusId);
     const article = await this.prisma.article.create({
-      data: { ...dto, body: this.cleanBody(dto.body), churchId, authorId: userId },
-      include: { author: AUTHOR },
+      data: { ...dto, campusId, body: this.cleanBody(dto.body), churchId, authorId: user.id },
+      include: { author: AUTHOR, campus: CAMPUS },
     });
-    await this.track(churchId, userId, ActivityAction.CREATE, article);
+    await this.track(churchId, user.id, ActivityAction.CREATE, article);
     return article;
   }
 
-  async update(churchId: string, userId: string, id: string, dto: ArticleDto) {
+  async update(churchId: string, user: AuthUser, id: string, dto: ArticleDto) {
     const current = await this.prisma.article.findFirst({ where: { id, churchId } });
     if (!current) throw new NotFoundException('Artículo no encontrado');
-    const data = { ...dto, body: this.cleanBody(dto.body) };
+    const campusId = await campusToSave(this.prisma, churchId, user, CampusAspect.ARTICLES, dto.campusId, current);
+    const data = { ...dto, campusId, body: this.cleanBody(dto.body) };
     // Al publicar un borrador, la fecha de publicación pasa a ser ahora.
     const publishedAt = dto.published && !current.published ? new Date() : undefined;
-    const article = await this.prisma.article.update({ where: { id }, data: { ...data, publishedAt }, include: { author: AUTHOR } });
-    await this.track(churchId, userId, ActivityAction.UPDATE, article, changedFields(current, data));
+    const article = await this.prisma.article.update({ where: { id }, data: { ...data, publishedAt }, include: { author: AUTHOR, campus: CAMPUS } });
+    await this.track(churchId, user.id, ActivityAction.UPDATE, article, changedFields(current, data));
     return article;
   }
 
-  async remove(churchId: string, userId: string, id: string) {
+  async remove(churchId: string, user: AuthUser, id: string) {
     const current = await this.prisma.article.findFirst({ where: { id, churchId } });
     if (!current) throw new NotFoundException('Artículo no encontrado');
+    assertCampusInScope(user.campusScopes.ARTICLES, current.campusId);
     await this.prisma.article.delete({ where: { id } });
-    await this.track(churchId, userId, ActivityAction.DELETE, current);
+    await this.track(churchId, user.id, ActivityAction.DELETE, current);
     return { ok: true };
   }
 

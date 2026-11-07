@@ -72,12 +72,12 @@ export class FilesController {
       if (kind === 'receipt' && !can(user, Permission.FINANCE_VIEW)) {
         throw new ForbiddenException();
       }
-      if (kind === 'receipt' && user.campusScope) {
+      if (kind === 'receipt' && user.campusScopes.FINANCE) {
         // Con acceso limitado no alcanza con conocer la URL: el comprobante debe ser de un movimiento de sus sedes.
         // Uno recién subido todavía no tiene movimiento y solo lo conoce quien lo subió.
         const receiptKey = `${churchId}/receipt/${name}`;
         const linked = await this.prisma.transaction.findMany({ where: { churchId, receiptKey }, select: { account: { select: { campusId: true } } } });
-        const allowed = campusFilter(user.campusScope) as { in: string[] };
+        const allowed = campusFilter(user.campusScopes.FINANCE) as { in: string[] };
         if (linked.length && !linked.some((t) => t.account.campusId && allowed.in.includes(t.account.campusId))) {
           throw new ForbiddenException();
         }

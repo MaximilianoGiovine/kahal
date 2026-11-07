@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppointmentStatus, Permission, Prisma } from '@prisma/client';
 import { AuthUser, can } from '../common/auth-user';
-import { campusFilter, campusSql } from '../common/campus-scope';
+import { audienceWhere, campusFilter, campusSql } from '../common/campus-scope';
 import { ChurchId, CurrentUser } from '../common/decorators';
 import { todayIn } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,12 +20,12 @@ export class DashboardController {
 
     const [announcements, events, live, myAppointments] = await Promise.all([
       this.prisma.announcement.findMany({
-        where: { churchId, published: true, publishedAt: { lte: now } },
+        where: { churchId, ...audienceWhere(user.audiences.ANNOUNCEMENTS), published: true, publishedAt: { lte: now } },
         orderBy: [{ pinned: 'desc' }, { publishedAt: 'desc' }],
         take: 3,
       }),
-      this.prisma.event.findMany({ where: { churchId, startsAt: { gte: now } }, orderBy: { startsAt: 'asc' }, take: 5 }),
-      this.prisma.liveStream.findFirst({ where: { churchId, isLive: true } }),
+      this.prisma.event.findMany({ where: { churchId, ...audienceWhere(user.audiences.EVENTS), startsAt: { gte: now } }, orderBy: { startsAt: 'asc' }, take: 5 }),
+      this.prisma.liveStream.findFirst({ where: { churchId, ...audienceWhere(user.audiences.STREAMS), isLive: true }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.appointment.findMany({
         where: { churchId, requesterId: user.id, endsAt: { gte: now }, status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] } },
         include: { host: { select: { firstName: true, lastName: true } } },
@@ -36,7 +36,7 @@ export class DashboardController {
 
     const result: Record<string, unknown> = { announcements, events, live, myAppointments };
 
-    const campusId = campusFilter(user.campusScope);
+    const campusId = campusFilter(user.campusScopes.MEMBERS);
     if (can(user, Permission.MEMBERS_VIEW)) {
       const [members, newMembers] = await Promise.all([
         this.prisma.member.count({ where: { churchId, campusId, statuses: { none: { status: { inactive: true } } } } }),
@@ -49,7 +49,7 @@ export class DashboardController {
       const rows = await this.prisma.$queryRaw<{ currency: string; type: string; total: Prisma.Decimal }[]>`
         SELECT a."currency", t."type", SUM(t."amount") AS total
         FROM "Transaction" t JOIN "FinanceAccount" a ON a."id" = t."accountId"
-        WHERE t."churchId" = ${churchId} AND t."date" >= ${monthStart} ${campusSql(user.campusScope)}
+        WHERE t."churchId" = ${churchId} AND t."date" >= ${monthStart} ${campusSql(user.campusScopes.FINANCE)}
         GROUP BY 1, 2`;
       result.finance = { month: today.slice(0, 7), rows };
     }

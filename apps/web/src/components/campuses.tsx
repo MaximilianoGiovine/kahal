@@ -1,10 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Checkbox, Field, Select } from '@/components/ui';
+import { Badge, Checkbox, Field, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import type { CampusList } from '@/lib/types';
+import type { CampusAspect, CampusList, CampusRef } from '@/lib/types';
 
 /** Valor de los filtros para lo que no tiene sede (igual que en la API). */
 export const NO_CAMPUS = 'none';
@@ -13,33 +13,53 @@ export function useCampuses() {
   return useQuery({ queryKey: ['campuses'], queryFn: () => api<CampusList>('/campuses'), staleTime: 60_000 });
 }
 
-/** Filtro por sede. No aparece si las sedes están apagadas, ni si solo hay una para elegir. */
-export function CampusFilter({ value, onChange, noneLabel, className }: { value: string; onChange: (id: string) => void; noneLabel: string; className?: string }) {
+/** La sede de cada persona importa si algo se separa además de las finanzas, que dependen de la cuenta. */
+function aspectInUse(data: CampusList | undefined, aspect: CampusAspect) {
+  if (!data?.enabled) return false;
+  return aspect === 'MEMBERS' ? data.separated.some((a) => a !== 'FINANCE') : data.separated.includes(aspect);
+}
+
+/** Si el área se maneja por sede: con esta iglesia, ¿corresponde mostrar sedes ahí? */
+export function useCampusAspect(aspect: CampusAspect) {
+  return aspectInUse(useCampuses().data, aspect);
+}
+
+/** Si el usuario puede cambiar algo de esa sede. Lo general es solo para quien gestiona toda la iglesia. */
+export function useCanManageCampus(aspect: CampusAspect) {
+  const { me } = useSession();
+  const scope = me.campusScopes[aspect];
+  return (campusId: string | null) => scope === null || (!!campusId && scope.includes(campusId));
+}
+
+/** Filtro por sede. No aparece si el área es compartida, ni si solo hay una sede para elegir. */
+export function CampusFilter({ aspect, value, onChange, noneLabel, className }: { aspect: CampusAspect; value: string; onChange: (id: string) => void; noneLabel: string; className?: string }) {
   const { me } = useSession();
   const { data } = useCampuses();
-  const wholeChurch = me.campusScope === null;
-  if (!data?.enabled || (!wholeChurch && data.items.length < 2)) return null;
+  const scope = me.campusScopes[aspect];
+  const items = (data?.items ?? []).filter((c) => scope === null || scope.includes(c.id));
+  if (!aspectInUse(data, aspect) || (scope !== null && items.length < 2)) return null;
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Sede" className={className}>
-      <option value="">{wholeChurch ? 'Todas las sedes' : 'Mis sedes'}</option>
-      {data.items.map((c) => (
+      <option value="">{scope === null ? 'Todas las sedes' : 'Mis sedes'}</option>
+      {items.map((c) => (
         <option key={c.id} value={c.id}>
           {c.name}
           {c.active ? '' : ' (archivada)'}
         </option>
       ))}
-      {wholeChurch && <option value={NO_CAMPUS}>{noneLabel}</option>}
+      {scope === null && <option value={NO_CAMPUS}>{noneLabel}</option>}
     </Select>
   );
 }
 
 /** Campo de sede para formularios. Quien está limitado a ciertas sedes no puede dejarlo vacío. */
-export function CampusField({ current, emptyLabel, hint, className }: { current?: string | null; emptyLabel: string; hint?: string; className?: string }) {
+export function CampusField({ aspect, current, emptyLabel, hint, className }: { aspect: CampusAspect; current?: string | null; emptyLabel: string; hint?: string; className?: string }) {
   const { me } = useSession();
   const { data } = useCampuses();
-  if (!data?.enabled) return null;
-  const options = data.items.filter((c) => c.active || c.id === current);
-  const wholeChurch = me.campusScope === null;
+  if (!aspectInUse(data, aspect)) return null;
+  const scope = me.campusScopes[aspect];
+  const options = data!.items.filter((c) => (c.active && (scope === null || scope.includes(c.id))) || c.id === current);
+  const wholeChurch = scope === null;
   const initial = current ?? (!wholeChurch && options.length === 1 ? options[0].id : '');
   return (
     <Field label="Sede" hint={hint} className={className}>
@@ -57,7 +77,14 @@ export function CampusField({ current, emptyLabel, hint, className }: { current?
   );
 }
 
-/** Limita lo que un usuario ve de miembros y finanzas. */
+/** Etiqueta de lo publicado para una sede. Lo general no la lleva. */
+export function CampusBadge({ aspect, campus }: { aspect: CampusAspect; campus?: CampusRef | null }) {
+  const inUse = useCampusAspect(aspect);
+  if (!inUse || !campus) return null;
+  return <Badge>{campus.name}</Badge>;
+}
+
+/** Limita al usuario, en lo que la iglesia separa por sede. */
 export function CampusAccessPicker({
   restricted,
   campusIds,
@@ -79,7 +106,7 @@ export function CampusAccessPicker({
           <>
             <span className="font-medium">Limitar a ciertas sedes</span>
             <span className="block text-xs text-muted">
-              Solo verá los miembros y las finanzas de esas sedes, y pierde lo que afecta a toda la iglesia: datos de la iglesia, usuarios, roles y estados. No aplica al rol de administración.
+              En lo que la iglesia separa por sede, solo opera sobre esas sedes; lo compartido lo sigue viendo completo. Pierde lo que afecta a toda la iglesia: datos de la iglesia, usuarios, roles, estados y registro de actividad. No aplica al rol de administración.
             </span>
           </>
         }

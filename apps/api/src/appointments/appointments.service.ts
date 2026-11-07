@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AppointmentStatus, Permission, Prisma, UserStatus } from '@prisma/client';
 import { AuthUser, can } from '../common/auth-user';
+import { assertCampusInScope, campusFilter, hostAudienceWhere } from '../common/campus-scope';
 import { APPOINTMENT_STATUS_LABEL } from '../common/labels';
 import { addDays, minutesToTime, timeToMinutes, todayIn, weekdayOf, zonedToUtc } from '../common/time';
 import { LOCALE } from '../common/locale';
@@ -59,10 +60,10 @@ export class AppointmentsService {
 
   // Turnos libres
 
-  async slots(churchId: string, q: SlotsQuery) {
+  async slots(churchId: string, user: AuthUser, q: SlotsQuery) {
     const [church, host] = await Promise.all([
       this.prisma.church.findUniqueOrThrow({ where: { id: churchId } }),
-      this.prisma.user.findFirst({ where: { id: q.hostId, churchId, status: UserStatus.ACTIVE }, include: { availability: true } }),
+      this.prisma.user.findFirst({ where: { id: q.hostId, churchId, status: UserStatus.ACTIVE, ...hostAudienceWhere(user.audiences.APPOINTMENTS) }, include: { availability: true } }),
     ]);
     if (!host) throw new NotFoundException('Pastor o líder no encontrado');
 
@@ -104,7 +105,7 @@ export class AppointmentsService {
     const day = new Intl.DateTimeFormat('en-CA', {
       timeZone: (await this.prisma.church.findUniqueOrThrow({ where: { id: churchId } })).timezone,
     }).format(startsAt);
-    const { days } = await this.slots(churchId, { hostId: dto.hostId, from: day, days: 1 });
+    const { days } = await this.slots(churchId, user, { hostId: dto.hostId, from: day, days: 1 });
     const slot = days[0]?.slots.find((s) => s.startsAt === startsAt.toISOString());
     if (!slot) throw new ConflictException('El horario ya no está disponible');
 
@@ -158,6 +159,7 @@ export class AppointmentsService {
       where: {
         churchId,
         status: q.status,
+        ...(scope === 'all' && this.hostCampus(user, q.campusId)),
         ...(scope === 'mine' && { requesterId: user.id }),
         ...(scope === 'hosting' && { hostId: user.id }),
         ...(q.when === 'upcoming' && { endsAt: { gte: now } }),
@@ -172,11 +174,11 @@ export class AppointmentsService {
   async updateStatus(churchId: string, user: AuthUser, id: string, dto: UpdateStatusDto) {
     const appt = await this.prisma.appointment.findFirst({
       where: { id, churchId },
-      include: { host: PERSON, requester: PERSON, church: { select: { name: true, timezone: true } } },
+      include: { host: { select: { ...PERSON.select, member: { select: { campusId: true } } } }, requester: PERSON, church: { select: { name: true, timezone: true } } },
     });
     if (!appt) throw new NotFoundException('Cita no encontrada');
 
-    const isHost = appt.hostId === user.id || can(user, Permission.APPOINTMENTS_ALL);
+    const isHost = appt.hostId === user.id || (can(user, Permission.APPOINTMENTS_ALL) && this.managesHost(user, appt.host.member?.campusId ?? null));
     const isRequester = appt.requesterId === user.id;
     if (!isHost && !(isRequester && dto.status === AppointmentStatus.CANCELLED)) {
       throw new ForbiddenException('No puedes realizar esta acción sobre la cita');
@@ -237,6 +239,23 @@ export class AppointmentsService {
       });
     }
     if (due.length) this.logger.log(`Recordatorios enviados: ${due.length}`);
+  }
+
+  /** Con el permiso de ver todas, quien está limitado solo alcanza a las citas de los líderes de sus sedes. */
+  private hostCampus(user: AuthUser, requested?: string): Prisma.AppointmentWhereInput {
+    const filter = campusFilter(user.campusScopes.APPOINTMENTS, requested);
+    if (filter === undefined) return {};
+    if (filter === null) return { host: { OR: [{ member: { is: null } }, { member: { campusId: null } }] } };
+    return { host: { member: { campusId: filter } } };
+  }
+
+  private managesHost(user: AuthUser, campusId: string | null) {
+    try {
+      assertCampusInScope(user.campusScopes.APPOINTMENTS, campusId);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private formatWhen(date: Date, timeZone: string) {

@@ -1,8 +1,11 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { CampusAspect, Prisma, PrismaClient } from '@prisma/client';
 
 /** Sedes visibles para la request. `null`: toda la iglesia. Lista vacía: ninguna. */
 export type CampusScope = readonly string[] | null;
+
+/** Áreas donde lo publicado es general o de una sede, y cada persona ve lo que le corresponde. */
+export type ContentAspect = Exclude<CampusAspect, 'MEMBERS' | 'FINANCE'>;
 
 /** Valor de los filtros para pedir lo que no tiene sede. */
 export const NO_CAMPUS = 'none';
@@ -62,4 +65,52 @@ export async function assertAssignableCampus(
   });
   if (!campus) throw new BadRequestException('Sede inválida');
   if (!campus.active) throw new BadRequestException('Esa sede está archivada');
+}
+
+type CampusSettings = { campusesEnabled: boolean; campusSeparated: CampusAspect[] };
+
+export const separates = (church: CampusSettings, aspect: CampusAspect) => church.campusesEnabled && church.campusSeparated.includes(aspect);
+
+/** La sede de cada persona importa si algo se separa además de las finanzas, que dependen de la cuenta. */
+export const usesMemberCampus = (church: CampusSettings) => church.campusesEnabled && church.campusSeparated.some((a) => a !== CampusAspect.FINANCE);
+
+/**
+ * Lo publicado que ve cada quien: lo general más lo de sus sedes.
+ * Va dentro de `AND` para que nunca lo pise otro `OR` de la consulta.
+ */
+export function audienceWhere(audience: CampusScope, requested?: string): { AND?: { campusId?: string | null; OR?: { campusId: string | null | { in: string[] } }[] }[] } {
+  if (requested === NO_CAMPUS) return { AND: [{ campusId: null }] };
+  if (requested) {
+    if (audience && !audience.includes(requested)) throw new ForbiddenException(OUT_OF_SCOPE);
+    return { AND: [{ campusId: requested }] };
+  }
+  return audience ? { AND: [{ OR: [{ campusId: null }, { campusId: { in: [...audience] } }] }] } : {};
+}
+
+/** Pastores y líderes que puede elegir cada quien. La sede de un líder es la de su ficha; sin sede atiende a toda la iglesia. */
+export function hostAudienceWhere(audience: CampusScope): Prisma.UserWhereInput {
+  if (!audience) return {};
+  return { AND: [{ OR: [{ member: { is: null } }, { member: { campusId: null } }, { member: { campusId: { in: [...audience] } } }] }] };
+}
+
+/**
+ * Sede con la que se guarda una publicación. `undefined` en una edición: no se toca.
+ * Si el área es compartida se ignora lo pedido: al volver a separarla, cada cosa sigue en su sede.
+ */
+export async function campusToSave(
+  db: Pick<PrismaClient, 'campus'>,
+  churchId: string,
+  user: { campusSeparated: CampusAspect[]; campusScopes: Record<CampusAspect, CampusScope> },
+  aspect: ContentAspect,
+  requested: string | null | undefined,
+  current?: { campusId: string | null },
+): Promise<string | null | undefined> {
+  const scope = user.campusScopes[aspect];
+  if (current) assertCampusInScope(scope, current.campusId);
+  if (!user.campusSeparated.includes(aspect)) return current ? undefined : null;
+  if (current && (requested === undefined || requested === current.campusId)) return undefined;
+  const campusId = current ? (requested as string | null) : campusForNew(scope, requested);
+  assertCampusInScope(scope, campusId);
+  await assertAssignableCampus(db, churchId, campusId, current?.campusId);
+  return campusId;
 }

@@ -9,10 +9,20 @@ import { Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Fiel
 import { api } from '@/lib/api';
 import { number } from '@/lib/format';
 import { formValues, useAction } from '@/lib/hooks';
-import type { CampusManage, CampusRow } from '@/lib/types';
+import type { CampusAspect, CampusManage, CampusRow } from '@/lib/types';
 
 /** Todo lo que muestra sedes o depende de a cuál pertenece cada cosa. */
-const INVALIDATE = [['campuses'], ['members'], ['member'], ['finance'], ['users'], ['dashboard']];
+const INVALIDATE = [['me'], ['campuses'], ['members'], ['member'], ['finance'], ['users'], ['dashboard'], ['announcements'], ['events'], ['articles'], ['article'], ['streams'], ['appointments'], ['hosts'], ['slots']];
+
+const ASPECTS: { value: CampusAspect; label: string; help: string }[] = [
+  { value: 'MEMBERS', label: 'Miembros', help: 'Cada sede tiene su padrón. Si lo compartes, todos los responsables ven a todos los miembros.' },
+  { value: 'FINANCE', label: 'Finanzas', help: 'Cada sede tiene sus cuentas, movimientos y reportes.' },
+  { value: 'ANNOUNCEMENTS', label: 'Novedades', help: 'Se publican para toda la iglesia o para una sede, y solo se avisa a quienes corresponde.' },
+  { value: 'EVENTS', label: 'Eventos', help: 'La agenda muestra lo general y lo de la sede de cada persona.' },
+  { value: 'ARTICLES', label: 'Artículos', help: 'Cada persona lee lo general y lo de su sede.' },
+  { value: 'STREAMS', label: 'En vivo', help: 'Cada sede puede transmitir al mismo tiempo que las demás.' },
+  { value: 'APPOINTMENTS', label: 'Citas', help: 'Cada persona agenda con los líderes de su sede y con quienes no tienen sede.' },
+];
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${number(n)} ${many}`);
 
@@ -21,10 +31,16 @@ export function CampusSettings() {
   const [editing, setEditing] = useState<CampusRow | 'new' | null>(null);
   const [deleting, setDeleting] = useState<CampusRow | null>(null);
   const [assigning, setAssigning] = useState<CampusRow | null>(null);
+  const [sharing, setSharing] = useState<CampusAspect | null>(null);
 
   const toggle = useAction((enabled: boolean) => api('/campuses/settings', { method: 'PUT', body: { enabled } }), {
     success: 'Configuración guardada',
     invalidate: INVALIDATE,
+  });
+  const setSeparated = useAction((separated: CampusAspect[]) => api('/campuses/settings', { method: 'PUT', body: { separated } }), {
+    success: 'Configuración guardada',
+    invalidate: INVALIDATE,
+    onSuccess: () => setSharing(null),
   });
   const archive = useAction(({ id, name, city, address, phone, active }: CampusRow) => api(`/campuses/${id}`, { method: 'PATCH', body: { name, city, address, phone, active: !active } }), {
     success: 'Sede actualizada',
@@ -44,10 +60,14 @@ export function CampusSettings() {
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
 
+  const share = (aspect: CampusAspect) => setSeparated.mutate(data.separated.filter((a) => a !== aspect));
+  const usesMemberCampus = data.separated.some((a) => a !== 'FINANCE');
+  const contentSeparated = data.separated.some((a) => a !== 'FINANCE' && a !== 'MEMBERS');
+
   return (
     <div className="max-w-4xl space-y-6">
       <Card>
-        <CardHeader title="Sedes de la iglesia" description="Para una iglesia con más de un lugar de reunión: separa miembros y finanzas por sede, y limita lo que ve cada responsable." />
+        <CardHeader title="Sedes de la iglesia" description="Para una iglesia con más de un lugar de reunión: elige qué maneja cada sede por separado y limita lo que ve cada responsable." />
         <div className="p-5">
           <Checkbox
             checked={data.enabled}
@@ -71,6 +91,35 @@ export function CampusSettings() {
 
       {data.enabled && (
         <Card>
+          <CardHeader title="Qué separa cada sede" description="Lo que marques se maneja por sede. Lo demás lo comparte toda la iglesia. Puedes cambiarlo cuando quieras: no se borra nada." />
+          <div className="grid gap-3 p-5 sm:grid-cols-2">
+            {ASPECTS.map((a) => {
+              const checked = data.separated.includes(a.value);
+              return (
+                <Checkbox
+                  key={a.value}
+                  checked={checked}
+                  disabled={setSeparated.isPending}
+                  onChange={() => {
+                    if (!checked) setSeparated.mutate([...data.separated, a.value]);
+                    else if (data.restrictedUsers > 0) setSharing(a.value);
+                    else share(a.value);
+                  }}
+                  label={
+                    <>
+                      <span className="font-medium">{a.label}</span>
+                      <span className="block text-xs text-muted">{a.help}</span>
+                    </>
+                  }
+                />
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {data.enabled && (
+        <Card>
           <CardHeader
             title="Sedes"
             action={
@@ -84,7 +133,7 @@ export function CampusSettings() {
           ) : (
             <ul className="divide-y divide-border">
               {data.items.map((c) => {
-                const used = c._count.members + c._count.accounts + c._count.userAccess > 0;
+                const used = Object.values(c._count).some((n) => n > 0);
                 return (
                   <li key={c.id} className="flex items-start gap-3 px-5 py-4">
                     <div className="min-w-0 flex-1">
@@ -110,7 +159,9 @@ export function CampusSettings() {
             </ul>
           )}
           <p className="border-t border-border bg-surface-2/40 px-5 py-3 text-xs text-muted">
-            {plural(data.unassignedMembers, 'miembro sin sede', 'miembros sin sede')}. Las categorías, familias, ministerios y estados son comunes a toda la iglesia. Para separar el dinero, asigna cada cuenta a su sede en Finanzas; a quién limitar se elige en la pestaña Usuarios.
+            {usesMemberCampus && `${plural(data.unassignedMembers, 'miembro sin sede', 'miembros sin sede')}${contentSeparated ? ': solo ven lo general' : ''}. `}
+            Las categorías, familias, ministerios y estados son comunes a toda la iglesia.
+            {data.separated.includes('FINANCE') && ' Para separar el dinero, asigna cada cuenta a su sede en Finanzas.'} A quién limitar se elige en la pestaña Usuarios.
           </p>
         </Card>
       )}
@@ -125,6 +176,15 @@ export function CampusSettings() {
         title="Eliminar sede"
         message={`¿Eliminar "${deleting?.name}"?`}
         confirmLabel="Eliminar"
+      />
+      <ConfirmDialog
+        open={!!sharing}
+        onClose={() => setSharing(null)}
+        onConfirm={() => sharing && share(sharing)}
+        loading={setSeparated.isPending}
+        title="Compartir con toda la iglesia"
+        message={`Hay ${plural(data.restrictedUsers, 'usuario limitado', 'usuarios limitados')} a ciertas sedes. Al compartir ${ASPECTS.find((a) => a.value === sharing)?.label.toLowerCase()}, con los permisos de su rol pasan a ver y cambiar lo de todas las sedes.`}
+        confirmLabel="Compartir"
       />
       <ConfirmDialog
         open={!!assigning}

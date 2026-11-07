@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Pencil, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { CampusField } from '@/components/campuses';
+import { CampusField, useCampusAspect } from '@/components/campuses';
 import { CurrencyOptions } from '@/components/currency-options';
 import { Dialog } from '@/components/dialog';
 import { useFinanceCampus } from '@/components/finance/finance-campus';
@@ -17,7 +17,8 @@ import type { Account, Category, TxType } from '@/lib/types';
 export default function FinanceSettingsPage() {
   const { me } = useSession();
   // Las categorías son comunes a todas las sedes: solo las cambia quien gestiona toda la iglesia.
-  const editCategories = me.campusScope === null;
+  const editCategories = me.campusScopes.FINANCE === null;
+  const showCampus = useCampusAspect('FINANCE');
   const { campusId } = useFinanceCampus();
   const accounts = useQuery({ queryKey: ['finance', 'accounts', campusId], queryFn: () => api<Account[]>('/finance/accounts', { query: { campusId } }) });
   const categories = useQuery({ queryKey: ['finance', 'categories'], queryFn: () => api<Category[]>('/finance/categories') });
@@ -47,7 +48,7 @@ export default function FinanceSettingsPage() {
                   {a.name} {!a.active && <Badge className="ml-1">Inactiva</Badge>}
                 </p>
                 <p className="text-xs text-muted">
-                  {a.campus ? `${a.campus.name} · ` : ''}
+                  {showCampus && a.campus ? `${a.campus.name} · ` : ''}
                   {a.currency} · Saldo inicial {money(a.initialBalance, a.currency)}
                 </p>
               </div>
@@ -142,7 +143,7 @@ function AccountForm({ item, onClose }: { item: Account | null; onClose: () => v
             <Input name="initialBalance" inputMode="decimal" pattern="^-?\d+([.,]\d{1,2})?$" defaultValue={item?.initialBalance ?? '0'} />
           </Field>
         </div>
-        <CampusField current={item?.campusId} emptyLabel="General (toda la iglesia)" hint="Sus movimientos cuentan para esta sede. Si la cambias, el historial de la cuenta pasa con ella." />
+        <CampusField aspect="FINANCE" current={item?.campusId} emptyLabel="General (toda la iglesia)" hint="Sus movimientos cuentan para esta sede. Si la cambias, el historial de la cuenta pasa con ella." />
         {item && <Checkbox name="active" label="Cuenta activa" defaultChecked={item.active} />}
       </form>
     </Dialog>

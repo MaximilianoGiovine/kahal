@@ -130,7 +130,7 @@ describe('sedes', () => {
 
   describe('con la opción apagada', () => {
     it('la iglesia funciona como siempre y no acepta sedes', async () => {
-      assert.deepEqual((await admin.get('/campuses')).body, { enabled: false, items: [] });
+      assert.deepEqual((await admin.get('/campuses')).body, { enabled: false, separated: [], items: [] });
       const public_ = await client('x').get(`/public/churches/a-${tag}`);
       assert.deepEqual(public_.body.campuses, []);
       const created = await admin.post('/members', { firstName: 'Sin', lastName: 'Sede' });
@@ -157,7 +157,7 @@ describe('sedes', () => {
     });
 
     it('se activa y se crean sedes con nombres únicos', async () => {
-      assert.deepEqual((await admin.put('/campuses/settings', { enabled: true })).body, { enabled: true });
+      assert.deepEqual((await admin.put('/campuses/settings', { enabled: true })).body, { enabled: true, separated: ['MEMBERS', 'FINANCE'] });
       norte = (await admin.post('/campuses', { name: 'Norte', city: 'Córdoba' })).body.id;
       sur = (await admin.post('/campuses', { name: 'Sur' })).body.id;
       assert.ok(norte && sur);
@@ -301,7 +301,8 @@ describe('sedes', () => {
 
     it('pierde los permisos sobre toda la iglesia', async () => {
       const me = (await norteStaff.get('/auth/me')).body;
-      assert.deepEqual(me.campusScope, [norte]);
+      assert.deepEqual(me.campusScopes.MEMBERS, [norte]);
+      assert.deepEqual(me.campusScopes.FINANCE, [norte]);
       for (const p of ['USERS_VIEW', 'USERS_MANAGE', 'ROLES_MANAGE', 'CHURCH_SETTINGS', 'MEMBER_STATUSES_MANAGE']) assert.ok(!me.permissions.includes(p), p);
       assert.equal((await norteStaff.get('/users')).status, 403);
       assert.equal((await norteStaff.patch(`/users/${norteStaffId}`, { campusRestricted: false })).status, 403, 'no puede quitarse el límite');
@@ -315,8 +316,10 @@ describe('sedes', () => {
       assert.equal((await norteStaff.post('/member-statuses', { name: 'Hack' })).status, 403);
     });
 
-    it('solo ve sus sedes en los selectores', async () => {
-      assert.deepEqual(ids((await norteStaff.get('/campuses')).body.items), [norte]);
+    it('en sus áreas limitadas solo opera sobre sus sedes', async () => {
+      const { campusScopes } = (await norteStaff.get('/auth/me')).body;
+      assert.deepEqual(campusScopes.FINANCE, [norte]);
+      assert.equal((await norteStaff.get(`/members?campusId=${sur}`)).status, 403);
     });
 
     it('miembros de otra sede o sin sede son inaccesibles', async () => {
@@ -456,7 +459,7 @@ describe('sedes', () => {
       assert.equal((await norteStaff.get('/finance/transactions')).body.total, 0);
       assert.deepEqual((await norteStaff.get('/finance/summary')).body.monthly, []);
       assert.equal((await norteStaff.get('/dashboard')).body.finance.rows.length, 0);
-      assert.deepEqual((await norteStaff.get('/campuses')).body.items, []);
+      assert.deepEqual((await norteStaff.get('/auth/me')).body.campusScopes.MEMBERS, []);
       assert.equal((await norteStaff.post('/members', { firstName: 'X', lastName: 'Y' })).status, 403);
       await db.userCampus.create({ data: { userId: norteStaffId, campusId: norte } });
     });
@@ -518,7 +521,7 @@ describe('sedes', () => {
       const res = await admin.patch(`/users/${norteStaffId}`, { campusRestricted: false });
       assert.equal(res.status, 200, JSON.stringify(res.body));
       assert.deepEqual(res.body.campuses, []);
-      assert.equal((await norteStaff.get('/auth/me')).body.campusScope, null);
+      assert.equal((await norteStaff.get('/auth/me')).body.campusScopes.MEMBERS, null);
       assert.equal((await norteStaff.get(`/members?q=P${tag}`)).body.total, 3);
       assert.equal((await admin.put('/campuses/settings', { enabled: false })).status, 200);
       assert.equal((await admin.get('/campuses')).body.enabled, false);

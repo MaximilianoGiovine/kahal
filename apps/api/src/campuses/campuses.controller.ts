@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { Permission } from '@prisma/client';
-import { CampusScope } from '../common/campus-scope';
-import { ChurchId, RequirePermissions, UserCampusScope } from '../common/decorators';
+import { AuthUser } from '../common/auth-user';
+import { ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
 import { CampusDto, CampusSettingsDto } from './campuses.dto';
 import { CampusesService } from './campuses.service';
 
@@ -10,8 +10,8 @@ export class CampusesController {
   constructor(private readonly campuses: CampusesService) {}
 
   @Get()
-  list(@ChurchId() churchId: string, @UserCampusScope() scope: CampusScope) {
-    return this.campuses.list(churchId, scope);
+  list(@ChurchId() churchId: string, @CurrentUser() user: AuthUser) {
+    return this.campuses.list(churchId, user);
   }
 
   @RequirePermissions(Permission.CHURCH_SETTINGS)
@@ -22,8 +22,8 @@ export class CampusesController {
 
   @RequirePermissions(Permission.CHURCH_SETTINGS)
   @Put('settings')
-  setEnabled(@ChurchId() churchId: string, @Body() dto: CampusSettingsDto) {
-    return this.campuses.setEnabled(churchId, dto.enabled);
+  settings(@ChurchId() churchId: string, @Body() dto: CampusSettingsDto) {
+    return this.campuses.settings(churchId, dto);
   }
 
   @RequirePermissions(Permission.CHURCH_SETTINGS)

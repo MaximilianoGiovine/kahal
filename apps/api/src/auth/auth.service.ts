@@ -195,7 +195,7 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException();
     const { passwordHash, ...rest } = user;
-    return { ...rest, hasPassword: !!passwordHash, permissions: auth.permissions, campusScope: auth.campusScope };
+    return { ...rest, hasPassword: !!passwordHash, permissions: auth.permissions, campusScopes: auth.campusScopes };
   }
 
   /** Nunca deja una cuenta sin ninguna forma de ingresar. */

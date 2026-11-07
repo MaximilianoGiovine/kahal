@@ -21,8 +21,8 @@ export class AppointmentsController {
   }
 
   @Get('slots')
-  slots(@ChurchId() churchId: string, @Query() q: SlotsQuery) {
-    return this.appointments.slots(churchId, q);
+  slots(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Query() q: SlotsQuery) {
+    return this.appointments.slots(churchId, user, q);
   }
 
   @Get()

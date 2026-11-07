@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Download, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
+import { useCampusAspect } from '@/components/campuses';
 import { DeleteConfirm } from '@/components/delete-confirm';
 import { PushSettings } from '@/components/push-settings';
 import { ConnectedAccounts } from '@/components/social-auth';
@@ -20,6 +21,7 @@ interface InstallPrompt extends Event {
 
 export default function ProfilePage() {
   const { me, church } = useSession();
+  const showCampus = useCampusAspect('MEMBERS');
   const qc = useQueryClient();
   const [install, setInstall] = useState<InstallPrompt | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -85,7 +87,7 @@ export default function ProfilePage() {
             <Field label="Email">
               <Input value={me.email} disabled />
             </Field>
-            {m?.campus && (
+            {showCampus && m?.campus && (
               <Field label="Sede" hint="Si cambiaste de sede, avísale a tu iglesia.">
                 <Input value={m.campus.name} disabled />
               </Field>

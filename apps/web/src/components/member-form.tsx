@@ -78,7 +78,7 @@ export function MemberForm({ member, onClose, onSaved }: { member: Member | null
         <Field label="Teléfono">
           <Input name="phone" type="tel" defaultValue={member?.phone ?? ''} />
         </Field>
-        <CampusField current={member?.campusId} emptyLabel="Sin sede" className="sm:col-span-2" />
+        <CampusField aspect="MEMBERS" current={member?.campusId} emptyLabel="Sin sede" className="sm:col-span-2" />
         <Field label="Número de documento">
           <Input name="documentId" defaultValue={member?.documentId ?? ''} />
         </Field>

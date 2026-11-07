@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Currency, Prisma } from '@prisma/client';
-import { CampusScope, NO_CAMPUS } from '../common/campus-scope';
+import { CampusAspect, Currency, Prisma } from '@prisma/client';
+import { CampusScope, NO_CAMPUS, separates } from '../common/campus-scope';
 import { addTableSheet, DATE_FMT, MONEY_FMT, newWorkbook, styleHeader } from '../common/excel';
 import { TRANSACTION_TYPE_LABEL } from '../common/labels';
 import { PrismaService } from '../prisma/prisma.service';
@@ -42,7 +42,7 @@ export class FinanceExportService {
     ws.addRow([church.name]).font = { bold: true, size: 16 };
     ws.addRow(['Reporte financiero']).font = { size: 12, color: { argb: 'FF57534E' } };
     ws.addRow([`Período: ${period}`]);
-    if (church.campusesEnabled) ws.addRow([`Sede: ${campusLabel(q.campusId, summary.accounts, transactions)}`]);
+    if (separates(church, CampusAspect.FINANCE)) ws.addRow([`Sede: ${campusLabel(q.campusId, summary.accounts, transactions)}`]);
     ws.addRow([`Generado: ${new Date().toLocaleString(LOCALE, { timeZone: church.timezone })}`]);
     ws.addRow([]);
     styleHeader(ws.addRow(['Moneda', 'Ingresos', 'Egresos', 'Resultado']));
@@ -52,9 +52,9 @@ export class FinanceExportService {
     }
     if (!Object.keys(summary.totals).length) ws.addRow(['Sin movimientos en el período']);
     ws.addRow([]);
-    styleHeader(ws.addRow(['Cuenta', 'Moneda', 'Saldo actual', 'Estado', ...(church.campusesEnabled ? ['Sede'] : [])]));
+    styleHeader(ws.addRow(['Cuenta', 'Moneda', 'Saldo actual', 'Estado', ...(separates(church, CampusAspect.FINANCE) ? ['Sede'] : [])]));
     for (const a of summary.accounts) {
-      const r = ws.addRow([a.name, a.currency, num(a.balance), a.active ? 'Activa' : 'Inactiva', ...(church.campusesEnabled ? [a.campus?.name ?? 'General'] : [])]);
+      const r = ws.addRow([a.name, a.currency, num(a.balance), a.active ? 'Activa' : 'Inactiva', ...(separates(church, CampusAspect.FINANCE) ? [a.campus?.name ?? 'General'] : [])]);
       r.getCell(3).numFmt = MONEY_FMT;
     }
 
@@ -74,7 +74,7 @@ export class FinanceExportService {
         { header: 'Descripción', key: 'description', width: 36 },
         { header: 'Referencia', key: 'reference', width: 16 },
         { header: 'Registrado por', key: 'createdBy', width: 20 },
-        ...(church.campusesEnabled ? [{ header: 'Sede', key: 'campus', width: 20 }] : []),
+        ...(separates(church, CampusAspect.FINANCE) ? [{ header: 'Sede', key: 'campus', width: 20 }] : []),
       ],
       transactions.map((t) => ({
         date: t.date,

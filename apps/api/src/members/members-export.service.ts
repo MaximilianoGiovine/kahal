@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CampusScope } from '../common/campus-scope';
+import { CampusScope, usesMemberCampus } from '../common/campus-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { addTableSheet, DATE_FMT, newWorkbook } from '../common/excel';
 import { MembersQuery } from './members.dto';
@@ -26,7 +26,7 @@ export class MembersExportService {
       [
         { header: 'Apellido', key: 'lastName', width: 18 },
         { header: 'Nombre', key: 'firstName', width: 18 },
-        ...(church.campusesEnabled ? [{ header: 'Sede', key: 'campus', width: 20 }] : []),
+        ...(usesMemberCampus(church) ? [{ header: 'Sede', key: 'campus', width: 20 }] : []),
         { header: 'Estados', key: 'statuses', width: 22 },
         { header: 'Email', key: 'email', width: 28 },
         { header: 'Teléfono', key: 'phone', width: 16 },

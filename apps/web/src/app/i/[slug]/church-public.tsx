@@ -115,6 +115,7 @@ export function ChurchPublic({ slug }: { slug: string }) {
                 </p>
                 <p className="mt-2 font-semibold">{e.title}</p>
                 {e.location && <p className="mt-1 text-sm text-muted">{e.location}</p>}
+                {e.campus && <p className="mt-1 text-xs text-muted">{e.campus.name}</p>}
                 {e.description && <p className="mt-2 line-clamp-3 text-sm text-muted">{e.description}</p>}
               </Card>
             ))}

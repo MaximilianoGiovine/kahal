@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CampusBadge, CampusField, CampusFilter, useCanManageCampus } from '@/components/campuses';
 import { ExternalLink, MonitorPlay, Pencil, Plus, Radio, Square, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
@@ -35,12 +36,14 @@ export default function LivePage() {
   const { me } = useSession();
   const channels = useChurchChannels();
   const editor = can.content(me);
+  const canManage = useCanManageCampus('STREAMS');
+  const [campusId, setCampusId] = useState('');
   const [editing, setEditing] = useState<Stream | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Stream | null>(null);
   const [watching, setWatching] = useState<Stream | null>(null);
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['streams'],
-    queryFn: () => api<Streams>('/streams'),
+    queryKey: ['streams', campusId],
+    queryFn: () => api<Streams>('/streams', { query: { campusId } }),
     refetchInterval: 60_000,
   });
   const inv = { invalidate: [['streams'], ['dashboard']] };
@@ -55,7 +58,7 @@ export default function LivePage() {
 
   const current = watching ?? data.live;
 
-  const actions = (s: Stream) => (
+  const actions = (s: Stream) => canManage(s.campusId) && (
     <ActionMenu
       items={[
         { label: 'Marcar en vivo', icon: Radio, onClick: () => setLive.mutate({ id: s.id, isLive: true }), hidden: s.isLive },
@@ -80,6 +83,8 @@ export default function LivePage() {
         }
       />
 
+      {editor && <CampusFilter aspect="STREAMS" value={campusId} onChange={(id) => (setCampusId(id), setWatching(null))} noneLabel="Generales" className="mb-4 sm:w-64" />}
+
       {current ? (
         <Card className="overflow-hidden">
           <Player stream={current} />
@@ -94,6 +99,7 @@ export default function LivePage() {
                   <Badge>Grabación</Badge>
                 )}
                 <span className="text-xs text-muted">{PLATFORM_LABEL[current.platform]}</span>
+                <CampusBadge aspect="STREAMS" campus={current.campus} />
               </div>
               <h2 className="mt-1.5 text-lg font-semibold">{current.title}</h2>
               {current.description && <p className="mt-1 text-sm text-muted">{current.description}</p>}
@@ -245,6 +251,7 @@ function StreamForm({ item, channels, onClose }: { item: Stream | null; channels
         <Field label="Título">
           <Input name="title" required minLength={2} defaultValue={item?.title} placeholder="Culto dominical" />
         </Field>
+        <CampusField aspect="STREAMS" current={item?.campusId} emptyLabel="Toda la iglesia" hint="Si eliges una sede, solo la ven y reciben el aviso quienes pertenecen a ella." />
         <Field label="Enlace de la transmisión" hint="Pega el enlace del video o de la transmisión en vivo de YouTube, Facebook o Twitch. En Twitch basta con el enlace del canal.">
           <Input name="url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
         </Field>
@@ -264,7 +271,7 @@ function StreamForm({ item, channels, onClose }: { item: Stream | null; channels
         <Field label="Descripción">
           <Textarea name="description" rows={3} defaultValue={item?.description ?? ''} />
         </Field>
-        <Checkbox name="isLive" label="Está en vivo ahora (reemplaza a la transmisión actual)" defaultChecked={item?.isLive} />
+        <Checkbox name="isLive" label="Está en vivo ahora (reemplaza a la transmisión actual de la misma sede)" defaultChecked={item?.isLive} />
       </form>
     </Dialog>
   );

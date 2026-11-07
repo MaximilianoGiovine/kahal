@@ -1,6 +1,8 @@
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsDateString, IsOptional, IsString, IsUrl, MaxLength, MinLength, ValidateIf } from 'class-validator';
 
+import { PageQuery } from '../common/pagination';
+
 const emptyToNull = ({ value }: { value: unknown }) => (value === '' ? null : value);
 
 export class AnnouncementDto {
@@ -9,6 +11,11 @@ export class AnnouncementDto {
   @IsOptional() @Transform(emptyToNull) @IsString() imageKey?: string | null;
   @IsOptional() @IsBoolean() pinned?: boolean;
   @IsOptional() @IsBoolean() published?: boolean;
+  @IsOptional() @Transform(emptyToNull) @IsString() campusId?: string | null;
+}
+
+export class AnnouncementsQuery extends PageQuery {
+  @IsOptional() @IsString() campusId?: string;
 }
 
 export class EventDto {
@@ -19,11 +26,17 @@ export class EventDto {
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsDateString() endsAt?: string | null;
   @IsOptional() @Transform(emptyToNull) @IsString() imageKey?: string | null;
   @IsOptional() @IsBoolean() isPublic?: boolean;
+  @IsOptional() @Transform(emptyToNull) @IsString() campusId?: string | null;
 }
 
 export class EventsQuery {
   @IsOptional() @IsDateString() from?: string;
   @IsOptional() @IsDateString() to?: string;
+  @IsOptional() @IsString() campusId?: string;
+}
+
+export class StreamsQuery {
+  @IsOptional() @IsString() campusId?: string;
 }
 
 export class StreamDto {
@@ -32,6 +45,7 @@ export class StreamDto {
   @IsUrl({ protocols: ['https'], require_protocol: true }, { message: 'Ingresa un enlace https válido' }) url: string;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsDateString() scheduledAt?: string | null;
   @IsOptional() @IsBoolean() isLive?: boolean;
+  @IsOptional() @Transform(emptyToNull) @IsString() campusId?: string | null;
 }
 
 export class LiveDto {

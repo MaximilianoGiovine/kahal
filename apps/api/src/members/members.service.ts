@@ -89,7 +89,7 @@ export class MembersService {
   }
 
   async get(churchId: string, id: string, viewer: AuthUser) {
-    const scope = viewer.campusScope;
+    const scope = viewer.campusScopes.MEMBERS;
     const campusId = campusFilter(scope);
     const member = await this.prisma.member.findFirst({
       where: { id, churchId, campusId },
@@ -106,7 +106,7 @@ export class MembersService {
     let giving = null;
     if (can(viewer, Permission.FINANCE_VIEW)) {
       giving = await this.prisma.transaction.findMany({
-        where: { churchId, memberId: id, account: { campusId } },
+        where: { churchId, memberId: id, account: { campusId: campusFilter(viewer.campusScopes.FINANCE) } },
         orderBy: { date: 'desc' },
         take: 20,
         select: {

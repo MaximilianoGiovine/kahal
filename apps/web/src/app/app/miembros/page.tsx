@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { CampusFilter, useCampuses } from '@/components/campuses';
+import { CampusFilter, useCampusAspect } from '@/components/campuses';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { MemberForm } from '@/components/member-form';
 import { StatusBadge, StatusBadges, useMemberStatuses } from '@/components/member-statuses';
@@ -55,7 +55,7 @@ function MembersTab() {
   const [ministryId, setMinistryId] = useState('');
   const [source, setSource] = useState<'' | 'app' | 'manual'>('');
   const [campusId, setCampusId] = useState('');
-  const showCampus = !!useCampuses().data?.enabled;
+  const showCampus = useCampusAspect('MEMBERS');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -139,7 +139,7 @@ function MembersTab() {
             />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:order-last lg:basis-full lg:auto-cols-fr lg:grid-flow-col">
-            <CampusFilter value={campusId} onChange={(id) => (setCampusId(id), setPage(1))} noneLabel="Sin sede" className="col-span-2 sm:col-span-1" />
+            <CampusFilter aspect="MEMBERS" value={campusId} onChange={(id) => (setCampusId(id), setPage(1))} noneLabel="Sin sede" className="col-span-2 sm:col-span-1" />
             <Select value={source} onChange={(e) => (setSource(e.target.value as typeof source), setPage(1))} aria-label="Origen" className="col-span-2 sm:col-span-1">
               <option value="">Todos los orígenes</option>
               <option value="app">Registrados en la app</option>
@@ -381,7 +381,7 @@ function NameDialog({ title, initial, onClose, onSubmit, loading }: { title: str
 function MinistriesTab() {
   const { me } = useSession();
   // Los ministerios son comunes a todas las sedes: solo los cambia quien gestiona toda la iglesia.
-  const editor = can.editMembers(me) && me.campusScope === null;
+  const editor = can.editMembers(me) && me.campusScopes.MEMBERS === null;
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['ministries'], queryFn: () => api<Ministry[]>('/ministries') });
   const [editing, setEditing] = useState<Ministry | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Ministry | null>(null);

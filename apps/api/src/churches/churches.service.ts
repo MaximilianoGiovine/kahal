@@ -1,5 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { CampusAspect } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { separates, usesMemberCampus } from '../common/campus-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { createChurchWithAdmin } from './church-defaults';
 import { AdminUpdateChurchDto, CreateChurchDto, UpdateChurchDto } from './churches.dto';
@@ -20,6 +22,7 @@ const PUBLIC_FIELDS = {
   facebookUrl: true,
   twitchUrl: true,
   campusesEnabled: true,
+  campusSeparated: true,
 } as const;
 
 @Injectable()
@@ -39,21 +42,24 @@ export class ChurchesService {
     if (!church) throw new NotFoundException('Iglesia no encontrada');
     const [campuses, events, live] = await Promise.all([
       // Para elegir sede al registrarse. Dirección y teléfono no salen de la app.
-      church.campusesEnabled
+      usesMemberCampus(church)
         ? this.prisma.campus.findMany({ where: { churchId: church.id, active: true }, select: { id: true, name: true, city: true }, orderBy: { name: 'asc' } })
         : [],
       this.prisma.event.findMany({
         where: { churchId: church.id, isPublic: true, startsAt: { gte: new Date() } },
         orderBy: { startsAt: 'asc' },
         take: 6,
-        select: { id: true, title: true, description: true, location: true, startsAt: true, endsAt: true, imageKey: true },
+        select: { id: true, title: true, description: true, location: true, startsAt: true, endsAt: true, imageKey: true, campus: { select: { name: true } } },
       }),
       this.prisma.liveStream.findFirst({
         where: { churchId: church.id, isLive: true },
+        orderBy: { updatedAt: 'desc' },
         select: { id: true, title: true, url: true, platform: true },
       }),
     ]);
-    return { ...church, campuses, events, live };
+    // El nombre de la sede solo tiene sentido mientras el área esté separada.
+    const showCampus = separates(church, CampusAspect.EVENTS);
+    return { ...church, campuses, events: events.map(({ campus, ...e }) => ({ ...e, campus: showCampus ? campus : null })), live };
   }
 
   async get(churchId: string) {

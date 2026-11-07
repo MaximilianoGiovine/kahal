@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CampusFilter } from '@/components/campuses';
 import clsx from 'clsx';
 import { CalendarCheck, CalendarClock, Check, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -189,9 +190,10 @@ function ConfirmBooking({ host, slot, onClose, onBooked }: { host: Host; slot: {
 
 function AppointmentList({ scope }: { scope: 'mine' | 'hosting' | 'all' }) {
   const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming');
+  const [campusId, setCampusId] = useState('');
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['appointments', scope, when],
-    queryFn: () => api<Appointment[]>('/appointments', { query: { scope, when } }),
+    queryKey: ['appointments', scope, when, campusId],
+    queryFn: () => api<Appointment[]>('/appointments', { query: { scope, when, campusId } }),
   });
   const [notesFor, setNotesFor] = useState<Appointment | null>(null);
   const status = useAction(({ id, status, hostNotes }: { id: string; status: AppointmentStatus; hostNotes?: string }) =>
@@ -205,7 +207,7 @@ function AppointmentList({ scope }: { scope: 'mine' | 'hosting' | 'all' }) {
 
   return (
     <Card>
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
         <Tabs
           value={when}
           onChange={setWhen}
@@ -214,6 +216,7 @@ function AppointmentList({ scope }: { scope: 'mine' | 'hosting' | 'all' }) {
             { value: 'past', label: 'Pasadas' },
           ]}
         />
+        {scope === 'all' && <CampusFilter aspect="APPOINTMENTS" value={campusId} onChange={setCampusId} noneLabel="Líderes sin sede" className="w-40 sm:w-56" />}
       </div>
       {isLoading ? (
         <Loading />

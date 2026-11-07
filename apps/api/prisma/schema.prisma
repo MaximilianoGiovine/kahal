@@ -28,6 +28,17 @@ enum Permission {
   ACTIVITY_VIEW
 }
 
+/// Áreas que una iglesia puede separar por sede. Las demás quedan compartidas.
+enum CampusAspect {
+  MEMBERS
+  FINANCE
+  ANNOUNCEMENTS
+  EVENTS
+  ARTICLES
+  STREAMS
+  APPOINTMENTS
+}
+
 enum UserStatus {
   PENDING
   ACTIVE
@@ -242,9 +253,9 @@ enum ActivityEntity {
 
 /// Una iglesia es un tenant: todos los datos operativos cuelgan de ella.
 model Church {
-  id                   String    @id @default(cuid())
+  id                   String         @id @default(cuid())
   name                 String
-  slug                 String    @unique
+  slug                 String         @unique
   /// Canales de transmisión de la iglesia (links a YouTube, Facebook y Twitch).
   youtubeUrl           String?
   facebookUrl          String?
@@ -256,22 +267,24 @@ model Church {
   email                String?
   logoKey              String?
   primaryColor         String?
-  timezone             String    @default("America/Argentina/Buenos_Aires")
-  defaultCurrency      Currency  @default(ARS)
-  active               Boolean   @default(true)
+  timezone             String         @default("America/Argentina/Buenos_Aires")
+  defaultCurrency      Currency       @default(ARS)
+  active               Boolean        @default(true)
   /// Baja pedida: mientras no venza el plazo se puede cancelar.
   deletionRequestedAt  DateTime?
   deletionScheduledFor DateTime?
   /// No necesita suscripción: iglesias de demostración o acuerdos especiales.
-  billingExempt        Boolean   @default(false)
+  billingExempt        Boolean        @default(false)
   /// Hasta cuándo puede funcionar sin suscripción. Las iglesias nuevas no tienen plazo.
   billingGraceUntil    DateTime?
   /// Último aviso de falta de pago; se limpia al regularizarse.
   billingNoticeAt      DateTime?
   /// Opción de Configuración: habilita las sedes en los filtros y formularios.
-  campusesEnabled      Boolean   @default(false)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  campusesEnabled      Boolean        @default(false)
+  /// Lo que cada sede maneja por separado; lo demás lo comparte toda la iglesia.
+  campusSeparated      CampusAspect[] @default([MEMBERS, FINANCE])
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   campuses       Campus[]
   users          User[]
@@ -316,9 +329,13 @@ model Campus {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members    Member[]
-  accounts   FinanceAccount[]
-  userAccess UserCampus[]
+  members       Member[]
+  accounts      FinanceAccount[]
+  userAccess    UserCampus[]
+  announcements Announcement[]
+  events        Event[]
+  articles      Article[]
+  streams       LiveStream[]
 
   @@unique([churchId, name])
   /// Permite que las fichas y cuentas referencien la sede junto con su iglesia: la base impide cruzar iglesias.
@@ -426,7 +443,7 @@ model User {
   lastLoginAt      DateTime?
   /// Token secreto del feed de calendario personal (.ics). Se crea al pedirlo por primera vez.
   calendarToken    String?    @unique
-  /// Limita miembros y finanzas a las sedes de `campuses`. El rol de administración lo ignora.
+  /// Limita lo que la iglesia separa por sede a las sedes de `campuses`. El rol de administración lo ignora.
   campusRestricted Boolean    @default(false)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
@@ -693,10 +710,14 @@ model Announcement {
   publishedAt DateTime @default(now())
   authorId    String?
   author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  /// Null: para toda la iglesia.
+  campusId    String?
+  campus      Campus?  @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([churchId, publishedAt])
+  @@index([campusId])
 }
 
 model Event {
@@ -712,10 +733,14 @@ model Event {
   isPublic    Boolean   @default(true)
   createdById String?
   createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  /// Null: para toda la iglesia.
+  campusId    String?
+  campus      Campus?   @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([churchId, startsAt])
+  @@index([campusId])
 }
 
 model LiveStream {
@@ -728,10 +753,14 @@ model LiveStream {
   platform    StreamPlatform
   scheduledAt DateTime?
   isLive      Boolean        @default(false)
+  /// Null: para toda la iglesia.
+  campusId    String?
+  campus      Campus?        @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
   @@index([churchId, scheduledAt])
+  @@index([campusId])
 }
 
 /// Franja semanal en la que un pastor/líder recibe citas (hora local de la iglesia).
@@ -785,10 +814,14 @@ model Article {
   publishedAt DateTime @default(now())
   authorId    String?
   author      User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  /// Null: para toda la iglesia.
+  campusId    String?
+  campus      Campus?  @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([churchId, publishedAt])
+  @@index([campusId])
 }
 
 /// Registro de cambios sobre el contenido de la iglesia (quién, qué y cuándo).

@@ -11,6 +11,9 @@ export class ArticleDto {
   @IsString() @MinLength(1) @MaxLength(500_000) body: string;
   @IsOptional() @Transform(emptyToNull) @IsString() coverKey?: string | null;
   @IsOptional() @IsBoolean() published?: boolean;
+  @IsOptional() @Transform(emptyToNull) @IsString() campusId?: string | null;
 }
 
-export class ArticlesQuery extends PageQuery {}
+export class ArticlesQuery extends PageQuery {
+  @IsOptional() @IsString() campusId?: string;
+}

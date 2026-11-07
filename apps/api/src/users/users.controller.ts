@@ -16,8 +16,8 @@ export class UsersController {
   }
 
   @Get('hosts')
-  hosts(@ChurchId() churchId: string) {
-    return this.users.hosts(churchId);
+  hosts(@ChurchId() churchId: string, @CurrentUser() user: AuthUser) {
+    return this.users.hosts(churchId, user);
   }
 
   @AllowWhenBlocked()

@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { CampusAspect } from '@prisma/client';
+import { ArrayUnique, IsArray, IsBoolean, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 const emptyToNull = ({ value }: { value: unknown }) => (value === '' ? null : value);
 
@@ -12,5 +13,6 @@ export class CampusDto {
 }
 
 export class CampusSettingsDto {
-  @IsBoolean() enabled: boolean;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional() @IsArray() @ArrayUnique() @IsEnum(CampusAspect, { each: true }) separated?: CampusAspect[];
 }

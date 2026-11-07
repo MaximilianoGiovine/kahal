@@ -5,6 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, Download, Paperclip, Pencil, Receipt, Sear
 import { useDeferredValue, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/dialog';
+import { useCampusAspect } from '@/components/campuses';
 import { useFinanceCampus } from '@/components/finance/finance-campus';
 import { PeriodPicker, resolvePeriod, type Period } from '@/components/finance/period';
 import { TransactionForm } from '@/components/finance/transaction-form';
@@ -32,6 +33,7 @@ export default function TransactionsPage() {
   const [exporting, setExporting] = useState(false);
 
   const { campusId } = useFinanceCampus();
+  const showCampus = useCampusAspect('FINANCE');
   // Una cuenta elegida antes de cambiar de sede dejaría la lista vacía sin explicación.
   useEffect(() => {
     setAccountId('');
@@ -187,7 +189,7 @@ export default function TransactionsPage() {
                       </td>
                       <td className={`${td} whitespace-nowrap text-muted`}>
                         {t.account.name}
-                        {t.account.campus && <span className="block text-xs">{t.account.campus.name}</span>}
+                        {showCampus && t.account.campus && <span className="block text-xs">{t.account.campus.name}</span>}
                       </td>
                       <td className={`${td} tabular text-right font-medium whitespace-nowrap`}>
                         <span className={t.type === 'EXPENSE' ? 'text-fg' : 'text-success'}>

@@ -1,5 +1,6 @@
 'use client';
 
+import { CampusBadge, useCanManageCampus } from '@/components/campuses';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, FileDown, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -19,6 +20,7 @@ export default function ArticlePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { me, church } = useSession();
+  const canManage = useCanManageCampus('ARTICLES');
   const editor = can.articles(me);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -53,7 +55,7 @@ export default function ArticlePage() {
           <Button variant="secondary" onClick={exportPdf} loading={exporting} title={`PDF con marca de agua de ${church?.name ?? 'la iglesia'}`}>
             {!exporting && <FileDown className="size-4" />} Descargar PDF
           </Button>
-          {editor && (
+          {editor && canManage(a.campusId) && (
             <>
               <ButtonLink variant="secondary" href={`/app/articulos/${a.id}/editar`}>
                 <Pencil className="size-4" /> Editar
@@ -72,6 +74,9 @@ export default function ArticlePage() {
             Borrador: no visible para la congregación
           </Badge>
         )}
+        <div className="mb-3 empty:hidden">
+          <CampusBadge aspect="ARTICLES" campus={a.campus} />
+        </div>
         <h1 className="font-display text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">{a.title}</h1>
         <p className="mt-3 text-sm text-muted">
           {a.author && `Por ${fullName(a.author)} · `}

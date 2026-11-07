@@ -4,7 +4,7 @@ import {
   ExecutionContext,
   SetMetadata,
 } from '@nestjs/common';
-import { Permission } from '@prisma/client';
+import { CampusAspect, Permission } from '@prisma/client';
 import { AuthUser } from './auth-user';
 import { CampusScope } from './campus-scope';
 
@@ -26,9 +26,9 @@ export const CurrentUser = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): AuthUser => ctx.switchToHttp().getRequest().user,
 );
 
-/** Sedes que puede ver el usuario de la request (`null`: toda la iglesia). */
+/** Sedes sobre las que opera el usuario en esa área (`null`: toda la iglesia). */
 export const UserCampusScope = createParamDecorator(
-  (_: unknown, ctx: ExecutionContext): CampusScope => (ctx.switchToHttp().getRequest().user as AuthUser).campusScope,
+  (aspect: CampusAspect, ctx: ExecutionContext): CampusScope => (ctx.switchToHttp().getRequest().user as AuthUser).campusScopes[aspect],
 );
 
 /** Id de la iglesia sobre la que opera la request. Falla si no hay ninguna. */

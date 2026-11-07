@@ -61,8 +61,8 @@ export interface Me {
   roles: UserRoles;
   /** Permisos efectivos (unión de todos sus roles). */
   permissions: Permission[];
-  /** Sedes a las que se limitan sus miembros y finanzas. `null`: toda la iglesia. */
-  campusScope: string[] | null;
+  /** Sedes sobre las que opera en cada área. `null`: toda la iglesia, también si el área es compartida. */
+  campusScopes: Record<CampusAspect, string[] | null>;
   status: UserStatus;
   /** Falso en cuentas creadas con Google o Apple que todavía no definieron contraseña. */
   hasPassword: boolean;
@@ -86,6 +86,8 @@ export interface Church extends ChurchBrief {
   billingExempt: boolean;
 }
 
+export type CampusAspect = 'MEMBERS' | 'FINANCE' | 'ANNOUNCEMENTS' | 'EVENTS' | 'ARTICLES' | 'STREAMS' | 'APPOINTMENTS';
+
 export interface CampusRef {
   id: string;
   name: string;
@@ -93,6 +95,7 @@ export interface CampusRef {
 
 export interface CampusList {
   enabled: boolean;
+  separated: CampusAspect[];
   items: (CampusRef & { city: string | null; active: boolean })[];
 }
 
@@ -101,11 +104,12 @@ export interface CampusRow extends CampusRef {
   address: string | null;
   phone: string | null;
   active: boolean;
-  _count: { members: number; accounts: number; userAccess: number };
+  _count: { members: number; accounts: number; userAccess: number; announcements: number; events: number; articles: number; streams: number };
 }
 
 export interface CampusManage {
   enabled: boolean;
+  separated: CampusAspect[];
   items: CampusRow[];
   unassignedMembers: number;
   restrictedUsers: number;
@@ -250,6 +254,8 @@ export interface Announcement {
   published: boolean;
   publishedAt: string;
   author: { id: string; firstName: string; lastName: string } | null;
+  campusId: string | null;
+  campus: CampusRef | null;
 }
 
 export interface ChurchEvent {
@@ -261,6 +267,8 @@ export interface ChurchEvent {
   endsAt: string | null;
   imageKey: string | null;
   isPublic: boolean;
+  campusId: string | null;
+  campus: CampusRef | null;
 }
 
 export interface Stream {
@@ -271,6 +279,8 @@ export interface Stream {
   platform: 'YOUTUBE' | 'FACEBOOK' | 'TWITCH' | 'OTHER';
   scheduledAt: string | null;
   isLive: boolean;
+  campusId: string | null;
+  campus: CampusRef | null;
 }
 
 export interface Person {
@@ -319,6 +329,8 @@ export interface ArticleSummary {
   publishedAt: string;
   updatedAt: string;
   author: { id: string; firstName: string; lastName: string } | null;
+  campusId: string | null;
+  campus: CampusRef | null;
 }
 
 export interface Article extends ArticleSummary {

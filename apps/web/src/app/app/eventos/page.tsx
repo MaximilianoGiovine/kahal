@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CalendarPlus, CalendarDays, Clock, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { CalendarSubscribeDialog } from '@/components/calendar-subscribe';
+import { CampusBadge, CampusField, CampusFilter, useCanManageCampus } from '@/components/campuses';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
 import { ActionMenu } from '@/components/menu';
@@ -21,7 +22,9 @@ export default function EventsPage() {
   const [editing, setEditing] = useState<ChurchEvent | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ChurchEvent | null>(null);
   const [subscribing, setSubscribing] = useState(false);
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ['events'], queryFn: () => api<ChurchEvent[]>('/events') });
+  const canManage = useCanManageCampus('EVENTS');
+  const [campusId, setCampusId] = useState('');
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ['events', campusId], queryFn: () => api<ChurchEvent[]>('/events', { query: { campusId } }) });
   const remove = useAction((id: string) => api(`/events/${id}`, { method: 'DELETE' }), {
     success: 'Evento eliminado',
     invalidate: [['events'], ['dashboard']],
@@ -58,6 +61,7 @@ export default function EventsPage() {
           </>
         }
       />
+      {editor && <CampusFilter aspect="EVENTS" value={campusId} onChange={setCampusId} noneLabel="Generales" className="mb-4 sm:w-64" />}
       {isLoading ? (
         <Loading />
       ) : error ? (
@@ -95,17 +99,18 @@ export default function EventsPage() {
                             )}
                           </div>
                         </div>
-                        {editor && (
-                          <div className="flex items-center gap-2">
-                            {!e.isPublic && <Badge>Solo miembros</Badge>}
+                        <div className="flex items-center gap-2">
+                          <CampusBadge aspect="EVENTS" campus={e.campus} />
+                          {editor && !e.isPublic && <Badge>Solo miembros</Badge>}
+                          {editor && canManage(e.campusId) && (
                             <ActionMenu
                               items={[
                                 { label: 'Editar', icon: Pencil, onClick: () => setEditing(e) },
                                 { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => setDeleting(e) },
                               ]}
                             />
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                       {e.description && <p className="mt-2 text-sm whitespace-pre-line text-muted">{e.description}</p>}
                       {e.imageKey && (
@@ -176,6 +181,7 @@ function EventForm({ item, onClose }: { item: ChurchEvent | null; onClose: () =>
             <Input name="endsAt" type="datetime-local" defaultValue={toLocalInput(item?.endsAt)} />
           </Field>
         </div>
+        <CampusField aspect="EVENTS" current={item?.campusId} emptyLabel="Toda la iglesia" hint="Si eliges una sede, solo la ven y reciben el aviso quienes pertenecen a ella." />
         <Field label="Lugar">
           <Input name="location" defaultValue={item?.location ?? ''} />
         </Field>

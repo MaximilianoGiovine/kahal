@@ -46,6 +46,7 @@ export class BookDto {
 }
 
 export class AppointmentsQuery {
+  @IsOptional() @IsString() campusId?: string;
   @IsOptional() @IsIn(['mine', 'hosting', 'all']) scope?: 'mine' | 'hosting' | 'all';
   @IsOptional() @IsEnum(AppointmentStatus) status?: AppointmentStatus;
   @IsOptional() @IsIn(['upcoming', 'past']) when?: 'upcoming' | 'past';

@@ -35,6 +35,7 @@ const FIELD_LABEL: Record<string, string> = {
   url: 'link',
   scheduledAt: 'fecha programada',
   isLive: 'en vivo',
+  campusId: 'sede',
 };
 
 const norm = (v: unknown) => (v instanceof Date ? v.toISOString() : v === '' || v === undefined ? null : v);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CampusBadge, CampusFilter } from '@/components/campuses';
 import { BookOpen, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useDeferredValue, useState } from 'react';
@@ -19,9 +20,10 @@ export default function ArticlesPage() {
   const [q, setQ] = useState('');
   const search = useDeferredValue(q);
   const [page, setPage] = useState(1);
+  const [campusId, setCampusId] = useState('');
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['articles', search, page],
-    queryFn: () => api<Paged<ArticleSummary>>('/articles', { query: { q: search, page, pageSize: PAGE_SIZE } }),
+    queryKey: ['articles', search, campusId, page],
+    queryFn: () => api<Paged<ArticleSummary>>('/articles', { query: { q: search, campusId, page, pageSize: PAGE_SIZE } }),
     placeholderData: (p) => p,
   });
 
@@ -38,6 +40,7 @@ export default function ArticlesPage() {
           )
         }
       />
+      {editor && <CampusFilter aspect="ARTICLES" value={campusId} onChange={(id) => (setCampusId(id), setPage(1))} noneLabel="Generales" className="mb-3 sm:w-64" />}
       <div className="relative mb-5 max-w-md">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
         <Input
@@ -84,6 +87,9 @@ export default function ArticlesPage() {
                         Borrador
                       </Badge>
                     )}
+                    <div className="mb-2 empty:hidden">
+                      <CampusBadge aspect="ARTICLES" campus={a.campus} />
+                    </div>
                     <h2 className="font-display text-lg leading-snug font-semibold group-hover:text-accent-ink">{a.title}</h2>
                     {a.summary && <p className="mt-1.5 line-clamp-3 text-sm text-muted">{a.summary}</p>}
                     <p className="mt-auto pt-4 text-xs text-subtle">

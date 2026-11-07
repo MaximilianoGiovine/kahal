@@ -15,5 +15,5 @@ export function FinanceCampusProvider({ children }: { children: ReactNode }) {
 
 export function FinanceCampusFilter() {
   const { campusId, setCampusId } = useFinanceCampus();
-  return <CampusFilter value={campusId} onChange={setCampusId} noneLabel="Cuentas generales" className="mb-6 sm:w-64" />;
+  return <CampusFilter aspect="FINANCE" value={campusId} onChange={setCampusId} noneLabel="Cuentas generales" className="mb-6 sm:w-64" />;
 }

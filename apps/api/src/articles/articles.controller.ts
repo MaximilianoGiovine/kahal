@@ -39,18 +39,18 @@ export class ArticlesController {
   @RequirePermissions(Permission.ARTICLES_MANAGE)
   @Post()
   create(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Body() dto: ArticleDto) {
-    return this.articles.create(churchId, user.id, dto);
+    return this.articles.create(churchId, user, dto);
   }
 
   @RequirePermissions(Permission.ARTICLES_MANAGE)
   @Patch(':id')
   update(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: ArticleDto) {
-    return this.articles.update(churchId, user.id, id, dto);
+    return this.articles.update(churchId, user, id, dto);
   }
 
   @RequirePermissions(Permission.ARTICLES_MANAGE)
   @Delete(':id')
   remove(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.articles.remove(churchId, user.id, id);
+    return this.articles.remove(churchId, user, id);
   }
 }

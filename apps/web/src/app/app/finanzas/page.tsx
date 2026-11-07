@@ -5,6 +5,7 @@ import { ArrowDownRight, ArrowUpRight, Download, Landmark, Scale } from 'lucide-
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { CategoryBars } from '@/components/finance/category-bars';
+import { useCampusAspect } from '@/components/campuses';
 import { useFinanceCampus } from '@/components/finance/finance-campus';
 import { MonthlyChart, type MonthPoint } from '@/components/finance/monthly-chart';
 import { PeriodPicker, resolvePeriod, type Period } from '@/components/finance/period';
@@ -22,6 +23,7 @@ export default function FinanceSummaryPage() {
   const [exporting, setExporting] = useState(false);
 
   const { campusId } = useFinanceCampus();
+  const showCampus = useCampusAspect('FINANCE');
   const range = { from: period.from, to: period.to, campusId };
   const summary = useQuery({
     queryKey: ['finance', 'summary', range],
@@ -128,7 +130,7 @@ export default function FinanceSummaryPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm text-muted">
                     {a.name}
-                    {a.campus && ` · ${a.campus.name}`}
+                    {showCampus && a.campus && ` · ${a.campus.name}`}
                   </p>
                   <p className={`tabular text-lg font-semibold ${Number(a.balance) < 0 ? 'text-danger' : ''}`}>{money(a.balance, a.currency)}</p>
                 </div>

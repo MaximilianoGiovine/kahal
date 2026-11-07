@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
+import { CampusField } from '@/components/campuses';
 import { ConfirmDialog } from '@/components/dialog';
 import { ImageUpload } from '@/components/image-upload';
 import { RichTextEditor } from '@/components/rich-text-editor';
@@ -104,6 +105,7 @@ export function ArticleForm({ item }: { item: Article | null }) {
         </div>
 
         <Card className="flex h-fit flex-col gap-4 p-5 lg:sticky lg:top-6">
+          <CampusField aspect="ARTICLES" current={item?.campusId} emptyLabel="Toda la iglesia" hint="Si eliges una sede, solo lo leen quienes pertenecen a ella." />
           <Field label="Resumen" hint="Se muestra en el listado y al inicio del PDF.">
             <Textarea name="summary" rows={4} maxLength={500} defaultValue={item?.summary ?? ''} />
           </Field>

@@ -137,17 +137,17 @@ export class FinanceService {
     return { items, total, page: q.page, pageSize: q.pageSize, totals: { income, expense, net: income.minus(expense) } };
   }
 
-  async createTransaction(churchId: string, scope: CampusScope, userId: string, dto: TransactionDto) {
-    const type = await this.validateRefs(churchId, scope, dto);
+  async createTransaction(churchId: string, scope: CampusScope, memberScope: CampusScope, userId: string, dto: TransactionDto) {
+    const type = await this.validateRefs(churchId, scope, memberScope, dto);
     return this.prisma.transaction.create({
       data: { ...dto, type, date: parseDay(dto.date.slice(0, 10)), churchId, createdById: userId },
       include: TRANSACTION_INCLUDE,
     });
   }
 
-  async updateTransaction(churchId: string, scope: CampusScope, id: string, dto: TransactionDto) {
+  async updateTransaction(churchId: string, scope: CampusScope, memberScope: CampusScope, id: string, dto: TransactionDto) {
     const current = await this.ensureTransaction(churchId, scope, id);
-    const type = await this.validateRefs(churchId, scope, dto, current.memberId);
+    const type = await this.validateRefs(churchId, scope, memberScope, dto, current.memberId);
     return this.prisma.transaction.update({
       where: { id },
       data: { ...dto, type, date: parseDay(dto.date.slice(0, 10)) },
@@ -215,14 +215,14 @@ export class FinanceService {
   // Helpers
 
   /** `currentMemberId`: el aporte ya asociado se conserva aunque la persona sea de otra sede. */
-  private async validateRefs(churchId: string, scope: CampusScope, dto: TransactionDto, currentMemberId?: string | null): Promise<TransactionType> {
+  private async validateRefs(churchId: string, scope: CampusScope, memberScope: CampusScope, dto: TransactionDto, currentMemberId?: string | null): Promise<TransactionType> {
     const [account, category] = await Promise.all([
       this.prisma.financeAccount.findFirst({ where: { id: dto.accountId, churchId, campusId: campusFilter(scope) } }),
       this.prisma.financeCategory.findFirst({ where: { id: dto.categoryId, churchId } }),
     ]);
     if (!account) throw new BadRequestException('Cuenta inválida');
     if (!category) throw new BadRequestException('Categoría inválida');
-    const memberCampus = dto.memberId === currentMemberId ? undefined : campusFilter(scope);
+    const memberCampus = dto.memberId === currentMemberId ? undefined : campusFilter(memberScope);
     if (dto.memberId && !(await this.prisma.member.findFirst({ where: { id: dto.memberId, churchId, campusId: memberCampus } }))) {
       throw new BadRequestException('Miembro inválido');
     }
