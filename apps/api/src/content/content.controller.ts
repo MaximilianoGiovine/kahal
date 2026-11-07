@@ -4,10 +4,14 @@ import { AuthUser } from '../common/auth-user';
 import { ChurchId, CurrentUser, RequirePermissions } from '../common/decorators';
 import { AnnouncementDto, AnnouncementsQuery, EventDto, EventsQuery, LiveDto, StreamDto, StreamsQuery } from './content.dto';
 import { ContentService } from './content.service';
+import { LiveDetectorService } from './live-detector.service';
 
 @Controller()
 export class ContentController {
-  constructor(private readonly content: ContentService) {}
+  constructor(
+    private readonly content: ContentService,
+    private readonly detector: LiveDetectorService,
+  ) {}
 
   @Get('announcements')
   announcements(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Query() q: AnnouncementsQuery) {
@@ -53,6 +57,11 @@ export class ContentController {
   @Delete('events/:id')
   removeEvent(@ChurchId() churchId: string, @CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.content.removeEvent(churchId, user, id);
+  }
+
+  @Get('streams/detection')
+  streamDetection() {
+    return this.detector.availability;
   }
 
   @Get('streams')

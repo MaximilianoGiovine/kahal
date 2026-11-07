@@ -63,6 +63,8 @@ function ChurchSettings() {
   const { isSuperAdmin } = useSession();
   const [showQr, setShowQr] = useState(false);
   const { data, isLoading, error } = useQuery({ queryKey: ['church'], queryFn: () => api<Church>('/church') });
+  const { data: detection } = useQuery({ queryKey: ['stream-detection'], queryFn: () => api<{ youtube: boolean; twitch: boolean }>('/streams/detection') });
+  const detected = [detection?.youtube && 'YouTube', detection?.twitch && 'Twitch'].filter(Boolean).join(' y ');
   const save = useAction((body: Record<string, unknown>) => api<Church>('/church', { method: 'PATCH', body }), {
     success: 'Datos guardados',
     onSuccess: () => {
@@ -130,6 +132,14 @@ function ChurchSettings() {
               </Field>
             ))}
             <p className="-mt-2 text-xs text-muted sm:col-span-3">Aparecen en la página pública y en “En vivo”, y se pueden elegir al crear una transmisión.</p>
+            {detected && (
+              <Checkbox
+                name="autoLiveEnabled"
+                defaultChecked={data.autoLiveEnabled}
+                className="sm:col-span-3"
+                label={`Publicar sola la transmisión cuando el canal de ${detected} empiece a emitir, y avisar a la iglesia. En YouTube usa el enlace con @nombre o /channel/.`}
+              />
+            )}
           </fieldset>
           <div className="sm:col-span-2">
             <ImageUpload name="logoKey" kind="logo" label="Logo" defaultKey={data.logoKey} />

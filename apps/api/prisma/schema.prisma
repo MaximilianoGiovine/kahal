@@ -283,6 +283,10 @@ model Church {
   campusesEnabled      Boolean        @default(false)
   /// Lo que cada sede maneja por separado; lo demás lo comparte toda la iglesia.
   campusSeparated      CampusAspect[] @default([MEMBERS, FINANCE])
+  /// Publica sola la transmisión cuando sus canales de YouTube o Twitch empiezan a emitir.
+  autoLiveEnabled      Boolean        @default(true)
+  /// Transmisiones detectadas que alguien eliminó mientras seguían en vivo: no se vuelven a publicar.
+  ignoredLiveIds       String[]       @default([])
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -753,12 +757,15 @@ model LiveStream {
   platform    StreamPlatform
   scheduledAt DateTime?
   isLive      Boolean        @default(false)
+  /// Id en la plataforma, si la detección automática la sigue. Null: la maneja la iglesia a mano.
+  externalId  String?
   /// Null: para toda la iglesia.
   campusId    String?
   campus      Campus?        @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  @@unique([churchId, platform, externalId])
   @@index([churchId, scheduledAt])
   @@index([campusId])
 }

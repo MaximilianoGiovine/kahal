@@ -252,7 +252,7 @@ function StreamForm({ item, channels, onClose }: { item: Stream | null; channels
           <Input name="title" required minLength={2} defaultValue={item?.title} placeholder="Culto dominical" />
         </Field>
         <CampusField aspect="STREAMS" current={item?.campusId} emptyLabel="Toda la iglesia" hint="Si eliges una sede, solo la ven y reciben el aviso quienes pertenecen a ella." />
-        <Field label="Enlace de la transmisión" hint="Pega el enlace del video o de la transmisión en vivo de YouTube, Facebook o Twitch. En Twitch basta con el enlace del canal.">
+        <Field label="Enlace de la transmisión" hint="Pega el enlace del video o de la transmisión en vivo de YouTube, Facebook o Twitch. En Twitch basta con el enlace del canal. Si en Configuración activaste la publicación automática, YouTube y Twitch no necesitan este paso.">
           <Input name="url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
         </Field>
         {channels.length > 0 && (

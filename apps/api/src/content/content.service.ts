@@ -21,6 +21,11 @@ export function detectPlatform(url: string): StreamPlatform {
 
 const isEditor = (u: AuthUser) => can(u, Permission.CONTENT_MANAGE);
 
+/** Una a la vez por iglesia: sin esto, dos que empiezan juntas pueden quedar ambas en vivo o bloquearse entre sí. */
+export function takeLiveLock(tx: Prisma.TransactionClient, churchId: string) {
+  return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${churchId}, 0))`;
+}
+
 @Injectable()
 export class ContentService {
   constructor(
@@ -139,7 +144,7 @@ export class ContentService {
   async createStream(churchId: string, user: AuthUser, dto: StreamDto) {
     const campusId = await this.campusToSave(churchId, user, CampusAspect.STREAMS, dto.campusId);
     const item = await this.prisma.$transaction(async (tx) => {
-      if (dto.isLive) await this.takeLiveLock(tx, churchId);
+      if (dto.isLive) await takeLiveLock(tx, churchId);
       if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, ...this.liveRival(user, campusId ?? null) }, data: { isLive: false } });
       return tx.liveStream.create({ data: { ...dto, campusId, platform: detectPlatform(dto.url), churchId }, include: { campus: CAMPUS } });
     });
@@ -152,10 +157,12 @@ export class ContentService {
     const current = await this.ensureStream(churchId, id);
     const campusId = await this.campusToSave(churchId, user, CampusAspect.STREAMS, dto.campusId, current);
     const target = campusId === undefined ? current.campusId : campusId;
+    // Si alguien cambia el enlace o la enciende a mano, la detección deja de manejarla.
+    const takesOver = dto.url !== current.url || (dto.isLive && !current.isLive);
     const item = await this.prisma.$transaction(async (tx) => {
-      if (dto.isLive) await this.takeLiveLock(tx, churchId);
+      if (dto.isLive) await takeLiveLock(tx, churchId);
       if (dto.isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id }, ...this.liveRival(user, target) }, data: { isLive: false } });
-      return tx.liveStream.update({ where: { id }, data: { ...dto, campusId, platform: detectPlatform(dto.url) }, include: { campus: CAMPUS } });
+      return tx.liveStream.update({ where: { id }, data: { ...dto, campusId, platform: detectPlatform(dto.url), ...(takesOver && { externalId: null }) }, include: { campus: CAMPUS } });
     });
     await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { ...dto, campusId }));
     if (item.isLive && !current.isLive) await this.notifyLive(churchId, user, item);
@@ -167,9 +174,9 @@ export class ContentService {
     const current = await this.ensureStream(churchId, id);
     assertCampusInScope(user.campusScopes.STREAMS, current.campusId);
     const item = await this.prisma.$transaction(async (tx) => {
-      if (isLive) await this.takeLiveLock(tx, churchId);
+      if (isLive) await takeLiveLock(tx, churchId);
       if (isLive) await tx.liveStream.updateMany({ where: { churchId, isLive: true, id: { not: id }, ...this.liveRival(user, current.campusId) }, data: { isLive: false } });
-      return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date() }) }, include: { campus: CAMPUS } });
+      return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date(), externalId: null }) }, include: { campus: CAMPUS } });
     });
     await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { isLive }));
     if (item.isLive && !current.isLive) await this.notifyLive(churchId, user, item);
@@ -180,13 +187,10 @@ export class ContentService {
     const current = await this.ensureStream(churchId, id);
     assertCampusInScope(user.campusScopes.STREAMS, current.campusId);
     await this.prisma.liveStream.delete({ where: { id } });
+    // Sigue emitiendo: sin esto, la detección la publicaría de nuevo a los dos minutos.
+    if (current.isLive && current.externalId) await this.prisma.church.update({ where: { id: churchId }, data: { ignoredLiveIds: { push: current.externalId } } });
     await this.track(churchId, user.id, ActivityAction.DELETE, ActivityEntity.STREAM, current);
     return { ok: true };
-  }
-
-  /** Una a la vez por iglesia: sin esto, dos que empiezan juntas pueden quedar ambas en vivo o bloquearse entre sí. */
-  private takeLiveLock(tx: Prisma.TransactionClient, churchId: string) {
-    return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${churchId}, 0))`;
   }
 
   /** Qué transmisiones deja de lado una que empieza: las de su misma sede, o todas si son compartidas. */

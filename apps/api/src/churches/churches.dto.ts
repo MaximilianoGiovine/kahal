@@ -33,6 +33,7 @@ export class UpdateChurchDto {
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de YouTube inválido' }) youtubeUrl?: string | null;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de Facebook inválido' }) facebookUrl?: string | null;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de Twitch inválido' }) twitchUrl?: string | null;
+  @IsOptional() @IsBoolean() autoLiveEnabled?: boolean;
 }
 
 class ChurchAdminDto {

@@ -96,8 +96,18 @@ Se agregan en *Environment variables* del stack y se aplican con **Update the st
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Ingresar con Google (ver abajo). |
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | Ingresar con Apple (ver abajo). |
 | `STORAGE_DRIVER=s3` + `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Guardar archivos en AWS S3 / Cloudflare R2 / Backblaze en vez del disco del servidor. |
+| `YOUTUBE_API_KEY` | Publicar sola la transmisión cuando el canal de YouTube de una iglesia empieza a emitir (ver abajo). |
+| `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Lo mismo para Twitch (ver abajo). |
 | `DEMO_STREAM_URL` | Link de YouTube/Facebook/Twitch para las transmisiones de la demo. |
 | `HTTP_PORT` / `HTTPS_PORT` | Cambiar los puertos 80 / 443. |
+
+### Transmisiones automáticas (opcional)
+
+Cada dos minutos, la API revisa los canales que cada iglesia registró en **Configuración**. Cuando uno empieza a emitir, publica la transmisión en *En vivo* y avisa a la iglesia; cuando termina, la pasa a *Anteriores*. Cada iglesia puede desactivarlo en **Configuración**.
+
+- **YouTube:** en [Google Cloud Console](https://console.cloud.google.com/) crea un proyecto, habilita *YouTube Data API v3* y crea una clave de API para `YOUTUBE_API_KEY`. Restringe la clave a esa API. El canal tiene que estar registrado con un enlace `@nombre` o `/channel/`.
+- **Twitch:** en la [consola de desarrolladores](https://dev.twitch.tv/console/apps) registra una aplicación y copia `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET`.
+- **Facebook:** no se detecta. Hay que agregar la transmisión a mano en *En vivo*.
 
 ### Detrás de Nginx Proxy Manager (opcional)
 

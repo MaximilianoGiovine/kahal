@@ -82,6 +82,7 @@ export interface Church extends ChurchBrief {
   youtubeUrl: string | null;
   facebookUrl: string | null;
   twitchUrl: string | null;
+  autoLiveEnabled: boolean;
   deletionScheduledFor: string | null;
   billingExempt: boolean;
 }
