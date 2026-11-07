@@ -175,3 +175,91 @@ export class TwitchLive {
     return this.token.value;
   }
 }
+
+export interface FacebookPageAccess {
+  id: string;
+  name: string;
+  link: string | null;
+  token: string;
+}
+
+export interface FacebookLiveVideo {
+  id: string;
+  videoId: string | null;
+  title: string;
+  startedAt: Date | null;
+}
+
+/** Facebook rechazó el token de la página: la iglesia tiene que volver a conectarla. */
+export class FacebookTokenError extends Error {}
+
+const FACEBOOK_SCOPES = 'pages_show_list,pages_read_engagement';
+
+/**
+ * Facebook no deja leer páginas ajenas: un administrador de la página la conecta una vez con su cuenta
+ * y Kahal guarda el token de la página, que no vence mientras esa persona siga administrándola.
+ */
+@Injectable()
+export class FacebookLive {
+  private readonly appId: string | undefined;
+  private readonly appSecret: string | undefined;
+  private readonly version: string;
+
+  constructor(config: ConfigService) {
+    this.appId = config.get<string>('FACEBOOK_APP_ID') || undefined;
+    this.appSecret = config.get<string>('FACEBOOK_APP_SECRET') || undefined;
+    this.version = config.get<string>('FACEBOOK_GRAPH_VERSION') || 'v23.0';
+  }
+
+  get configured() {
+    return !!this.appId && !!this.appSecret;
+  }
+
+  authorizeUrl(callbackUrl: string, state: string) {
+    const params = new URLSearchParams({ client_id: this.appId!, redirect_uri: callbackUrl, state, response_type: 'code', scope: FACEBOOK_SCOPES });
+    return `https://www.facebook.com/${this.version}/dialog/oauth?${params}`;
+  }
+
+  /** Páginas que administra quien autorizó, con tokens que no vencen (salen de un token de usuario de larga duración). */
+  async pages(code: string, callbackUrl: string): Promise<FacebookPageAccess[]> {
+    const short = await this.graph<{ access_token: string }>('oauth/access_token', { client_id: this.appId!, client_secret: this.appSecret!, redirect_uri: callbackUrl, code });
+    const long = await this.graph<{ access_token: string }>('oauth/access_token', {
+      grant_type: 'fb_exchange_token',
+      client_id: this.appId!,
+      client_secret: this.appSecret!,
+      fb_exchange_token: short.access_token,
+    });
+    const out: FacebookPageAccess[] = [];
+    let after: string | undefined;
+    do {
+      const page = await this.graph<{ data: { id: string; name: string; link?: string; access_token?: string }[]; paging?: { cursors?: { after?: string }; next?: string } }>(
+        'me/accounts',
+        { fields: 'id,name,link,access_token', limit: '100', access_token: long.access_token, ...(after && { after }) },
+      );
+      for (const p of page.data) if (p.access_token) out.push({ id: p.id, name: p.name, link: p.link ?? null, token: p.access_token });
+      after = page.paging?.next ? page.paging.cursors?.after : undefined;
+    } while (after);
+    return out;
+  }
+
+  async liveVideos(pageId: string, token: string): Promise<FacebookLiveVideo[]> {
+    const data = await this.graph<{ data: { id: string; title?: string; status: string; creation_time?: string; video?: { id: string } }[] }>(
+      `${encodeURIComponent(pageId)}/live_videos`,
+      { broadcast_status: '["LIVE"]', fields: 'id,title,status,creation_time,video{id}', limit: '10', access_token: token },
+    );
+    return data.data
+      .filter((v) => v.status === 'LIVE')
+      .map((v) => ({ id: v.id, videoId: v.video?.id ?? null, title: v.title ?? '', startedAt: v.creation_time ? new Date(v.creation_time) : null }));
+  }
+
+  /** Los tokens van en la query (así lo pide Graph API): por eso los errores no incluyen la URL. */
+  private async graph<T>(path: string, params: Record<string, string>): Promise<T> {
+    const res = await fetch(`https://graph.facebook.com/${this.version}/${path}?${new URLSearchParams(params)}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (res.ok) return res.json() as Promise<T>;
+    const body = (await res.json().catch(() => null)) as { error?: { code?: number; message?: string } } | null;
+    // 190: token inválido o vencido. 10 y 200-299: se quitó el permiso o la persona ya no administra la página.
+    const code = body?.error?.code;
+    if (code === 190 || code === 10 || (code !== undefined && code >= 200 && code < 300)) throw new FacebookTokenError(`Facebook rechazó el token (${code}): ${body?.error?.message ?? ''}`);
+    throw new HttpStatusError('La API de Facebook', res.status);
+  }
+}

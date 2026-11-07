@@ -6,19 +6,32 @@ import { separates } from '../common/campus-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { takeLiveLock } from './content.service';
-import { TwitchLive, YouTubeLive } from './live-platforms';
+import { FacebookPageService } from './facebook-page.service';
+import { FacebookTokenError, TwitchLive, YouTubeLive } from './live-platforms';
 
 /** Twitch deja de listar un canal durante un corte breve: se espera antes de dar por terminada la transmisión. */
-const MISSES_TO_END: Record<string, number> = { [StreamPlatform.YOUTUBE]: 1, [StreamPlatform.TWITCH]: 3 };
+const MISSES_TO_END: Record<string, number> = { [StreamPlatform.YOUTUBE]: 1, [StreamPlatform.TWITCH]: 3, [StreamPlatform.FACEBOOK]: 2 };
 /** Una transmisión que se reinicia tras un corte no vuelve a avisar a toda la iglesia. */
 const RESTART_MS = 30 * 60_000;
 /** Margen para reconocer una transmisión programada a mano como la que acaba de empezar. */
 const PLANNED_MS = 12 * 3600_000;
 const FEED_CONCURRENCY = 5;
 
-const CHURCH_SELECT = { id: true, name: true, youtubeUrl: true, twitchUrl: true, ignoredLiveIds: true, campusesEnabled: true, campusSeparated: true } satisfies Prisma.ChurchSelect;
+const PAGE_SELECT = { churchId: true, pageId: true, token: true, invalidAt: true } satisfies Prisma.FacebookPageSelect;
+const CHURCH_SELECT = {
+  id: true,
+  name: true,
+  youtubeUrl: true,
+  twitchUrl: true,
+  facebookUrl: true,
+  facebookPage: { select: PAGE_SELECT },
+  ignoredLiveIds: true,
+  campusesEnabled: true,
+  campusSeparated: true,
+} satisfies Prisma.ChurchSelect;
+type ConnectedPage = Prisma.FacebookPageGetPayload<{ select: typeof PAGE_SELECT }>;
 type DetectChurch = Prisma.ChurchGetPayload<{ select: typeof CHURCH_SELECT }>;
-type Tracked = { id: string; platform: StreamPlatform; externalId: string | null; url: string };
+type Tracked = { id: string; churchId: string; platform: StreamPlatform; externalId: string | null; url: string };
 
 interface Broadcast {
   platform: StreamPlatform;
@@ -49,7 +62,7 @@ function sameChannel(a: string, b: string) {
 }
 
 /**
- * Publica sola la transmisión cuando el canal de YouTube o Twitch de una iglesia empieza a emitir, y la termina cuando corta.
+ * Publica sola la transmisión cuando el canal de YouTube, Twitch o Facebook de una iglesia empieza a emitir, y la termina cuando corta.
  * `LiveStream.externalId` marca lo que sigue este servicio. Lo publicado a mano no se toca, salvo que sea la misma transmisión.
  */
 @Injectable()
@@ -66,26 +79,28 @@ export class LiveDetectorService {
     private readonly twitch: TwitchLive,
     private readonly push: PushService,
     private readonly billing: BillingService,
+    private readonly facebook: FacebookPageService,
   ) {}
 
   get availability() {
-    return { youtube: this.youtube.configured, twitch: this.twitch.configured };
+    return { youtube: this.youtube.configured, twitch: this.twitch.configured, facebook: this.facebook.configured };
   }
 
   @Cron('*/2 * * * *')
   async detect() {
-    if (this.running || (!this.youtube.configured && !this.twitch.configured)) return;
+    if (this.running || (!this.youtube.configured && !this.twitch.configured && !this.facebook.configured)) return;
     this.running = true;
     try {
       const tracked = await this.prisma.liveStream.findMany({
         where: { isLive: true, externalId: { not: null } },
-        select: { id: true, platform: true, externalId: true, url: true },
+        select: { id: true, churchId: true, platform: true, externalId: true, url: true },
       });
       const churches = await this.eligibleChurches();
-      const [youtube, twitch] = await Promise.all([this.checkYouTube(churches, tracked), this.checkTwitch(churches, tracked)]);
-      await this.closeEnded(tracked, { [StreamPlatform.YOUTUBE]: youtube.stillLive, [StreamPlatform.TWITCH]: twitch.stillLive });
+      const [youtube, twitch, facebook] = await Promise.all([this.checkYouTube(churches, tracked), this.checkTwitch(churches, tracked), this.checkFacebook(churches, tracked)]);
+      await this.closeEnded(tracked, { [StreamPlatform.YOUTUBE]: youtube.stillLive, [StreamPlatform.TWITCH]: twitch.stillLive, [StreamPlatform.FACEBOOK]: facebook.stillLive });
       for (const church of churches) {
-        for (const broadcast of [...(youtube.byChurch.get(church.id) ?? []), ...(twitch.byChurch.get(church.id) ?? [])]) {
+        const found = [youtube, twitch, facebook].flatMap((check) => check.byChurch.get(church.id) ?? []);
+        for (const broadcast of found) {
           await this.start(church, broadcast).catch((e) => this.logger.error(`Falló la transmisión automática de la iglesia ${church.id}: ${this.reason(e)}`));
         }
       }
@@ -100,6 +115,7 @@ export class LiveDetectorService {
     const channels: Prisma.ChurchWhereInput[] = [];
     if (this.youtube.configured) channels.push({ youtubeUrl: { not: null } });
     if (this.twitch.configured) channels.push({ twitchUrl: { not: null } });
+    if (this.facebook.configured) channels.push({ facebookPage: { is: { invalidAt: null } } });
     const churches = await this.prisma.church.findMany({
       where: { active: true, deletionScheduledFor: null, autoLiveEnabled: true, OR: channels },
       select: CHURCH_SELECT,
@@ -194,6 +210,60 @@ export class LiveDetectorService {
       }
     }
     return { byChurch, stillLive: new Set(streams.map((s) => s.id)) };
+  }
+
+  private async checkFacebook(churches: DetectChurch[], tracked: Tracked[]): Promise<PlatformCheck> {
+    const byChurch = new Map<string, Broadcast[]>();
+    if (!this.facebook.configured) return { byChurch, stillLive: null };
+
+    const pages = new Map<string, ConnectedPage>();
+    for (const church of churches) if (church.facebookPage && !church.facebookPage.invalidAt) pages.set(church.id, church.facebookPage);
+    // Lo que ya se publicó se sigue revisando aunque la iglesia haya apagado la detección, para saber cuándo termina.
+    const trackedChurches = tracked.filter((t) => t.platform === StreamPlatform.FACEBOOK && !pages.has(t.churchId)).map((t) => t.churchId);
+    if (trackedChurches.length) {
+      const extra = await this.prisma.facebookPage.findMany({ where: { churchId: { in: trackedChurches }, invalidAt: null }, select: PAGE_SELECT });
+      for (const page of extra) pages.set(page.churchId, page);
+    }
+
+    const stillLive = new Set<string>();
+    const entries = [...pages.values()];
+    for (let i = 0; i < entries.length; i += FEED_CONCURRENCY) {
+      const batch = entries.slice(i, i + FEED_CONCURRENCY);
+      const results = await Promise.allSettled(batch.map((page) => this.facebookLive(page)));
+      results.forEach((result, j) => {
+        const page = batch[j];
+        if (result.status === 'rejected') {
+          this.logger.warn(this.reason(result.reason));
+          // Sin respuesta de esa página no se da por terminado lo suyo.
+          for (const t of tracked) if (t.platform === StreamPlatform.FACEBOOK && t.churchId === page.churchId && !(result.reason instanceof FacebookTokenError)) stillLive.add(t.externalId!);
+          return;
+        }
+        const church = churches.find((c) => c.id === page.churchId);
+        for (const live of result.value) {
+          stillLive.add(live.id);
+          if (!church) continue;
+          const broadcast: Broadcast = {
+            platform: StreamPlatform.FACEBOOK,
+            externalId: live.id,
+            title: live.title || church.name,
+            url: `https://www.facebook.com/${page.pageId}/videos/${live.videoId ?? live.id}/`,
+            channelUrl: church.facebookUrl ?? `https://www.facebook.com/${page.pageId}`,
+            startedAt: live.startedAt,
+          };
+          byChurch.set(church.id, [...(byChurch.get(church.id) ?? []), broadcast]);
+        }
+      });
+    }
+    return { byChurch, stillLive };
+  }
+
+  private async facebookLive(page: ConnectedPage) {
+    try {
+      return await this.facebook.liveVideos(page);
+    } catch (e) {
+      if (e instanceof FacebookTokenError) await this.facebook.markInvalid(page.churchId);
+      throw e;
+    }
   }
 
   private async closeEnded(tracked: Tracked[], live: Record<string, Set<string> | null>) {

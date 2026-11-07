@@ -11,7 +11,7 @@ import { randomBytes } from 'node:crypto';
 import { CampusAspect, PrismaClient, StreamPlatform } from '@prisma/client';
 import { ContentService } from '../src/content/content.service';
 import { LiveDetectorService } from '../src/content/live-detector.service';
-import type { TwitchStream, YouTubeVideo } from '../src/content/live-platforms';
+import { FacebookTokenError, type FacebookLiveVideo, type TwitchStream, type YouTubeVideo } from '../src/content/live-platforms';
 
 const db = new PrismaClient();
 const CHANNEL = 'UCtest';
@@ -28,6 +28,9 @@ describe('detección automática de transmisiones', () => {
   let pushes: { body: string; campusId?: string | null }[];
   let blocked: boolean;
   let detector: LiveDetectorService;
+  let fbLive: FacebookLiveVideo[];
+  let fbFailure: Error | null;
+  let fbQueried: number;
 
   const video = (id: string, state: YouTubeVideo['state'] = 'live'): YouTubeVideo => ({ id, channelId: CHANNEL, title: `Culto ${id}`, state, startedAt: new Date() });
   const rows = () => db.liveStream.findMany({ where: { churchId }, orderBy: { createdAt: 'asc' } });
@@ -52,6 +55,15 @@ describe('detección automática de transmisiones', () => {
       } as never,
       { sendToChurch: async (_: string, p: { body: string }, __: unknown, campusId?: string | null) => void pushes.push({ body: p.body, campusId }) } as never,
       { isBlocked: async () => blocked } as never,
+      {
+        configured: true,
+        liveVideos: async () => {
+          fbQueried++;
+          if (fbFailure) throw fbFailure;
+          return fbLive;
+        },
+        markInvalid: (id: string) => db.facebookPage.updateMany({ where: { churchId: id }, data: { invalidAt: new Date() } }),
+      } as never,
     );
 
   beforeEach(async () => {
@@ -68,6 +80,9 @@ describe('detección automática de transmisiones', () => {
     queried = [];
     pushes = [];
     blocked = false;
+    fbLive = [];
+    fbFailure = null;
+    fbQueried = 0;
     detector = makeDetector();
   });
 
@@ -80,6 +95,72 @@ describe('detección automática de transmisiones', () => {
   after(async () => {
     await cleanup();
     await db.$disconnect();
+  });
+
+  describe('Facebook', () => {
+    const PAGE = '1001';
+    const fbVideo = (id: string, title = `Culto ${id}`): FacebookLiveVideo => ({ id, videoId: `v${id}`, title, startedAt: new Date() });
+    const connect = () => db.facebookPage.create({ data: { churchId, pageId: PAGE, name: 'Iglesia', token: 'sellado' } });
+
+    it('publica la transmisión de la página conectada y la termina tras dos revisiones sin ella', async () => {
+      await connect();
+      fbLive = [fbVideo('f1', '')];
+      await detector.detect();
+      let [row, ...rest] = await rows();
+      assert.equal(rest.length, 0);
+      assert.equal(row.platform, 'FACEBOOK');
+      assert.equal(row.isLive, true);
+      assert.equal(row.title, 'Iglesia en vivo');
+      assert.equal(row.url, `https://www.facebook.com/${PAGE}/videos/vf1/`);
+      assert.deepEqual(pushes, [{ body: 'En vivo ahora: Iglesia en vivo', campusId: null }]);
+
+      fbLive = [];
+      await detector.detect();
+      assert.equal((await rows())[0].isLive, true);
+      await detector.detect();
+      [row] = await rows();
+      assert.equal(row.isLive, false);
+    });
+
+    it('no consulta Facebook si la iglesia no conectó su página', async () => {
+      fbLive = [fbVideo('f1')];
+      await detector.detect();
+      assert.equal(fbQueried, 0);
+      assert.equal((await rows()).length, 0);
+    });
+
+    it('usa la transmisión programada a mano con el enlace de la página', async () => {
+      await db.church.update({ where: { id: churchId }, data: { facebookUrl: 'https://www.facebook.com/iglesia' } });
+      await connect();
+      await db.liveStream.create({ data: { churchId, title: 'Culto dominical', platform: StreamPlatform.FACEBOOK, url: 'https://facebook.com/iglesia/', scheduledAt: new Date() } });
+      fbLive = [fbVideo('f2')];
+      await detector.detect();
+      const [row, ...rest] = await rows();
+      assert.equal(rest.length, 0);
+      assert.equal(row.title, 'Culto dominical');
+      assert.equal(row.externalId, 'f2');
+      assert.equal(row.isLive, true);
+    });
+
+    it('no termina nada si Facebook no responde', async () => {
+      await connect();
+      fbLive = [fbVideo('f1')];
+      await detector.detect();
+      fbFailure = new Error('caída');
+      for (let i = 0; i < 3; i++) await detector.detect();
+      assert.equal((await rows())[0].isLive, true);
+    });
+
+    it('marca la página para reconectar si Facebook rechaza el token y deja de consultarla', async () => {
+      await connect();
+      fbFailure = new FacebookTokenError('vencido');
+      await detector.detect();
+      const page = await db.facebookPage.findUniqueOrThrow({ where: { churchId } });
+      assert.ok(page.invalidAt);
+      fbQueried = 0;
+      await detector.detect();
+      assert.equal(fbQueried, 0);
+    });
   });
 
   it('publica una transmisión nueva, avisa una sola vez y la termina al cortar', async () => {

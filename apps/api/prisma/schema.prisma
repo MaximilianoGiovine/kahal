@@ -283,7 +283,7 @@ model Church {
   campusesEnabled      Boolean        @default(false)
   /// Lo que cada sede maneja por separado; lo demás lo comparte toda la iglesia.
   campusSeparated      CampusAspect[] @default([MEMBERS, FINANCE])
-  /// Publica sola la transmisión cuando sus canales de YouTube o Twitch empiezan a emitir.
+  /// Publica sola la transmisión cuando sus canales de YouTube, Twitch o Facebook empiezan a emitir.
   autoLiveEnabled      Boolean        @default(true)
   /// Transmisiones detectadas que alguien eliminó mientras seguían en vivo: no se vuelven a publicar.
   ignoredLiveIds       String[]       @default([])
@@ -310,8 +310,24 @@ model Church {
   churchRequests ChurchRequest[]
   agreements     ChurchAgreement[]
   subscriptions  ChurchSubscription[]
+  facebookPage   FacebookPage?
 
   @@index([deletionScheduledFor])
+}
+
+/// Página de Facebook que la iglesia conectó para detectar sus transmisiones. Aparte de Church para que el token nunca salga con ella.
+model FacebookPage {
+  churchId      String    @id
+  church        Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  pageId        String
+  name          String
+  /// Token de la página cifrado (ver common/secret-box.ts).
+  token         String
+  /// Facebook dejó de aceptar el token: hay que volver a conectar la página.
+  invalidAt     DateTime?
+  connectedById String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 enum ChurchRequestStatus {

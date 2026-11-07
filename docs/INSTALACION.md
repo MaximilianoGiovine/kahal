@@ -98,6 +98,7 @@ Se agregan en *Environment variables* del stack y se aplican con **Update the st
 | `STORAGE_DRIVER=s3` + `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Guardar archivos en AWS S3 / Cloudflare R2 / Backblaze en vez del disco del servidor. |
 | `YOUTUBE_API_KEY` | Publicar sola la transmisión cuando el canal de YouTube de una iglesia empieza a emitir (ver abajo). |
 | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Lo mismo para Twitch (ver abajo). |
+| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Lo mismo para las páginas de Facebook que cada iglesia conecte (ver abajo). |
 | `DEMO_STREAM_URL` | Link de YouTube/Facebook/Twitch para las transmisiones de la demo. |
 | `HTTP_PORT` / `HTTPS_PORT` | Cambiar los puertos 80 / 443. |
 
@@ -107,7 +108,13 @@ Cada dos minutos, la API revisa los canales que cada iglesia registró en **Conf
 
 - **YouTube:** en [Google Cloud Console](https://console.cloud.google.com/) crea un proyecto, habilita *YouTube Data API v3* y crea una clave de API para `YOUTUBE_API_KEY`. Restringe la clave a esa API. El canal tiene que estar registrado con un enlace `@nombre` o `/channel/`.
 - **Twitch:** en la [consola de desarrolladores](https://dev.twitch.tv/console/apps) registra una aplicación y copia `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET`.
-- **Facebook:** no se detecta. Hay que agregar la transmisión a mano en *En vivo*.
+- **Facebook:** Facebook no deja leer páginas ajenas, así que cada iglesia conecta la suya en **Configuración → Conectar con Facebook**, con una cuenta que administre la página. Kahal guarda el token de la página cifrado y solo lee sus transmisiones en vivo. Para habilitarlo:
+  1. En [Meta for Developers](https://developers.facebook.com/apps/) crea una app con el caso de uso para administrar páginas.
+  2. En *Inicio de sesión con Facebook → Configuración*, agrega como URI de redirección válida `https://TU-DOMINIO/api/church/facebook/callback`.
+  3. Copia el identificador y la clave secreta de la app (*Configuración de la app → Básica*) en `FACEBOOK_APP_ID` y `FACEBOOK_APP_SECRET`.
+  4. Mientras la app esté en modo desarrollo, solo pueden conectar su página las personas con un rol en la app (agrégalas como evaluadores). Para abrirlo a todas las iglesias, pide en la revisión de la app el acceso avanzado a `pages_show_list` y `pages_read_engagement`; Meta exige además verificar el negocio.
+
+  Si cambia `JWT_SECRET`, las páginas conectadas dejan de funcionar y cada iglesia tiene que volver a conectarla.
 
 ### Detrás de Nginx Proxy Manager (opcional)
 

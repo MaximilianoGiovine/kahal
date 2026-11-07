@@ -10,6 +10,7 @@ import { ChurchClosure } from '@/components/church-closure';
 import { ChurchQrDialog, QrCode, registerLink } from '@/components/church-qr';
 import { CurrencyOptions } from '@/components/currency-options';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
+import { FacebookPageConnection } from '@/components/facebook-page';
 import { ImageUpload } from '@/components/image-upload';
 import { TimezoneOptions } from '@/components/region-fields';
 import { ActionMenu } from '@/components/menu';
@@ -63,8 +64,10 @@ function ChurchSettings() {
   const { isSuperAdmin } = useSession();
   const [showQr, setShowQr] = useState(false);
   const { data, isLoading, error } = useQuery({ queryKey: ['church'], queryFn: () => api<Church>('/church') });
-  const { data: detection } = useQuery({ queryKey: ['stream-detection'], queryFn: () => api<{ youtube: boolean; twitch: boolean }>('/streams/detection') });
-  const detected = [detection?.youtube && 'YouTube', detection?.twitch && 'Twitch'].filter(Boolean).join(' y ');
+  const { data: detection } = useQuery({ queryKey: ['stream-detection'], queryFn: () => api<{ youtube: boolean; twitch: boolean; facebook: boolean }>('/streams/detection') });
+  const detected = new Intl.ListFormat('es', { type: 'conjunction' }).format(
+    [detection?.youtube && 'YouTube', detection?.twitch && 'Twitch', detection?.facebook && 'Facebook'].filter((v): v is string => !!v),
+  );
   const save = useAction((body: Record<string, unknown>) => api<Church>('/church', { method: 'PATCH', body }), {
     success: 'Datos guardados',
     onSuccess: () => {
@@ -137,7 +140,7 @@ function ChurchSettings() {
                 name="autoLiveEnabled"
                 defaultChecked={data.autoLiveEnabled}
                 className="sm:col-span-3"
-                label={`Publicar sola la transmisión cuando el canal de ${detected} empiece a emitir, y avisar a la iglesia. En YouTube usa el enlace con @nombre o /channel/.`}
+                label={`Publicar sola la transmisión cuando el canal de ${detected} empiece a emitir, y avisar a la iglesia.${detection?.youtube ? ' En YouTube usa el enlace con @nombre o /channel/.' : ''}${detection?.facebook ? ' Facebook necesita que conectes la página (abajo).' : ''}`}
               />
             )}
           </fieldset>
@@ -150,6 +153,8 @@ function ChurchSettings() {
             </Button>
           </div>
         </form>
+        {/* Fuera del formulario: sus diálogos tienen botones que, adentro, lo enviarían. */}
+        <FacebookPageConnection className="mx-5 mb-5" />
       </Card>
       <div className="space-y-6">
         <ChurchClosure church={data} />
