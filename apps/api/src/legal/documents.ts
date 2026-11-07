@@ -40,8 +40,8 @@ export const RETENTION = {
 export const PRIVACY: LegalDocument = {
   key: 'privacy',
   title: 'Política de Privacidad',
-  version: '1.0',
-  effectiveDate: '2026-11-06',
+  version: '1.1',
+  effectiveDate: '2026-11-07',
   sections: [
     {
       title: '1. Quién trata tus datos',
@@ -60,6 +60,7 @@ export const PRIVACY: LegalDocument = {
         'Datos técnicos: cookies necesarias para mantener tu sesión y, si activas los avisos, el identificador de tu dispositivo para enviarlos. No usamos publicidad ni herramientas de seguimiento de terceros.',
         'Cuando esté habilitada la suscripción: datos de quien la gestiona, importe, moneda, fechas y estado de los pagos, e identificadores que entrega la pasarela. Los números de tarjeta los trata la pasarela y Kahal no los recibe.',
         'Quien solicita el alta de una iglesia aporta además los datos del formulario y su aceptación del contrato, incluidos la dirección IP y el navegador usados, como constancia.',
+        'Si quien administra la iglesia conecta su página de Facebook: el identificador y el nombre de la página, quién la conectó y la credencial de acceso a la página que entrega Facebook, que guardamos cifrada. Al conectarla, Facebook nos muestra las páginas que administra esa persona para que elija la de la iglesia: no guardamos las demás. Usamos esa credencial solo para saber cuándo la página transmite en vivo y mostrar la transmisión en la iglesia. No publicamos nada en Facebook ni accedemos al perfil, los contactos ni los mensajes de nadie.',
       ],
     },
     {
@@ -80,7 +81,7 @@ export const PRIVACY: LegalDocument = {
       title: '5. Quién puede verlos',
       paragraphs: [
         'Dentro de tu iglesia, las personas con permisos según su rol. Quienes administran Kahal pueden acceder cuando sea necesario para soporte, seguridad o por obligación legal.',
-        `Proveedores que hacen posible el servicio: alojamiento (${OPERATOR.hosting}), correo electrónico, almacenamiento de archivos y las pasarelas de pago de cada país; Google o Apple si ingresas con ellos; los servicios de avisos de Apple, Google o Mozilla si los activas, y YouTube, Facebook o Twitch si abres una transmisión, ya que esas plataformas pueden recibir tus datos de navegación.`,
+        `Proveedores que hacen posible el servicio: alojamiento (${OPERATOR.hosting}), correo electrónico, almacenamiento de archivos y las pasarelas de pago de cada país; Google o Apple si ingresas con ellos; Meta (Facebook) si tu iglesia conecta su página; los servicios de avisos de Apple, Google o Mozilla si los activas, y YouTube, Facebook o Twitch si abres una transmisión, ya que esas plataformas pueden recibir tus datos de navegación.`,
         'Algunos proveedores pueden estar fuera de tu país, en lugares con un nivel de protección diferente. Al aceptar esta política, autorizas esas transferencias en la medida necesaria para prestar el servicio.',
         'También podemos entregar datos si lo ordena una autoridad competente.',
       ],
@@ -93,6 +94,7 @@ export const PRIVACY: LegalDocument = {
         `Iglesias: al pedir la baja hay ${RETENTION.churchGraceDays} días para cancelarla o exportar la información. Después se borran sus datos y archivos.`,
         `Constancia del contrato de una iglesia: ${RETENTION.agreementYears} años desde que finaliza la relación, para atender posibles reclamos. Si la solicitud se rechaza o vence, se borra con ella.`,
         'Datos de suscripción y pagos: el tiempo que exijan las normas fiscales y contables, aunque se borre la iglesia.',
+        'Conexión con la página de Facebook: hasta que la iglesia la desconecte o se borre la iglesia. Al desconectarla, se borra la credencial.',
         `Copias de seguridad: lo borrado puede permanecer en ellas hasta ${RETENTION.backupMonths} meses, protegido y sin uso activo, hasta que se reemplacen.`,
         'Si se elimina tu cuenta, los movimientos financieros de la iglesia se conservan sin vincularlos a tu persona, porque forman parte de su contabilidad. Pueden quedar en el registro de actividad los títulos del contenido que publicaste.',
       ],
@@ -101,6 +103,7 @@ export const PRIVACY: LegalDocument = {
       title: '7. Tus derechos',
       paragraphs: [
         'Puedes pedir acceso a tus datos, corregirlos, actualizarlos o suprimirlos, y retirar tu autorización. Puedes corregirlos en Mi perfil y eliminar tu cuenta desde allí, salvo que seas la única persona que administra una iglesia. Para todo lo demás, o si tu iglesia tiene el acceso bloqueado por falta de pago, escribe a tu iglesia o a ' + OPERATOR.email + '.',
+        'Para borrar los datos de una página de Facebook conectada, quien administra la iglesia puede desconectarla en Configuración → Iglesia. También puedes quitarle el acceso a Kahal desde Facebook, en Configuración y privacidad → Configuración → Integraciones comerciales, o escribirnos a ' + OPERATOR.email + ' para que la borremos nosotros.',
         'Respondemos los pedidos de acceso en un máximo de 10 días corridos y los de corrección o supresión en un máximo de 5 días hábiles. La supresión no procede si lesiona derechos de terceros o si una ley obliga a conservar el dato.',
         'El titular de los datos personales tiene la facultad de ejercer el derecho de acceso a los mismos en forma gratuita a intervalos no inferiores a seis meses, salvo que se acredite un interés legítimo al efecto, conforme lo establecido en el artículo 14, inciso 3 de la Ley 25.326.',
         'La Agencia de Acceso a la Información Pública, en su carácter de órgano de control de la Ley 25.326, tiene la atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales.',
