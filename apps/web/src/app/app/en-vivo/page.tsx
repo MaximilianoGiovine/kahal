@@ -9,7 +9,7 @@ import { ActionMenu } from '@/components/menu';
 import { Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
 import { dateTime, fromLocalInput, toLocalInput } from '@/lib/format';
-import { embedUrl, PLATFORM_LABEL, STREAM_CHANNELS, type StreamChannels } from '@/lib/embed';
+import { embedUrl, isUnplayableFacebook, PLATFORM_LABEL, STREAM_CHANNELS, type StreamChannels } from '@/lib/embed';
 import { formValues, useAction } from '@/lib/hooks';
 import { can } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
@@ -157,6 +157,9 @@ function Player({ stream }: { stream: Stream }) {
     return (
       <div className="flex aspect-video flex-col items-center justify-center gap-3 bg-black text-white">
         <MonitorPlay className="size-10 opacity-70" />
+        {isUnplayableFacebook(stream.url) && (
+          <p className="max-w-sm px-4 text-center text-sm opacity-80">Facebook no permite reproducir este enlace dentro de Kahal. Puedes verlo directamente en Facebook.</p>
+        )}
         <a href={stream.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white/15 px-4 py-2 text-sm font-medium hover:bg-white/25">
           Abrir transmisión
         </a>
@@ -255,6 +258,11 @@ function StreamForm({ item, channels, onClose }: { item: Stream | null; channels
         <Field label="Enlace de la transmisión" hint="Pega el enlace del video o de la transmisión en vivo de YouTube, Facebook o Twitch. En Twitch basta con el enlace del canal. Si en Configuración activaste la publicación automática, YouTube y Twitch no necesitan este paso.">
           <Input name="url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />
         </Field>
+        {isUnplayableFacebook(url) && (
+          <p className="-mt-2 rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning">
+            Este enlace de Facebook no se puede ver dentro de Kahal: solo se pueden reproducir videos concretos y públicos. Abre el video en Facebook desde una computadora y copia el enlace de la barra de direcciones (tiene la forma facebook.com/tu-iglesia/videos/123…). Los enlaces de página, los de fb.watch y los de «Compartir» solo se abren en Facebook.
+          </p>
+        )}
         {channels.length > 0 && (
           <div className="-mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
             Usar canal de la iglesia:

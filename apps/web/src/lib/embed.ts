@@ -24,13 +24,45 @@ export function embedUrl(url: string): string | null {
       if (channel) return `https://www.youtube-nocookie.com/embed/live_stream?channel=${channel}&autoplay=1`;
       return null;
     }
-    if (host === 'facebook.com' || host === 'fb.watch' || host === 'fb.com') {
-      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&autoplay=true`;
-    }
+    if (host === 'facebook.com' || host === 'fb.watch' || host === 'fb.com') return facebookEmbed(u);
     if (host === 'twitch.tv' || host === 'player.twitch.tv') return twitchEmbed(u);
     return null;
   } catch {
     return null;
+  }
+}
+
+/** Id del video en los formatos de enlace de Facebook que el reproductor embebido acepta. */
+function facebookVideo(u: URL): { page: string; id: string } | null {
+  const path = u.pathname;
+  const inPage = path.match(/^\/([\w.-]+)\/videos\/(?:[^/]+\/)?(\d+)/);
+  if (inPage) return { page: inPage[1], id: inPage[2] };
+  const id =
+    path.match(/^\/(?:reel|videos)\/(\d+)/)?.[1] ??
+    (/^\/(?:watch(?:\/live)?\/?|video\.php)$/.test(path) ? u.searchParams.get('v') : null);
+  return id && /^\d+$/.test(id) ? { page: 'facebook', id } : null;
+}
+
+/**
+ * Facebook solo embebe videos concretos y públicos, con su enlace completo (…/videos/123).
+ * Los enlaces de página, los cortos (fb.watch) y los de "Compartir" (/share/…) no se reproducen
+ * embebidos: para esos devolvemos null y se ofrece abrirlos en Facebook.
+ */
+function facebookEmbed(u: URL): string | null {
+  const video = facebookVideo(u);
+  if (!video) return null;
+  const href = `https://www.facebook.com/${video.page}/videos/${video.id}/`;
+  return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(href)}&show_text=false&autoplay=true&width=1280&height=720`;
+}
+
+/** Indica si un enlace de Facebook no se va a poder reproducir dentro de Kahal. */
+export function isUnplayableFacebook(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\.|^m\.|^web\./, '');
+    return (host === 'facebook.com' || host === 'fb.watch' || host === 'fb.com') && !facebookVideo(u);
+  } catch {
+    return false;
   }
 }
 
