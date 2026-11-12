@@ -187,7 +187,7 @@ export class ContentService {
     const current = await this.ensureStream(churchId, id);
     assertCampusInScope(user.campusScopes.STREAMS, current.campusId);
     await this.prisma.liveStream.delete({ where: { id } });
-    // Sigue emitiendo: sin esto, la detección la publicaría de nuevo a los dos minutos.
+    // Sigue emitiendo: sin esto, la detección la publicaría de nuevo al minuto.
     if (current.isLive && current.externalId) await this.prisma.church.update({ where: { id: churchId }, data: { ignoredLiveIds: { push: current.externalId } } });
     await this.track(churchId, user.id, ActivityAction.DELETE, ActivityEntity.STREAM, current);
     return { ok: true };

@@ -104,7 +104,7 @@ Se agregan en *Environment variables* del stack y se aplican con **Update the st
 
 ### Transmisiones automáticas (opcional)
 
-Cada dos minutos, la API revisa los canales que cada iglesia registró en **Configuración**. Cuando uno empieza a emitir, publica la transmisión en *En vivo* y avisa a la iglesia; cuando termina, la pasa a *Anteriores*. Cada iglesia puede desactivarlo en **Configuración**.
+Cada minuto, la API revisa los canales que cada iglesia registró en **Configuración**. Cuando uno empieza a emitir, publica la transmisión en *En vivo* y avisa a la iglesia; cuando termina, la pasa a *Anteriores*. Cada iglesia puede desactivarlo en **Configuración**.
 
 - **YouTube:** en [Google Cloud Console](https://console.cloud.google.com/) crea un proyecto, habilita *YouTube Data API v3* y crea una clave de API para `YOUTUBE_API_KEY`. Restringe la clave a esa API. El canal tiene que estar registrado con un enlace `@nombre` o `/channel/`.
 - **Twitch:** en la [consola de desarrolladores](https://dev.twitch.tv/console/apps) registra una aplicación y copia `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET`.

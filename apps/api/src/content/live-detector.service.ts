@@ -9,8 +9,11 @@ import { takeLiveLock } from './content.service';
 import { FacebookPageService } from './facebook-page.service';
 import { FacebookTokenError, TwitchLive, YouTubeLive } from './live-platforms';
 
-/** Twitch deja de listar un canal durante un corte breve: se espera antes de dar por terminada la transmisión. */
-const MISSES_TO_END: Record<string, number> = { [StreamPlatform.YOUTUBE]: 1, [StreamPlatform.TWITCH]: 3, [StreamPlatform.FACEBOOK]: 2 };
+/**
+ * Revisiones seguidas sin la transmisión antes de darla por terminada, con una revisión por minuto.
+ * YouTube informa el estado del video y basta una. Twitch deja de listar un canal durante un corte breve: se esperan unos 6 minutos.
+ */
+const MISSES_TO_END: Record<string, number> = { [StreamPlatform.YOUTUBE]: 1, [StreamPlatform.TWITCH]: 6, [StreamPlatform.FACEBOOK]: 4 };
 /** Una transmisión que se reinicia tras un corte no vuelve a avisar a toda la iglesia. */
 const RESTART_MS = 30 * 60_000;
 /** Margen para reconocer una transmisión programada a mano como la que acaba de empezar. */
@@ -86,7 +89,7 @@ export class LiveDetectorService {
     return { youtube: this.youtube.configured, twitch: this.twitch.configured, facebook: this.facebook.configured };
   }
 
-  @Cron('*/2 * * * *')
+  @Cron('* * * * *')
   async detect() {
     if (this.running || (!this.youtube.configured && !this.twitch.configured && !this.facebook.configured)) return;
     this.running = true;

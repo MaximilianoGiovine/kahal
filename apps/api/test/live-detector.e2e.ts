@@ -102,7 +102,7 @@ describe('detección automática de transmisiones', () => {
     const fbVideo = (id: string, title = `Culto ${id}`): FacebookLiveVideo => ({ id, videoId: `v${id}`, title, startedAt: new Date() });
     const connect = () => db.facebookPage.create({ data: { churchId, pageId: PAGE, name: 'Iglesia', token: 'sellado' } });
 
-    it('publica la transmisión de la página conectada y la termina tras dos revisiones sin ella', async () => {
+    it('publica la transmisión de la página conectada y la termina tras cuatro revisiones sin ella', async () => {
       await connect();
       fbLive = [fbVideo('f1', '')];
       await detector.detect();
@@ -115,7 +115,7 @@ describe('detección automática de transmisiones', () => {
       assert.deepEqual(pushes, [{ body: 'En vivo ahora: Iglesia en vivo', campusId: null }]);
 
       fbLive = [];
-      await detector.detect();
+      for (let i = 0; i < 3; i++) await detector.detect();
       assert.equal((await rows())[0].isLive, true);
       await detector.detect();
       [row] = await rows();
@@ -147,7 +147,7 @@ describe('detección automática de transmisiones', () => {
       fbLive = [fbVideo('f1')];
       await detector.detect();
       fbFailure = new Error('caída');
-      for (let i = 0; i < 3; i++) await detector.detect();
+      for (let i = 0; i < 5; i++) await detector.detect();
       assert.equal((await rows())[0].isLive, true);
     });
 
@@ -285,8 +285,7 @@ describe('detección automática de transmisiones', () => {
     streams = [{ id: '1', login: LOGIN, title: 'Twitch', startedAt: new Date() }];
     await detector.detect();
     streams = [];
-    await detector.detect();
-    await detector.detect();
+    for (let i = 0; i < 5; i++) await detector.detect();
     assert.equal((await rows())[0].isLive, true);
     await detector.detect();
     const [ended] = await rows();
