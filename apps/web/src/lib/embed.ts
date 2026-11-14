@@ -9,6 +9,16 @@ export type StreamChannels = Partial<Record<(typeof STREAM_CHANNELS)[number]['ke
 
 export const PLATFORM_LABEL = { YOUTUBE: 'YouTube', FACEBOOK: 'Facebook', TWITCH: 'Twitch', OTHER: 'Otro' } as const;
 
+/**
+ * URL embebible de una transmisión. Para un enlace de canal de YouTube la API indica el video
+ * que se emite ahora; si no lo encontró, se usa el reproductor de la transmisión en vivo del canal.
+ */
+export function streamEmbedUrl(stream: { url: string; youtubeVideoId?: string | null; youtubeChannelId?: string | null }): string | null {
+  if (stream.youtubeVideoId) return `https://www.youtube-nocookie.com/embed/${stream.youtubeVideoId}?autoplay=1&rel=0`;
+  if (stream.youtubeChannelId) return `https://www.youtube-nocookie.com/embed/live_stream?channel=${stream.youtubeChannelId}&autoplay=1`;
+  return embedUrl(stream.url);
+}
+
 /** Convierte un link de YouTube, Facebook o Twitch en una URL embebible. */
 export function embedUrl(url: string): string | null {
   try {

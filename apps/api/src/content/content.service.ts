@@ -7,6 +7,7 @@ import { paginate } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { AnnouncementDto, AnnouncementsQuery, EventDto, EventsQuery, StreamDto, StreamsQuery } from './content.dto';
+import { YouTubeLive } from './live-platforms';
 
 const AUTHOR = { select: { id: true, firstName: true, lastName: true } };
 const CAMPUS = { select: { id: true, name: true } };
@@ -32,6 +33,7 @@ export class ContentService {
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
     private readonly push: PushService,
+    private readonly youtube: YouTubeLive,
   ) {}
 
   // Novedades
@@ -138,7 +140,17 @@ export class ContentService {
         take: 30,
       }),
     ]);
-    return { live, upcoming, past };
+    return { live: live && (await this.withEmbed(live)), upcoming, past };
+  }
+
+  /**
+   * Un enlace de canal de YouTube (@nombre, /c/…) no se puede insertar tal cual: sin esto la app solo podía mandar a YouTube.
+   * Se resuelve el video que el canal está emitiendo, o al menos el id del canal para el reproductor de su transmisión en vivo.
+   */
+  private async withEmbed<T extends { url: string }>(stream: T) {
+    if (!YouTubeLive.isChannelUrl(stream.url)) return stream;
+    const { videoId, channelId } = await this.youtube.currentVideoOf(stream.url);
+    return { ...stream, youtubeVideoId: videoId, youtubeChannelId: channelId };
   }
 
   async createStream(churchId: string, user: AuthUser, dto: StreamDto) {

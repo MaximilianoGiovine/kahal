@@ -282,6 +282,9 @@ export interface Stream {
   isLive: boolean;
   campusId: string | null;
   campus: CampusRef | null;
+  /** Solo en la transmisión en vivo con enlace de canal de YouTube: el video que emite ahora (o el próximo). */
+  youtubeVideoId?: string | null;
+  youtubeChannelId?: string | null;
 }
 
 export interface Person {

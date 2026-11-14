@@ -9,7 +9,7 @@ import { ActionMenu } from '@/components/menu';
 import { Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
 import { dateTime, fromLocalInput, toLocalInput } from '@/lib/format';
-import { embedUrl, isUnplayableFacebook, PLATFORM_LABEL, STREAM_CHANNELS, type StreamChannels } from '@/lib/embed';
+import { isUnplayableFacebook, streamEmbedUrl, PLATFORM_LABEL, STREAM_CHANNELS, type StreamChannels } from '@/lib/embed';
 import { formValues, useAction } from '@/lib/hooks';
 import { can } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
@@ -152,7 +152,7 @@ export default function LivePage() {
 }
 
 function Player({ stream }: { stream: Stream }) {
-  const src = embedUrl(stream.url);
+  const src = streamEmbedUrl(stream);
   if (!src) {
     return (
       <div className="flex aspect-video flex-col items-center justify-center gap-3 bg-black text-white">

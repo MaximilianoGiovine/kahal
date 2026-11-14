@@ -5,6 +5,15 @@ const TIMEOUT_MS = 10_000;
 /** Un enlace que no lleva a un canal no se vuelve a consultar hasta pasado este tiempo. */
 const UNRESOLVED_MS = 60 * 60_000;
 const BATCH = 50;
+/** La página /live se lee hasta el enlace canónico (a unos 800 KB del inicio, a veces dentro del body); más allá se corta. */
+const LIVE_PAGE_MAX_BYTES = 3 * 1024 * 1024;
+const CANONICAL = /<link rel="canonical" href="https:\/\/www\.youtube\.com\/([^"]*)"/;
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36',
+  'Accept-Language': 'es-419,es;q=0.9',
+  // Sin esto, desde un servidor en Europa YouTube redirige a la pantalla de consentimiento de cookies.
+  Cookie: 'SOCS=CAI; CONSENT=YES+',
+};
 
 export interface YouTubeVideo {
   id: string;
@@ -38,13 +47,16 @@ class HttpStatusError extends Error {
 
 /**
  * Buscar en vivo con la API de YouTube cuesta 100 unidades de una cuota de 10.000 diarias.
- * Por eso los videos salen del feed público del canal, que es gratis, y la API solo confirma su estado (1 unidad cada 50).
+ * Por eso los videos salen de fuentes públicas y gratuitas, y la API solo confirma su estado (1 unidad cada 50):
+ * - la página /live del canal, que apunta a la transmisión en curso (o a la próxima programada) en cuanto empieza;
+ * - el feed RSS, que tarda en incluir una transmisión recién iniciada y queda como respaldo.
  */
 @Injectable()
 export class YouTubeLive {
   private readonly logger = new Logger(YouTubeLive.name);
   private readonly key: string | undefined;
   private readonly channels = new Map<string, { id: string | null; expiresAt: number }>();
+  private readonly lives = new Map<string, { id: string | null; expiresAt: number }>();
 
   constructor(config: ConfigService) {
     this.key = config.get<string>('YOUTUBE_API_KEY') || undefined;
@@ -54,7 +66,37 @@ export class YouTubeLive {
     return !!this.key;
   }
 
-  /** Id del canal (UC…) de un enlace con /channel/, /@nombre o /user/. Los enlaces /c/ no se pueden resolver con la API. */
+  /** Enlace a un canal (no a un video): /@nombre, /channel/, /user/ o /c/, con o sin /live al final. */
+  static isChannelUrl(url: string) {
+    try {
+      const u = new URL(url);
+      return /(^|\.)youtube\.com$/.test(u.hostname) && !u.searchParams.has('v') && /^\/(@|channel\/|user\/|c\/)/.test(u.pathname);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Video que se reproduce para un enlace de canal: la transmisión en curso o la próxima programada.
+   * No usa la cuota de la API y se guarda un minuto, porque la página En vivo se consulta seguido.
+   */
+  async currentVideoOf(url: string): Promise<{ videoId: string | null; channelId: string | null }> {
+    const channelId = await this.channelId(url).catch((e) => {
+      this.logger.warn(e instanceof Error ? e.message : String(e));
+      return null;
+    });
+    if (!channelId) return { videoId: null, channelId: null };
+    const cached = this.lives.get(channelId);
+    if (cached && cached.expiresAt > Date.now()) return { videoId: cached.id, channelId };
+    const videoId = await this.liveVideoId(channelId).catch((e) => {
+      this.logger.warn(e instanceof Error ? e.message : String(e));
+      return null;
+    });
+    this.lives.set(channelId, { id: videoId, expiresAt: Date.now() + 60_000 });
+    return { videoId, channelId };
+  }
+
+  /** Id del canal (UC…) de un enlace con /channel/, /@nombre, /user/ o /c/. Sin clave de API se lee de la página del canal. */
   async channelId(url: string): Promise<string | null> {
     const cached = this.channels.get(url);
     if (cached && cached.expiresAt > Date.now()) return cached.id;
@@ -77,16 +119,56 @@ export class YouTubeLive {
     if (direct) return direct;
     const handle = path.match(/^\/@([^/]+)/)?.[1];
     const user = path.match(/^\/user\/([^/]+)/)?.[1];
-    if (!handle && !user) return null;
-    const query = handle ? `forHandle=${encodeURIComponent(`@${handle}`)}` : `forUsername=${encodeURIComponent(user!)}`;
-    const data = await this.api<{ items?: { id: string }[] }>(`channels?part=id&${query}`);
-    return data.items?.[0]?.id ?? null;
+    const custom = path.match(/^\/c\/([^/]+)/)?.[1];
+    if ((handle || user) && this.key) {
+      const query = handle ? `forHandle=${encodeURIComponent(`@${handle}`)}` : `forUsername=${encodeURIComponent(user!)}`;
+      const data = await this.api<{ items?: { id: string }[] }>(`channels?part=id&${query}`);
+      if (data.items?.[0]?.id) return data.items[0].id;
+    }
+    if (!handle && !user && !custom) return null;
+    // La API no resuelve los enlaces /c/ (ni algunos @nombre recientes): la página del canal sí dice su id.
+    const segment = handle ? `@${handle}` : user ? `user/${user}` : `c/${custom}`;
+    const canonical = await this.canonicalPath(`https://www.youtube.com/${encodeURI(segment)}`);
+    return canonical.match(/^channel\/(UC[\w-]+)/)?.[1] ?? null;
   }
 
   async feedVideoIds(channelId: string): Promise<string[]> {
     const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new HttpStatusError('El feed de YouTube', res.status);
     return [...(await res.text()).matchAll(/<yt:videoId>([\w-]+)<\/yt:videoId>/g)].map((m) => m[1]);
+  }
+
+  /** Video al que apunta la página /live del canal: el que está en vivo o el próximo programado. Null si no hay ninguno. */
+  async liveVideoId(channelId: string): Promise<string | null> {
+    const path = await this.canonicalPath(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`);
+    return path.match(/^watch\?v=([\w-]{11})/)?.[1] ?? null;
+  }
+
+  /** Ruta del enlace canónico de una página de YouTube (sin el dominio). */
+  private async canonicalPath(url: string): Promise<string> {
+    const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok || !res.body) throw new HttpStatusError('La página de YouTube', res.status);
+    const host = new URL(res.url).hostname;
+    if (host !== 'www.youtube.com') {
+      await res.body.cancel().catch(() => undefined);
+      throw new Error(`YouTube redirigió ${url} a ${host}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let html = '';
+    try {
+      while (html.length < LIVE_PAGE_MAX_BYTES) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        html += decoder.decode(value, { stream: true });
+        const canonical = CANONICAL.exec(html);
+        if (canonical) return canonical[1];
+      }
+    } finally {
+      await reader.cancel().catch(() => undefined);
+    }
+    // Sin enlace canónico la página no es la esperada (verificación anti-bots, cambio de formato): no se sabe.
+    throw new Error(`La página ${url} de YouTube no tiene el formato esperado`);
   }
 
   /** Los videos borrados o privados no vuelven en la respuesta. */
