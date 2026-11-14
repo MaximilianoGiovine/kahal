@@ -140,7 +140,7 @@ function ChurchSettings() {
                 name="autoLiveEnabled"
                 defaultChecked={data.autoLiveEnabled}
                 className="sm:col-span-3"
-                label={`Publicar sola la transmisión cuando el canal de ${detected} empiece a emitir, y avisar a la iglesia.${detection?.youtube ? ' En YouTube usa el enlace con @nombre o /channel/.' : ''}${detection?.facebook ? ' Facebook necesita que conectes la página (abajo).' : ''}`}
+                label={`Publicar sola la transmisión cuando el canal de ${detected} empiece a emitir, y avisar a la iglesia.${detection?.youtube ? ' En YouTube sirve el enlace del canal (@nombre, /channel/ o /c/).' : ''}${detection?.facebook ? ' Facebook necesita que conectes la página (abajo).' : ''}`}
               />
             )}
           </fieldset>

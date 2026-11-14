@@ -51,12 +51,13 @@ interface PlatformCheck {
   stillLive: Set<string> | null;
 }
 
-/** Comparación de enlaces de canal, sin www, mayúsculas ni parámetros. */
+/** Comparación de enlaces de canal, sin www, mayúsculas, parámetros ni pestañas del canal (/live, /streams…). */
 function sameChannel(a: string, b: string) {
   const norm = (url: string) => {
     try {
       const u = new URL(url);
-      return `${u.hostname.replace(/^www\.|^m\./, '')}${u.pathname.replace(/\/+$/, '')}`.toLowerCase();
+      const path = u.pathname.replace(/\/+$/, '').replace(/\/(live|streams|featured|videos)$/i, '');
+      return `${u.hostname.replace(/^www\.|^m\./, '')}${path}`.toLowerCase();
     } catch {
       return url;
     }
@@ -138,18 +139,29 @@ export class LiveDetectorService {
       if (channelId) churchesByChannel.set(channelId, [...(churchesByChannel.get(channelId) ?? []), church]);
     }
 
+    // La página /live da la transmisión apenas empieza; el feed tarda y queda de respaldo por si YouTube cambia esa página.
     const feedIds = new Set<string>();
+    const liveIds = new Set<string>();
     const channelIds = [...churchesByChannel.keys()];
     for (let i = 0; i < channelIds.length; i += FEED_CONCURRENCY) {
-      const feeds = await Promise.allSettled(channelIds.slice(i, i + FEED_CONCURRENCY).map((id) => this.youtube.feedVideoIds(id)));
+      const batch = channelIds.slice(i, i + FEED_CONCURRENCY);
+      const [feeds, pages] = await Promise.all([
+        Promise.allSettled(batch.map((id) => this.youtube.feedVideoIds(id))),
+        Promise.allSettled(batch.map((id) => this.youtube.liveVideoId(id))),
+      ]);
       for (const feed of feeds) {
         if (feed.status === 'fulfilled') feed.value.forEach((id) => feedIds.add(id));
         else this.logger.warn(this.reason(feed.reason));
       }
+      for (const page of pages) {
+        if (page.status === 'fulfilled') {
+          if (page.value) liveIds.add(page.value);
+        } else this.logger.warn(this.reason(page.reason));
+      }
     }
 
     const trackedIds = tracked.filter((t) => t.platform === StreamPlatform.YOUTUBE).map((t) => t.externalId!);
-    const ids = [...new Set([...feedIds, ...trackedIds])].filter((id) => !this.finished.has(id));
+    const ids = [...new Set([...[...feedIds].filter((id) => !this.finished.has(id)), ...liveIds, ...trackedIds])];
     let videos;
     try {
       videos = ids.length ? await this.youtube.videos(ids) : [];

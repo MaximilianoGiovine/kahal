@@ -106,7 +106,7 @@ Se agregan en *Environment variables* del stack y se aplican con **Update the st
 
 Cada minuto, la API revisa los canales que cada iglesia registró en **Configuración**. Cuando uno empieza a emitir, publica la transmisión en *En vivo* y avisa a la iglesia; cuando termina, la pasa a *Anteriores*. Cada iglesia puede desactivarlo en **Configuración**.
 
-- **YouTube:** en [Google Cloud Console](https://console.cloud.google.com/) crea un proyecto, habilita *YouTube Data API v3* y crea una clave de API para `YOUTUBE_API_KEY`. Restringe la clave a esa API. El canal tiene que estar registrado con un enlace `@nombre` o `/channel/`.
+- **YouTube:** en [Google Cloud Console](https://console.cloud.google.com/) crea un proyecto, habilita *YouTube Data API v3* y crea una clave de API para `YOUTUBE_API_KEY`. Restringe la clave a esa API. Sirven los enlaces de canal `@nombre`, `/channel/`, `/user/` y `/c/`. Kahal revisa cada minuto la página `/live` del canal, que muestra la transmisión apenas empieza, y usa el feed RSS como respaldo.
 - **Twitch:** en la [consola de desarrolladores](https://dev.twitch.tv/console/apps) registra una aplicación y copia `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET`.
 - **Facebook:** Facebook no deja leer páginas ajenas, así que cada iglesia conecta la suya en **Configuración → Conectar con Facebook**, con una cuenta que administre la página. Kahal guarda el token de la página cifrado y solo lee sus transmisiones en vivo. Para habilitarlo:
   1. En [Meta for Developers](https://developers.facebook.com/apps/) crea una app con el caso de uso para administrar páginas.
