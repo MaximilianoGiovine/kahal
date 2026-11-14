@@ -339,6 +339,33 @@ export interface Article extends ArticleSummary {
   body: string;
 }
 
+export type PlatformPostKind = 'NEWS' | 'NOTICE';
+
+/** Noticia o aviso de Kahal, visible en Artículos de todas las iglesias. */
+export interface PlatformPostSummary {
+  id: string;
+  kind: PlatformPostKind;
+  title: string;
+  summary: string | null;
+  coverKey: string | null;
+  published: boolean;
+  publishedAt: string;
+  expiresAt: string | null;
+  updatedAt: string;
+}
+
+export interface PlatformPost extends PlatformPostSummary {
+  /** HTML saneado por la API. */
+  body: string;
+  author: { id: string; firstName: string; lastName: string } | null;
+}
+
+export interface PlatformFeed {
+  notices: PlatformPostSummary[];
+  news: PlatformPostSummary[];
+  newsTotal: number;
+}
+
 export type ActivityAction = 'CREATE' | 'UPDATE' | 'DELETE';
 export type ActivityEntity = 'ANNOUNCEMENT' | 'EVENT' | 'STREAM' | 'ARTICLE';
 

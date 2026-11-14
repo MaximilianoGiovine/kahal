@@ -9,6 +9,9 @@ import { Readable } from 'stream';
  * Almacenamiento de archivos. Driver "local" (volumen Docker) por defecto;
  * "s3" para cualquier proveedor compatible (AWS, Cloudflare R2, Backblaze, etc.).
  */
+/** Carpeta de los archivos de Kahal (noticias y avisos), legibles desde cualquier iglesia. */
+export const PLATFORM_FOLDER = 'platform';
+
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);

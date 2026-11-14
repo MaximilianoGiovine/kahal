@@ -24,6 +24,7 @@ import { HealthController } from './health/health.controller';
 import { LegalModule } from './legal/legal.module';
 import { MailModule } from './mail/mail.module';
 import { MembersModule } from './members/members.module';
+import { PlatformPostsModule } from './platform-posts/platform-posts.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PushModule } from './push/push.module';
 import { RolesModule } from './roles/roles.module';
@@ -73,6 +74,7 @@ import { UsersModule } from './users/users.module';
     CalendarModule,
     AppointmentsModule,
     ArticlesModule,
+    PlatformPostsModule,
     LegalModule,
     BillingModule,
   ],

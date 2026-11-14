@@ -142,10 +142,11 @@ export async function download(path: string, query?: Record<string, unknown>) {
   URL.revokeObjectURL(url);
 }
 
-export async function upload(file: File, kind: 'logo' | 'image' | 'receipt' | 'photo') {
+/** `scope: 'platform'`: carpeta común de Kahal (solo super admin), para las noticias que leen todas las iglesias. */
+export async function upload(file: File, kind: 'logo' | 'image' | 'receipt' | 'photo', scope?: 'platform') {
   const fd = new FormData();
   fd.append('file', file);
-  return api<{ key: string; url: string }>('/files', { method: 'POST', body: fd, query: { kind } });
+  return api<{ key: string; url: string }>('/files', { method: 'POST', body: fd, query: { kind, scope } });
 }
 
 export const fileUrl = (key?: string | null) => (key ? `/api/files/${key}` : undefined);

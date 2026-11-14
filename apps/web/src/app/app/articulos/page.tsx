@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { CampusBadge, CampusFilter } from '@/components/campuses';
+import { PlatformFeedSection } from '@/components/platform-feed';
 import { BookOpen, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useDeferredValue, useState } from 'react';
@@ -40,6 +41,7 @@ export default function ArticlesPage() {
           )
         }
       />
+      {page === 1 && !search && <PlatformFeedSection />}
       {editor && <CampusFilter aspect="ARTICLES" value={campusId} onChange={(id) => (setCampusId(id), setPage(1))} noneLabel="Generales" className="mb-3 sm:w-64" />}
       <div className="relative mb-5 max-w-md">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />

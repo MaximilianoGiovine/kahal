@@ -16,10 +16,10 @@ import { Permission } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { Response } from 'express';
 import { AuthUser, can } from '../common/auth-user';
-import { ChurchId, CurrentUser, Public } from '../common/decorators';
+import { CurrentUser, Public } from '../common/decorators';
 import { campusFilter } from '../common/campus-scope';
 import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from './storage.service';
+import { PLATFORM_FOLDER, StorageService } from './storage.service';
 
 const KINDS = ['logo', 'image', 'receipt', 'photo'] as const;
 type Kind = (typeof KINDS)[number];
@@ -42,11 +42,17 @@ export class FilesController {
   @Post()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   async upload(
-    @ChurchId() churchId: string,
+    @CurrentUser() user: AuthUser,
     @Query('kind') kind: Kind,
+    @Query('scope') scope: string | undefined,
     @UploadedFile(new ParseFilePipeBuilder().build({ fileIsRequired: true })) file: Express.Multer.File,
   ) {
     if (!KINDS.includes(kind)) throw new BadRequestException('Tipo de archivo inválido');
+    // Las imágenes de las noticias de Kahal van a una carpeta común que leen todas las iglesias.
+    const platform = scope === 'platform';
+    if (platform && (!user.isSuperAdmin || kind !== 'image')) throw new ForbiddenException();
+    const churchId = platform ? PLATFORM_FOLDER : user.activeChurchId;
+    if (!churchId) throw new BadRequestException('Selecciona una iglesia para operar');
     const ext = MIME_EXT[file.mimetype];
     if (!ext || (ext === 'pdf' && kind !== 'receipt')) {
       throw new BadRequestException(kind === 'receipt' ? 'Formato no soportado (usa imagen o PDF)' : 'Formato no soportado (usa JPG, PNG o WEBP)');
@@ -67,7 +73,7 @@ export class FilesController {
   ) {
     if (kind !== 'logo') {
       if (!user) throw new ForbiddenException();
-      const sameChurch = user.isSuperAdmin || user.churchId === churchId;
+      const sameChurch = user.isSuperAdmin || user.churchId === churchId || (churchId === PLATFORM_FOLDER && kind === 'image');
       if (!sameChurch) throw new ForbiddenException();
       if (kind === 'receipt' && !can(user, Permission.FINANCE_VIEW)) {
         throw new ForbiddenException();

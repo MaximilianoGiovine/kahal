@@ -6,7 +6,19 @@ import { toast } from 'sonner';
 import { fileUrl, upload } from '@/lib/api';
 
 /** Campo de imagen: sube el archivo y guarda la key en un input hidden. */
-export function ImageUpload({ name, defaultKey, kind = 'image', label = 'Imagen' }: { name: string; defaultKey?: string | null; kind?: 'image' | 'logo' | 'photo'; label?: string }) {
+export function ImageUpload({
+  name,
+  defaultKey,
+  kind = 'image',
+  label = 'Imagen',
+  scope,
+}: {
+  name: string;
+  defaultKey?: string | null;
+  kind?: 'image' | 'logo' | 'photo';
+  label?: string;
+  scope?: 'platform';
+}) {
   const [key, setKey] = useState(defaultKey ?? '');
   const [loading, setLoading] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -15,7 +27,7 @@ export function ImageUpload({ name, defaultKey, kind = 'image', label = 'Imagen'
     if (!file) return;
     setLoading(true);
     try {
-      setKey((await upload(file, kind)).key);
+      setKey((await upload(file, kind, scope)).key);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo subir la imagen');
     } finally {
