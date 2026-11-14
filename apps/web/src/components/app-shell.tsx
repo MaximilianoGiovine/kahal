@@ -17,6 +17,7 @@ import {
   Megaphone,
   Menu,
   MonitorPlay,
+  Newspaper,
   Settings,
   UserRound,
   Users,
@@ -112,7 +113,7 @@ function Shell({ children }: { children: ReactNode }) {
   const blocked = !!access?.blocked;
   const freePath = pathname === '/app/perfil' || pathname.startsWith('/app/suscripcion');
 
-  const needsChurch = isSuperAdmin && !church && !pathname.startsWith('/app/admin') && pathname !== '/app/perfil';
+  const needsChurch = isSuperAdmin && !church && !pathname.startsWith('/app/admin') && !pathname.startsWith('/app/articulos/kahal/') && pathname !== '/app/perfil';
 
   return (
     <div className="min-h-dvh lg:pl-[17.5rem]">
@@ -318,6 +319,7 @@ function Sidebar() {
           <>
             <p className="px-3.5 pt-6 pb-2 text-[11px] font-medium tracking-wider text-subtle uppercase">Plataforma</p>
             {link({ href: '/app/admin', label: 'Iglesias', icon: Building2, badge: pendingRequests })}
+            {link({ href: '/app/admin/noticias', label: 'Noticias y avisos', icon: Newspaper })}
             {link({ href: '/app/admin/metricas', label: 'Registros', icon: BarChart3 })}
             {link({ href: '/app/admin/avales', label: 'Avales', icon: FileSignature })}
           </>

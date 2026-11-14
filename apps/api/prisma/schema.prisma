@@ -480,6 +480,7 @@ model User {
   hostedAppointments     Appointment[]      @relation("AppointmentHost")
   requestedAppointments  Appointment[]      @relation("AppointmentRequester")
   articles               Article[]
+  platformPosts          PlatformPost[]
   activity               ActivityLog[]
   reviewedChurchRequests ChurchRequest[]
 
@@ -845,6 +846,31 @@ model Article {
 
   @@index([churchId, publishedAt])
   @@index([campusId])
+}
+
+enum PlatformPostKind {
+  NEWS
+  NOTICE
+}
+
+/// Noticias y avisos de Kahal: los publica el super admin y se leen en Artículos de todas las iglesias.
+model PlatformPost {
+  id          String           @id @default(cuid())
+  kind        PlatformPostKind @default(NEWS)
+  title       String
+  summary     String?
+  body        String
+  coverKey    String?
+  published   Boolean          @default(true)
+  publishedAt DateTime         @default(now())
+  /// Desde esta fecha deja de mostrarse (útil para avisos de mantenimiento). Null: no vence.
+  expiresAt   DateTime?
+  authorId    String?
+  author      User?            @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([published, publishedAt])
 }
 
 /// Registro de cambios sobre el contenido de la iglesia (quién, qué y cuándo).

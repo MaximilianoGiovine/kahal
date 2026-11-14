@@ -74,7 +74,17 @@ interface Tool {
  * Editor de texto enriquecido liviano (contentEditable). No es controlado:
  * para reemplazar el contenido (p. ej. al importar un archivo) se cambia su `key`.
  */
-export function RichTextEditor({ initialHtml, onChange, placeholder }: { initialHtml: string; onChange: (html: string) => void; placeholder?: string }) {
+export function RichTextEditor({
+  initialHtml,
+  onChange,
+  placeholder,
+  uploadScope,
+}: {
+  initialHtml: string;
+  onChange: (html: string) => void;
+  placeholder?: string;
+  uploadScope?: 'platform';
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [empty, setEmpty] = useState(true);
@@ -139,7 +149,7 @@ export function RichTextEditor({ initialHtml, onChange, placeholder }: { initial
     if (!file) return;
     setUploading(true);
     try {
-      const { key } = await upload(file, 'image');
+      const { key } = await upload(file, 'image', uploadScope);
       exec('insertImage', fileUrl(key));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo subir la imagen');
