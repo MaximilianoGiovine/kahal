@@ -26,6 +26,7 @@ enum Permission {
   ROLES_MANAGE
   CHURCH_SETTINGS
   ACTIVITY_VIEW
+  PRAYER_MANAGE
 }
 
 /// Áreas que una iglesia puede separar por sede. Las demás quedan compartidas.
@@ -311,6 +312,7 @@ model Church {
   agreements     ChurchAgreement[]
   subscriptions  ChurchSubscription[]
   facebookPage   FacebookPage?
+  prayerRequests PrayerRequest[]
 
   @@index([deletionScheduledFor])
 }
@@ -483,6 +485,7 @@ model User {
   platformPosts          PlatformPost[]
   activity               ActivityLog[]
   reviewedChurchRequests ChurchRequest[]
+  prayerRequests         PrayerRequest[]
 
   @@index([churchId, status])
 }
@@ -871,6 +874,31 @@ model PlatformPost {
   updatedAt   DateTime         @updatedAt
 
   @@index([published, publishedAt])
+}
+
+/// Pedido de oración de una persona. Lo ve el equipo con PRAYER_MANAGE y, si lo comparte, toda la congregación.
+model PrayerRequest {
+  id         String    @id @default(cuid())
+  churchId   String
+  church     Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Nombre al momento de pedir: se conserva aunque luego se borre la cuenta.
+  authorName String
+  body       String
+  /// Visible para toda la congregación. Si no, solo para quien la pidió y el equipo.
+  shared     Boolean   @default(false)
+  /// La congregación no ve el nombre. El equipo sí.
+  anonymous  Boolean   @default(false)
+  /// Quien la pidió o el equipo la marcó como respondida.
+  answeredAt DateTime?
+  /// El equipo la archivó: deja de salir en la lista y en lo que se copia.
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([churchId, createdAt])
+  @@index([userId])
 }
 
 /// Registro de cambios sobre el contenido de la iglesia (quién, qué y cuándo).

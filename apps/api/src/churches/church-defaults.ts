@@ -25,8 +25,8 @@ export const DEFAULT_ROLES = {
   pastor: { name: 'Pastor', description: 'Acceso total a la iglesia', isAdmin: true, permissions: [] },
   equipo: {
     name: 'Equipo pastoral',
-    description: 'Miembros, usuarios, contenido, artículos y recibe citas',
-    permissions: ['MEMBERS_VIEW', 'MEMBERS_EDIT', 'MEMBERS_DELETE', 'USERS_VIEW', 'CONTENT_MANAGE', 'ARTICLES_MANAGE', 'APPOINTMENTS_HOST'],
+    description: 'Miembros, usuarios, contenido, artículos, peticiones de oración y recibe citas',
+    permissions: ['MEMBERS_VIEW', 'MEMBERS_EDIT', 'MEMBERS_DELETE', 'USERS_VIEW', 'CONTENT_MANAGE', 'ARTICLES_MANAGE', 'APPOINTMENTS_HOST', 'PRAYER_MANAGE'],
   },
   lider: {
     name: 'Líder',

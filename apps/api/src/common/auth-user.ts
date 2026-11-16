@@ -55,6 +55,8 @@ const CHURCH_WIDE_PERMISSIONS: Permission[] = [
   Permission.MEMBER_STATUSES_MANAGE,
   // El registro mezcla títulos de todas las sedes.
   Permission.ACTIVITY_VIEW,
+  // Las peticiones son de toda la iglesia, sin sede.
+  Permission.PRAYER_MANAGE,
 ];
 
 /** Lo necesario para calcular `campusAccess`, también fuera de una request (feed de calendario). */
