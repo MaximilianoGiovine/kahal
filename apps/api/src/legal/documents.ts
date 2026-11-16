@@ -40,8 +40,8 @@ export const RETENTION = {
 export const PRIVACY: LegalDocument = {
   key: 'privacy',
   title: 'Política de Privacidad',
-  version: '1.1',
-  effectiveDate: '2026-11-07',
+  version: '1.2',
+  effectiveDate: '2026-11-16',
   sections: [
     {
       title: '1. Quién trata tus datos',
@@ -57,9 +57,12 @@ export const PRIVACY: LegalDocument = {
         'Datos de tu cuenta: nombre, apellido, correo, teléfono, contraseña protegida con un algoritmo de hash y, si la usas, tu identificación de Google o Apple.',
         'Datos de tu ficha en la iglesia: documento, fecha de nacimiento, dirección, foto, género, familia, ministerios, estados, fechas de ingreso y de bautismo, notas de la iglesia y aportes o movimientos asociados a tu persona.',
         'Datos de citas: fecha, persona con la que te reúnes, motivo y notas. Te recomendamos no escribir en el motivo información de salud u otros detalles delicados.',
+        'Mensajes del chat en vivo: lo que escribes en el chat de una transmisión, con tu nombre y la hora. Cuando la transmisión termina, la conversación queda guardada en el registro de la iglesia. Los mensajes que se quitaron figuran solo como quitados, sin su texto.',
+        'Peticiones de oración: el texto de tu pedido, tu nombre y si elegiste compartirlo con la congregación o mostrar tu nombre. Lo ve el equipo de oración de tu iglesia y, si lo compartes, la congregación. Un pedido de oración puede revelar datos de salud u otros datos sensibles: escribe solo lo que quieras que lean.',
         'Datos técnicos: cookies necesarias para mantener tu sesión y, si activas los avisos, el identificador de tu dispositivo para enviarlos. No usamos publicidad ni herramientas de seguimiento de terceros.',
         'Cuando esté habilitada la suscripción: datos de quien la gestiona, importe, moneda, fechas y estado de los pagos, e identificadores que entrega la pasarela. Los números de tarjeta los trata la pasarela y Kahal no los recibe.',
         'Quien solicita el alta de una iglesia aporta además los datos del formulario y su aceptación del contrato, incluidos la dirección IP y el navegador usados, como constancia.',
+        'Si quien administra la iglesia conecta su cuenta de Instagram: el identificador y el nombre de usuario de la cuenta, quién la conectó, la credencial de acceso que entrega Instagram, que guardamos cifrada, y una copia temporal de sus últimas publicaciones. Usamos esa credencial solo para mostrar esas publicaciones en la página de la iglesia. No publicamos nada en Instagram ni accedemos a los mensajes ni a los seguidores.',
         'Si quien administra la iglesia conecta su página de Facebook: el identificador y el nombre de la página, quién la conectó y la credencial de acceso a la página que entrega Facebook, que guardamos cifrada. Al conectarla, Facebook nos muestra las páginas que administra esa persona para que elija la de la iglesia: no guardamos las demás. Usamos esa credencial solo para saber cuándo la página transmite en vivo y mostrar la transmisión en la iglesia. No publicamos nada en Facebook ni accedemos al perfil, los contactos ni los mensajes de nadie.',
       ],
     },
@@ -81,7 +84,7 @@ export const PRIVACY: LegalDocument = {
       title: '5. Quién puede verlos',
       paragraphs: [
         'Dentro de tu iglesia, las personas con permisos según su rol. Quienes administran Kahal pueden acceder cuando sea necesario para soporte, seguridad o por obligación legal.',
-        `Proveedores que hacen posible el servicio: alojamiento (${OPERATOR.hosting}), correo electrónico, almacenamiento de archivos y las pasarelas de pago de cada país; Google o Apple si ingresas con ellos; Meta (Facebook) si tu iglesia conecta su página; los servicios de avisos de Apple, Google o Mozilla si los activas, y YouTube, Facebook o Twitch si abres una transmisión, ya que esas plataformas pueden recibir tus datos de navegación.`,
+        `Proveedores que hacen posible el servicio: alojamiento (${OPERATOR.hosting}), correo electrónico, almacenamiento de archivos y las pasarelas de pago de cada país; Google o Apple si ingresas con ellos; Meta (Facebook e Instagram) si tu iglesia conecta su página o su cuenta; los servicios de avisos de Apple, Google o Mozilla si los activas, YouTube, Facebook o Twitch si abres una transmisión, e Instagram si ves las publicaciones de la iglesia, ya que esas plataformas pueden recibir tus datos de navegación.`,
         'Algunos proveedores pueden estar fuera de tu país, en lugares con un nivel de protección diferente. Al aceptar esta política, autorizas esas transferencias en la medida necesaria para prestar el servicio.',
         'También podemos entregar datos si lo ordena una autoridad competente.',
       ],
@@ -94,7 +97,8 @@ export const PRIVACY: LegalDocument = {
         `Iglesias: al pedir la baja hay ${RETENTION.churchGraceDays} días para cancelarla o exportar la información. Después se borran sus datos y archivos.`,
         `Constancia del contrato de una iglesia: ${RETENTION.agreementYears} años desde que finaliza la relación, para atender posibles reclamos. Si la solicitud se rechaza o vence, se borra con ella.`,
         'Datos de suscripción y pagos: el tiempo que exijan las normas fiscales y contables, aunque se borre la iglesia.',
-        'Conexión con la página de Facebook: hasta que la iglesia la desconecte o se borre la iglesia. Al desconectarla, se borra la credencial.',
+        'Conexión con la página de Facebook o la cuenta de Instagram: hasta que la iglesia la desconecte o se borre la iglesia. Al desconectarla, se borran la credencial y las publicaciones guardadas.',
+        'Chats de las transmisiones y peticiones de oración: hasta que la iglesia los elimine o se borre la iglesia. Puedes quitar tus mensajes del chat mientras esté abierto y eliminar tus peticiones cuando quieras.',
         `Copias de seguridad: lo borrado puede permanecer en ellas hasta ${RETENTION.backupMonths} meses, protegido y sin uso activo, hasta que se reemplacen.`,
         'Si se elimina tu cuenta, los movimientos financieros de la iglesia se conservan sin vincularlos a tu persona, porque forman parte de su contabilidad. Pueden quedar en el registro de actividad los títulos del contenido que publicaste.',
       ],
