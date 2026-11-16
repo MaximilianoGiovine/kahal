@@ -311,6 +311,7 @@ model Church {
   agreements     ChurchAgreement[]
   subscriptions  ChurchSubscription[]
   facebookPage   FacebookPage?
+  instagram      InstagramAccount?
 
   @@index([deletionScheduledFor])
 }
@@ -328,6 +329,27 @@ model FacebookPage {
   connectedById String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+/// Cuenta profesional de Instagram de la iglesia, para mostrar sus últimas publicaciones en la página pública.
+model InstagramAccount {
+  churchId       String    @id
+  church         Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  igUserId       String
+  username       String
+  /// Token de larga duración cifrado (ver common/secret-box.ts). Vence a los 60 días si no se renueva.
+  token          String
+  tokenExpiresAt DateTime
+  /// Instagram dejó de aceptar el token: hay que volver a conectar la cuenta.
+  invalidAt      DateTime?
+  /// Últimas publicaciones, guardadas un rato para no consultar Instagram en cada visita.
+  media          Json?
+  mediaFetchedAt DateTime?
+  connectedById  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([tokenExpiresAt])
 }
 
 enum ChurchRequestStatus {

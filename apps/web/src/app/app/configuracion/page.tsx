@@ -12,6 +12,7 @@ import { CurrencyOptions } from '@/components/currency-options';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
 import { FacebookPageConnection } from '@/components/facebook-page';
 import { ImageUpload } from '@/components/image-upload';
+import { InstagramConnection } from '@/components/instagram';
 import { TimezoneOptions } from '@/components/region-fields';
 import { ActionMenu } from '@/components/menu';
 import { Avatar, Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Pagination, Select, Tabs, Textarea } from '@/components/ui';
@@ -155,6 +156,7 @@ function ChurchSettings() {
         </form>
         {/* Fuera del formulario: sus diálogos tienen botones que, adentro, lo enviarían. */}
         <FacebookPageConnection className="mx-5 mb-5" />
+        <InstagramConnection className="mx-5 mb-5" />
       </Card>
       <div className="space-y-6">
         <ChurchClosure church={data} />
