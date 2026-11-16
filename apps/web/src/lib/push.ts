@@ -27,6 +27,20 @@ function keyToBytes(key: string) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
+/** La suscripción se creó con la clave pública que el servidor usa ahora. Si cambiaron las claves VAPID, ningún aviso le llegaría. */
+function sameKey(subscription: PushSubscription, publicKey: string) {
+  const current = subscription.options?.applicationServerKey;
+  if (!current) return true;
+  const a = new Uint8Array(current);
+  const b = keyToBytes(publicKey);
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+async function subscribe(registration: ServiceWorkerRegistration, publicKey: string) {
+  const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey) });
+  await api('/push/subscribe', { method: 'POST', body: subscription.toJSON() });
+}
+
 /** Se llama directo desde el toque del usuario: iOS rechaza pedir el permiso de otra forma. */
 export async function enablePush(publicKey: string): Promise<PushStatus> {
   const permission = await Notification.requestPermission();
@@ -34,9 +48,12 @@ export async function enablePush(publicKey: string): Promise<PushStatus> {
   await navigator.serviceWorker.register('/sw.js');
   const registration = await navigator.serviceWorker.ready;
   // Una suscripción anterior puede estar atada a otra clave del servidor.
-  await (await registration.pushManager.getSubscription())?.unsubscribe();
-  const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey) });
-  await api('/push/subscribe', { method: 'POST', body: subscription.toJSON() });
+  const previous = await registration.pushManager.getSubscription();
+  if (previous) {
+    await api('/push/unsubscribe', { method: 'POST', body: { endpoint: previous.endpoint } }).catch(() => {});
+    await previous.unsubscribe();
+  }
+  await subscribe(registration, publicKey);
   return 'on';
 }
 
@@ -48,11 +65,34 @@ export async function disablePush() {
   await api('/push/unsubscribe', { method: 'POST', body: { endpoint } });
 }
 
-/** Al abrir la app: el navegador puede renovar la suscripción, o quizá entró otra persona en el mismo teléfono. */
+/**
+ * Al abrir la app: el navegador puede renovar la suscripción, quizá entró otra persona en el mismo teléfono,
+ * o el servidor cambió sus claves. Con el permiso concedido, el dispositivo queda siempre atado a quien tiene la sesión.
+ */
 export async function syncPush() {
   if (!isSupported() || Notification.permission !== 'granted') return;
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (!registration) return;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+  const { publicKey } = await api<{ publicKey: string | null }>('/push/config');
+  if (!publicKey) return;
+  if (sameKey(subscription, publicKey)) {
+    await api('/push/subscribe', { method: 'POST', body: subscription.toJSON() });
+    return;
+  }
+  await api('/push/unsubscribe', { method: 'POST', body: { endpoint: subscription.endpoint } }).catch(() => {});
+  await subscription.unsubscribe();
+  await subscribe(registration, publicKey);
+}
+
+/**
+ * Al cerrar sesión: el servidor deja de avisarle a esta cuenta en este dispositivo, pero el navegador conserva la suscripción.
+ * Así, quien vuelva a ingresar sigue recibiendo avisos sin tener que activarlos de nuevo.
+ */
+export async function detachPush() {
   const subscription = await currentSubscription();
-  if (subscription) await api('/push/subscribe', { method: 'POST', body: subscription.toJSON() });
+  if (subscription) await api('/push/unsubscribe', { method: 'POST', body: { endpoint: subscription.endpoint } });
 }
 
 /** Solo olvida la suscripción de este dispositivo: tras borrar la cuenta ya no hay sesión para avisarle a la API. */
