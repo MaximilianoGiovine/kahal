@@ -83,7 +83,7 @@ export class LiveChatService {
     return message;
   }
 
-  /** Lo quita su autor o quien gestiona las transmisiones. Queda marcado en el registro. */
+  /** Lo quita su autor o quien gestiona las transmisiones. En el registro queda solo como quitado, sin el texto. */
   async remove(churchId: string, user: AuthUser, messageId: string) {
     const message = await this.prisma.liveChatMessage.findFirst({
       where: { id: messageId, churchId, deletedAt: null },
@@ -168,7 +168,8 @@ export class LiveChatService {
     ];
     if (stream.church.liveChatWelcome?.trim()) lines.push(`[Bienvenida] ${stream.church.liveChatWelcome.trim()}`, '');
     for (const m of messages) {
-      lines.push(`[${time.format(m.createdAt)}] ${m.authorName}: ${m.body.replace(/\n/g, '\n    ')}${m.deletedAt ? '  (quitado)' : ''}`);
+      // Lo quitado no se guarda: quien quita su mensaje lo quita también del registro.
+      lines.push(`[${time.format(m.createdAt)}] ${m.authorName}: ${m.deletedAt ? '(mensaje quitado)' : m.body.replace(/\n/g, '\n    ')}`);
     }
     return lines.join('\n');
   }

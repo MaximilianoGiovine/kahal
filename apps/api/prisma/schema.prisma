@@ -811,7 +811,7 @@ model LiveChatMessage {
   /// Nombre al momento de escribir: el registro lo conserva aunque luego se borre la cuenta.
   authorName  String
   body        String
-  /// Lo quitó su autor o la moderación. El registro lo conserva marcado.
+  /// Lo quitó su autor o la moderación. El registro lo muestra como quitado, sin el texto.
   deletedAt   DateTime?
   deletedById String?
   createdAt   DateTime   @default(now())
