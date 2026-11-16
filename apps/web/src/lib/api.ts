@@ -128,6 +128,11 @@ export async function api<T = unknown>(path: string, opts: Options = {}): Promis
   return data as T;
 }
 
+/** Abre una conexión de eventos (SSE) con la sesión y el x-church-id: EventSource no admite encabezados. */
+export function openEventStream(path: string, signal: AbortSignal) {
+  return raw(path, { signal, headers: { Accept: 'text/event-stream' }, cache: 'no-store' });
+}
+
 /** Descarga un archivo (Excel) respetando la sesión. */
 export async function download(path: string, query?: Record<string, unknown>) {
   const res = await raw(path, { query });

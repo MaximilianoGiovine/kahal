@@ -16,8 +16,6 @@
 	@www vars_regexp www {host} ^www\.(.+)$
 	redir @www https://{re.www.1}{uri} permanent
 
-	encode zstd gzip
-
 	request_body {
 		max_size 15MB
 	}
@@ -29,7 +27,16 @@
 		X-Frame-Options SAMEORIGIN
 	}
 
+	# Chat en vivo (SSE): sin compresión, que retiene los eventos, y entregando cada uno apenas llega.
+	handle /api/live-chat/events/* {
+		reverse_proxy api:4000 {
+			header_up X-Forwarded-For {client_ip}
+			flush_interval -1
+		}
+	}
+
 	handle /api/* {
+		encode zstd gzip
 		reverse_proxy api:4000 {
 			# La API confía en un solo proxy: recibe directamente la IP real de la persona.
 			header_up X-Forwarded-For {client_ip}
@@ -39,6 +46,7 @@
 	}
 
 	handle {
+		encode zstd gzip
 		reverse_proxy web:3000
 	}
 

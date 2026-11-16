@@ -287,6 +287,10 @@ model Church {
   autoLiveEnabled      Boolean        @default(true)
   /// Transmisiones detectadas que alguien eliminó mientras seguían en vivo: no se vuelven a publicar.
   ignoredLiveIds       String[]       @default([])
+  /// Chat dentro de la app mientras hay una transmisión en vivo.
+  liveChatEnabled      Boolean        @default(true)
+  /// Mensaje que encabeza el chat de cada transmisión. Vacío: sin mensaje.
+  liveChatWelcome      String?        @default("¡Te damos la bienvenida! Saluda a la iglesia y cuéntanos desde dónde nos acompañas.")
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -311,6 +315,8 @@ model Church {
   agreements     ChurchAgreement[]
   subscriptions  ChurchSubscription[]
   facebookPage   FacebookPage?
+  chatMessages   LiveChatMessage[]
+  chatLogs       LiveChatLog[]
 
   @@index([deletionScheduledFor])
 }
@@ -483,6 +489,7 @@ model User {
   platformPosts          PlatformPost[]
   activity               ActivityLog[]
   reviewedChurchRequests ChurchRequest[]
+  chatMessages           LiveChatMessage[]
 
   @@index([churchId, status])
 }
@@ -765,26 +772,71 @@ model Event {
 }
 
 model LiveStream {
-  id          String         @id @default(cuid())
-  churchId    String
-  church      Church         @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  url         String
-  platform    StreamPlatform
-  scheduledAt DateTime?
-  isLive      Boolean        @default(false)
+  id           String         @id @default(cuid())
+  churchId     String
+  church       Church         @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  url          String
+  platform     StreamPlatform
+  scheduledAt  DateTime?
+  isLive       Boolean        @default(false)
   /// Id en la plataforma, si la detección automática la sigue. Null: la maneja la iglesia a mano.
-  externalId  String?
+  externalId   String?
   /// Null: para toda la iglesia.
-  campusId    String?
-  campus      Campus?        @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  campusId     String?
+  campus       Campus?        @relation(fields: [campusId, churchId], references: [id, churchId], onDelete: NoAction)
+  /// Cuándo se cerró su chat y pasó al registro. Null: abierto o sin mensajes.
+  chatClosedAt DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  chatMessages LiveChatMessage[]
+  chatLog      LiveChatLog?
 
   @@unique([churchId, platform, externalId])
   @@index([churchId, scheduledAt])
   @@index([campusId])
+}
+
+/// Mensaje del chat de una transmisión. Solo se escribe mientras está en vivo.
+model LiveChatMessage {
+  id          String     @id @default(cuid())
+  churchId    String
+  church      Church     @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  streamId    String
+  stream      LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Nombre al momento de escribir: el registro lo conserva aunque luego se borre la cuenta.
+  authorName  String
+  body        String
+  /// Lo quitó su autor o la moderación. El registro lo conserva marcado.
+  deletedAt   DateTime?
+  deletedById String?
+  createdAt   DateTime   @default(now())
+
+  @@index([streamId, createdAt])
+  @@index([churchId])
+}
+
+/// Chat de una transmisión terminada, para el Registro. Guarda la conversación entera: sobrevive al borrado de la transmisión.
+model LiveChatLog {
+  id               String      @id @default(cuid())
+  churchId         String
+  church           Church      @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  streamId         String?     @unique
+  stream           LiveStream? @relation(fields: [streamId], references: [id], onDelete: SetNull)
+  title            String
+  startedAt        DateTime
+  endedAt          DateTime
+  messageCount     Int
+  participantCount Int
+  transcript       String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([churchId, endedAt])
 }
 
 /// Franja semanal en la que un pastor/líder recibe citas (hora local de la iglesia).

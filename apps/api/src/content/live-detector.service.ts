@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { CampusAspect, Prisma, StreamPlatform } from '@prisma/client';
 import { BillingService } from '../billing/billing.service';
 import { separates } from '../common/campus-scope';
+import { LiveChatService } from '../live-chat/live-chat.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { takeLiveLock } from './content.service';
@@ -84,6 +85,7 @@ export class LiveDetectorService {
     private readonly push: PushService,
     private readonly billing: BillingService,
     private readonly facebook: FacebookPageService,
+    private readonly chat: LiveChatService,
   ) {}
 
   get availability() {
@@ -108,6 +110,8 @@ export class LiveDetectorService {
           await this.start(church, broadcast).catch((e) => this.logger.error(`Falló la transmisión automática de la iglesia ${church.id}: ${this.reason(e)}`));
         }
       }
+      // Lo que terminó o fue reemplazado cierra su chat ya, sin esperar la revisión de cada minuto.
+      await this.chat.closeEnded();
     } catch (e) {
       this.logger.error(`Falló la detección de transmisiones: ${this.reason(e)}`);
     } finally {
