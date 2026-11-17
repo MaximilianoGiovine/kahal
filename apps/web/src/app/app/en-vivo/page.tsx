@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { CampusBadge, CampusField, CampusFilter, useCanManageCampus } from '@/components/campuses';
 import { ExternalLink, MonitorPlay, Pencil, Plus, Radio, Square, Trash2 } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { clsx } from 'clsx';
 import { ConfirmDialog, Dialog } from '@/components/dialog';
+import { LiveChat } from '@/components/live-chat';
 import { ActionMenu } from '@/components/menu';
 import { Badge, Button, Card, CardHeader, Checkbox, EmptyState, ErrorState, Field, Input, Loading, PageHeader, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -19,6 +21,8 @@ interface Streams {
   live: Stream | null;
   upcoming: Stream[];
   past: Stream[];
+  /** La iglesia tiene activado el chat de las transmisiones en vivo. */
+  chatEnabled: boolean;
 }
 
 /** Canales de transmisión configurados por la iglesia (Configuración → Iglesia). */
@@ -57,6 +61,7 @@ export default function LivePage() {
   if (error || !data) return <ErrorState error={error} onRetry={refetch} />;
 
   const current = watching ?? data.live;
+  const showChat = !!current?.isLive && data.chatEnabled;
 
   const actions = (s: Stream) => canManage(s.campusId) && (
     <ActionMenu
@@ -86,32 +91,40 @@ export default function LivePage() {
       {editor && <CampusFilter aspect="STREAMS" value={campusId} onChange={(id) => (setCampusId(id), setWatching(null))} noneLabel="Generales" className="mb-4 sm:w-64" />}
 
       {current ? (
-        <Card className="overflow-hidden">
-          <Player stream={current} />
-          <div className="flex items-start justify-between gap-3 p-5">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                {current.isLive ? (
-                  <Badge tone="danger">
-                    <span className="size-1.5 animate-pulse rounded-full bg-current" /> EN VIVO
-                  </Badge>
-                ) : (
-                  <Badge>Grabación</Badge>
-                )}
-                <span className="text-xs text-muted">{PLATFORM_LABEL[current.platform]}</span>
-                <CampusBadge aspect="STREAMS" campus={current.campus} />
+        <div className={clsx('grid gap-6', showChat && 'lg:grid-cols-[minmax(0,1fr)_22rem]')}>
+          <Card className="overflow-hidden">
+            <Player stream={current} />
+            <div className="flex items-start justify-between gap-3 p-5">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {current.isLive ? (
+                    <Badge tone="danger">
+                      <span className="size-1.5 animate-pulse rounded-full bg-current" /> EN VIVO
+                    </Badge>
+                  ) : (
+                    <Badge>Grabación</Badge>
+                  )}
+                  <span className="text-xs text-muted">{PLATFORM_LABEL[current.platform]}</span>
+                  <CampusBadge aspect="STREAMS" campus={current.campus} />
+                </div>
+                <h2 className="mt-1.5 text-lg font-semibold">{current.title}</h2>
+                {current.description && <p className="mt-1 text-sm text-muted">{current.description}</p>}
               </div>
-              <h2 className="mt-1.5 text-lg font-semibold">{current.title}</h2>
-              {current.description && <p className="mt-1 text-sm text-muted">{current.description}</p>}
+              <div className="flex items-center gap-1">
+                <a href={current.url} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-muted hover:bg-surface-2" aria-label="Abrir en la plataforma">
+                  <ExternalLink className="size-5" />
+                </a>
+                {editor && actions(current)}
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <a href={current.url} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-muted hover:bg-surface-2" aria-label="Abrir en la plataforma">
-                <ExternalLink className="size-5" />
-              </a>
-              {editor && actions(current)}
+          </Card>
+          {showChat && (
+            // En escritorio el chat toma la altura del reproductor y desplaza sus mensajes por dentro.
+            <div className="relative h-[28rem] lg:h-auto">
+              <LiveChat key={current.id} streamId={current.id} className="h-full lg:absolute lg:inset-0" />
             </div>
-          </div>
-        </Card>
+          )}
+        </div>
       ) : (
         <Card>
           <EmptyState

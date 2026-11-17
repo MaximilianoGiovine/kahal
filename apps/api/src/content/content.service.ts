@@ -4,6 +4,7 @@ import { ActivityService, changedFields } from '../activity/activity.service';
 import { AuthUser, can } from '../common/auth-user';
 import { assertCampusInScope, audienceWhere, campusToSave, ContentAspect } from '../common/campus-scope';
 import { paginate } from '../common/pagination';
+import { LiveChatService } from '../live-chat/live-chat.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { AnnouncementDto, AnnouncementsQuery, EventDto, EventsQuery, StreamDto, StreamsQuery } from './content.dto';
@@ -34,6 +35,7 @@ export class ContentService {
     private readonly activity: ActivityService,
     private readonly push: PushService,
     private readonly youtube: YouTubeLive,
+    private readonly chat: LiveChatService,
   ) {}
 
   // Novedades
@@ -125,7 +127,7 @@ export class ContentService {
 
   async streams(churchId: string, user: AuthUser, q: StreamsQuery) {
     const visible = { churchId, ...audienceWhere(user.audiences.STREAMS, q.campusId) };
-    const [live, upcoming, past] = await Promise.all([
+    const [live, upcoming, past, church] = await Promise.all([
       this.prisma.liveStream.findFirst({ where: { ...visible, isLive: true }, include: { campus: CAMPUS }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.liveStream.findMany({
         where: { ...visible, isLive: false, scheduledAt: { gte: new Date() } },
@@ -139,8 +141,9 @@ export class ContentService {
         orderBy: [{ scheduledAt: 'desc' }, { createdAt: 'desc' }],
         take: 30,
       }),
+      this.prisma.church.findUnique({ where: { id: churchId }, select: { liveChatEnabled: true } }),
     ]);
-    return { live: live && (await this.withEmbed(live)), upcoming, past };
+    return { live: live && (await this.withEmbed(live)), upcoming, past, chatEnabled: church?.liveChatEnabled ?? false };
   }
 
   /**
@@ -161,6 +164,7 @@ export class ContentService {
       return tx.liveStream.create({ data: { ...dto, campusId, platform: detectPlatform(dto.url), churchId }, include: { campus: CAMPUS } });
     });
     await this.track(churchId, user.id, ActivityAction.CREATE, ActivityEntity.STREAM, item);
+    if (item.isLive) await this.closeEndedChats(churchId);
     if (item.isLive) await this.notifyLive(churchId, user, item);
     return item;
   }
@@ -177,6 +181,7 @@ export class ContentService {
       return tx.liveStream.update({ where: { id }, data: { ...dto, campusId, platform: detectPlatform(dto.url), ...(takesOver && { externalId: null }) }, include: { campus: CAMPUS } });
     });
     await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { ...dto, campusId }));
+    await this.closeEndedChats(churchId);
     if (item.isLive && !current.isLive) await this.notifyLive(churchId, user, item);
     return item;
   }
@@ -191,6 +196,7 @@ export class ContentService {
       return tx.liveStream.update({ where: { id }, data: { isLive, ...(isLive && { scheduledAt: new Date(), externalId: null }) }, include: { campus: CAMPUS } });
     });
     await this.track(churchId, user.id, ActivityAction.UPDATE, ActivityEntity.STREAM, item, changedFields(current, { isLive }));
+    await this.closeEndedChats(churchId);
     if (item.isLive && !current.isLive) await this.notifyLive(churchId, user, item);
     return item;
   }
@@ -198,11 +204,18 @@ export class ContentService {
   async removeStream(churchId: string, user: AuthUser, id: string) {
     const current = await this.ensureStream(churchId, id);
     assertCampusInScope(user.campusScopes.STREAMS, current.campusId);
+    // Los mensajes se borran con la transmisión: antes, la conversación pasa al registro.
+    await this.chat.closeBeforeDelete(id);
     await this.prisma.liveStream.delete({ where: { id } });
     // Sigue emitiendo: sin esto, la detección la publicaría de nuevo al minuto.
     if (current.isLive && current.externalId) await this.prisma.church.update({ where: { id: churchId }, data: { ignoredLiveIds: { push: current.externalId } } });
     await this.track(churchId, user.id, ActivityAction.DELETE, ActivityEntity.STREAM, current);
     return { ok: true };
+  }
+
+  /** Cierra al instante el chat de lo que dejó de estar en vivo (también lo que otra transmisión reemplazó). Nunca hace fallar la operación. */
+  private async closeEndedChats(churchId: string) {
+    await this.chat.closeEnded(churchId).catch(() => {});
   }
 
   /** Qué transmisiones deja de lado una que empieza: las de su misma sede, o todas si son compartidas. */

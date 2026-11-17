@@ -34,6 +34,9 @@ export class UpdateChurchDto {
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de Facebook inválido' }) facebookUrl?: string | null;
   @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsUrl(CHANNEL_URL, { message: 'Enlace de Twitch inválido' }) twitchUrl?: string | null;
   @IsOptional() @IsBoolean() autoLiveEnabled?: boolean;
+  @IsOptional() @IsBoolean() liveChatEnabled?: boolean;
+  /** Vacío: el chat empieza sin mensaje de bienvenida. */
+  @IsOptional() @Transform(emptyToNull) @ValidateIf((_, v) => v !== null) @IsString() @MaxLength(500) liveChatWelcome?: string | null;
 }
 
 class ChurchAdminDto {

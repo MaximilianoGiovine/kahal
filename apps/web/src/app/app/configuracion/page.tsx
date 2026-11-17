@@ -144,6 +144,13 @@ function ChurchSettings() {
               />
             )}
           </fieldset>
+          <fieldset className="grid gap-4 sm:col-span-2">
+            <legend className="mb-1 text-sm font-semibold">Chat en vivo</legend>
+            <Checkbox name="liveChatEnabled" defaultChecked={data.liveChatEnabled} label="Abrir un chat en “En vivo” mientras haya una transmisión. Al terminar se cierra y la conversación queda en el Registro." />
+            <Field label="Mensaje de bienvenida" hint="Aparece primero en el chat de cada transmisión. Déjalo vacío para no mostrar ninguno.">
+              <Textarea name="liveChatWelcome" rows={2} maxLength={500} defaultValue={data.liveChatWelcome ?? ''} placeholder="¡Te damos la bienvenida! Saluda a la iglesia y cuéntanos desde dónde nos acompañas." />
+            </Field>
+          </fieldset>
           <div className="sm:col-span-2">
             <ImageUpload name="logoKey" kind="logo" label="Logo" defaultKey={data.logoKey} />
           </div>

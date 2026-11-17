@@ -1,11 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { CalendarClock, History, Search } from 'lucide-react';
+import { CalendarClock, Copy, Download, Eye, History, MessageCircle, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { Avatar, Badge, Card, CardHeader, EmptyState, ErrorState, Input, Loading, PageHeader, Pagination, Select, Tabs, td, th } from '@/components/ui';
-import { api } from '@/lib/api';
+import { toast } from 'sonner';
+import { Dialog } from '@/components/dialog';
+import { Avatar, Badge, Button, Card, CardHeader, EmptyState, ErrorState, Input, Loading, PageHeader, Pagination, Select, Tabs, td, th } from '@/components/ui';
+import { api, download } from '@/lib/api';
 import { ACTIVITY_ACTION_LABEL, ACTIVITY_ENTITY_LABEL, APPOINTMENT_STATUS_LABEL, dateTime, fullName, roleNames } from '@/lib/format';
 import { can } from '@/lib/permissions';
 import { useSession } from '@/lib/session';
@@ -27,24 +29,25 @@ function entityHref(log: ActivityLog) {
 
 export default function ActivityPage() {
   const { me } = useSession();
-  const [tab, setTab] = useState<'changes' | 'appointments'>('changes');
+  const [tab, setTab] = useState<'changes' | 'chats' | 'appointments'>('changes');
 
   if (!can.activity(me)) return <ErrorState error={new Error('No tienes permisos para ver el registro de actividad')} />;
 
   return (
     <>
-      <PageHeader title="Registro" description="Quién modificó el contenido de la iglesia y cuándo, y las citas de cada persona." />
+      <PageHeader title="Registro" description="Quién modificó el contenido de la iglesia y cuándo, los chats de las transmisiones y las citas de cada persona." />
       <div className="mb-6">
         <Tabs
           value={tab}
           onChange={setTab}
           items={[
             { value: 'changes', label: 'Cambios en el contenido' },
+            { value: 'chats', label: 'Chats en vivo' },
             { value: 'appointments', label: 'Citas por persona' },
           ]}
         />
       </div>
-      {tab === 'changes' ? <ChangesTab /> : <AppointmentsTab />}
+      {tab === 'changes' ? <ChangesTab /> : tab === 'chats' ? <ChatsTab /> : <AppointmentsTab />}
     </>
   );
 }
@@ -181,6 +184,108 @@ function What({ log }: { log: ActivityLog }) {
       )}
       {log.detail && <p className="text-xs text-muted">Cambió: {log.detail}</p>}
     </div>
+  );
+}
+
+// Chats en vivo
+
+interface ChatLogRow {
+  id: string;
+  title: string;
+  startedAt: string;
+  endedAt: string;
+  messageCount: number;
+  participantCount: number;
+}
+
+function ChatsTab() {
+  const [q, setQ] = useState('');
+  const search = useDeferredValue(q);
+  const [page, setPage] = useState(1);
+  const [viewing, setViewing] = useState<ChatLogRow | null>(null);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['live-chat-logs', search, page],
+    queryFn: () => api<Paged<ChatLogRow>>('/live-chat/logs', { query: { q: search, page, pageSize: PAGE_SIZE } }),
+    placeholderData: (p) => p,
+  });
+  const save = (log: ChatLogRow) => download(`/live-chat/logs/${log.id}/download`).catch((e) => toast.error(e instanceof Error ? e.message : 'No se pudo descargar'));
+
+  return (
+    <Card>
+      <div className="border-b border-border p-4">
+        <div className="relative sm:max-w-md">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
+          <Input value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} placeholder="Buscar por transmisión" className="pl-9" aria-label="Buscar" />
+        </div>
+      </div>
+      {isLoading ? (
+        <Loading />
+      ) : error || !data ? (
+        <ErrorState error={error} onRetry={refetch} />
+      ) : data.items.length === 0 ? (
+        <EmptyState icon={<MessageCircle className="size-5" />} title="Todavía no hay chats" description="Cuando termina una transmisión con mensajes en su chat, la conversación queda guardada aquí." />
+      ) : (
+        <>
+          <ul className="divide-y divide-border">
+            {data.items.map((log) => (
+              <li key={log.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{log.title}</p>
+                  <p className="tabular text-xs text-muted">
+                    {dateTime(log.startedAt)} · {log.messageCount} {log.messageCount === 1 ? 'mensaje' : 'mensajes'} · {log.participantCount} {log.participantCount === 1 ? 'persona' : 'personas'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => setViewing(log)}>
+                    <Eye className="size-4" /> Ver
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => save(log)}>
+                    <Download className="size-4" /> Descargar
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={setPage} />
+        </>
+      )}
+      {viewing && <ChatLogDialog log={viewing} onClose={() => setViewing(null)} onDownload={() => save(viewing)} />}
+    </Card>
+  );
+}
+
+function ChatLogDialog({ log, onClose, onDownload }: { log: ChatLogRow; onClose: () => void; onDownload: () => void }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['live-chat-logs', 'detail', log.id],
+    queryFn: () => api<ChatLogRow & { transcript: string }>(`/live-chat/logs/${log.id}`),
+  });
+  const copy = () =>
+    data &&
+    navigator.clipboard
+      ?.writeText(data.transcript)
+      .then(() => toast.success('Conversación copiada'))
+      .catch(() => toast.error('No se pudo copiar'));
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      size="lg"
+      title={log.title}
+      description={`${dateTime(log.startedAt)} · ${log.messageCount} ${log.messageCount === 1 ? 'mensaje' : 'mensajes'}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={copy} disabled={!data}>
+            <Copy className="size-4" /> Copiar
+          </Button>
+          <Button onClick={onDownload}>
+            <Download className="size-4" /> Descargar
+          </Button>
+        </>
+      }
+    >
+      {isLoading ? <Loading /> : error || !data ? <ErrorState error={error} /> : <pre className="max-h-[60vh] overflow-auto rounded-xl bg-surface-2 p-4 font-sans text-sm break-words whitespace-pre-wrap">{data.transcript}</pre>}
+    </Dialog>
   );
 }
 

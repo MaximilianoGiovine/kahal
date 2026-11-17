@@ -22,6 +22,7 @@ import { FilesModule } from './files/files.module';
 import { FinanceModule } from './finance/finance.module';
 import { HealthController } from './health/health.controller';
 import { LegalModule } from './legal/legal.module';
+import { LiveChatModule } from './live-chat/live-chat.module';
 import { MailModule } from './mail/mail.module';
 import { MembersModule } from './members/members.module';
 import { PlatformPostsModule } from './platform-posts/platform-posts.module';
@@ -71,6 +72,7 @@ import { UsersModule } from './users/users.module';
     MembersModule,
     FinanceModule,
     ContentModule,
+    LiveChatModule,
     CalendarModule,
     AppointmentsModule,
     ArticlesModule,
