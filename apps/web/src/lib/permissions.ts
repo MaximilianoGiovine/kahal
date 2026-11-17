@@ -17,6 +17,7 @@ export const can = {
   host: (u: Subject) => hasPermission(u, 'APPOINTMENTS_HOST'),
   allAppointments: (u: Subject) => hasPermission(u, 'APPOINTMENTS_ALL'),
   activity: (u: Subject) => hasPermission(u, 'ACTIVITY_VIEW'),
+  prayers: (u: Subject) => hasPermission(u, 'PRAYER_MANAGE'),
   churchSettings: (u: Subject) => hasPermission(u, 'CHURCH_SETTINGS'),
   viewUsers: (u: Subject) => hasPermission(u, 'USERS_VIEW'),
   manageUsers: (u: Subject) => hasPermission(u, 'USERS_MANAGE'),
@@ -48,6 +49,10 @@ export const PERMISSION_GROUPS: { label: string; items: { value: Permission; lab
       { value: 'CONTENT_MANAGE', label: 'Novedades, eventos y en vivo', help: 'Publicar y editar novedades, eventos y transmisiones' },
       { value: 'ARTICLES_MANAGE', label: 'Artículos', help: 'Escribir, editar y despublicar artículos' },
     ],
+  },
+  {
+    label: 'Oración',
+    items: [{ value: 'PRAYER_MANAGE', label: 'Equipo de oración', help: 'Ve todas las peticiones con el nombre de quien las pidió, y las archiva o elimina' }],
   },
   {
     label: 'Citas',

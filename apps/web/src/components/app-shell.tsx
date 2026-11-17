@@ -11,6 +11,7 @@ import {
   CalendarDays,
   CreditCard,
   HandCoins,
+  HandHeart,
   History,
   Home,
   LogOut,
@@ -55,6 +56,7 @@ const MAIN: NavItem[] = [
   { href: '/app/eventos', label: 'Agenda', icon: CalendarDays },
   { href: '/app/articulos', label: 'Artículos', icon: BookOpen },
   { href: '/app/en-vivo', label: 'En vivo', icon: MonitorPlay, mobile: true },
+  { href: '/app/oracion', label: 'Oración', icon: HandHeart },
   { href: '/app/citas', label: 'Citas', icon: CalendarClock, mobile: true },
 ];
 

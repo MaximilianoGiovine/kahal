@@ -26,6 +26,7 @@ import { LiveChatModule } from './live-chat/live-chat.module';
 import { MailModule } from './mail/mail.module';
 import { MembersModule } from './members/members.module';
 import { PlatformPostsModule } from './platform-posts/platform-posts.module';
+import { PrayersModule } from './prayers/prayers.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PushModule } from './push/push.module';
 import { RolesModule } from './roles/roles.module';
@@ -77,6 +78,7 @@ import { UsersModule } from './users/users.module';
     AppointmentsModule,
     ArticlesModule,
     PlatformPostsModule,
+    PrayersModule,
     LegalModule,
     BillingModule,
   ],

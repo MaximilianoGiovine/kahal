@@ -15,7 +15,8 @@ export type Permission =
   | 'USERS_MANAGE'
   | 'ROLES_MANAGE'
   | 'CHURCH_SETTINGS'
-  | 'ACTIVITY_VIEW';
+  | 'ACTIVITY_VIEW'
+  | 'PRAYER_MANAGE';
 
 /** Roles asignados a un usuario, tal como los devuelve la API. */
 export type UserRoles = { role: { id: string; name: string } }[];
