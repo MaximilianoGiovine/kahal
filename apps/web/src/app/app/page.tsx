@@ -8,6 +8,7 @@ import { Badge, Card, CardHeader, EmptyState, ErrorState, Loading, Stat } from '
 import { api } from '@/lib/api';
 import { APPOINTMENT_STATUS_LABEL, dateTime, money, monthLabel, number, relative } from '@/lib/format';
 import { useSession } from '@/lib/session';
+import { InstagramFeed } from '@/components/instagram';
 import type { Announcement, Appointment, ChurchEvent, Stream } from '@/lib/types';
 
 interface Dashboard {
@@ -189,6 +190,7 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+      {church && <InstagramFeed slug={church.slug} />}
     </div>
   );
 }

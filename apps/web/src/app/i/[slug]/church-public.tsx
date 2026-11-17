@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, Mail, MapPin, Phone, Radio } from 'lucide-react';
 import { useEffect } from 'react';
 import { Brand } from '@/components/brand';
+import { InstagramFeed } from '@/components/instagram';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ButtonLink, Card, ErrorState, Loading } from '@/components/ui';
 import { api, fileUrl } from '@/lib/api';
@@ -121,6 +122,8 @@ export function ChurchPublic({ slug }: { slug: string }) {
             ))}
           </div>
         )}
+
+        <InstagramFeed slug={data.slug} className="mt-12" />
       </main>
     </div>
   );

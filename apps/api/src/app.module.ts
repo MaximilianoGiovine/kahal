@@ -21,6 +21,7 @@ import { DashboardController } from './dashboard/dashboard.controller';
 import { FilesModule } from './files/files.module';
 import { FinanceModule } from './finance/finance.module';
 import { HealthController } from './health/health.controller';
+import { InstagramModule } from './instagram/instagram.module';
 import { LegalModule } from './legal/legal.module';
 import { LiveChatModule } from './live-chat/live-chat.module';
 import { MailModule } from './mail/mail.module';
@@ -74,6 +75,7 @@ import { UsersModule } from './users/users.module';
     FinanceModule,
     ContentModule,
     LiveChatModule,
+    InstagramModule,
     CalendarModule,
     AppointmentsModule,
     ArticlesModule,

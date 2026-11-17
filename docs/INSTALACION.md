@@ -99,6 +99,7 @@ Se agregan en *Environment variables* del stack y se aplican con **Update the st
 | `YOUTUBE_API_KEY` | Publicar sola la transmisión cuando el canal de YouTube de una iglesia empieza a emitir (ver abajo). |
 | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` | Lo mismo para Twitch (ver abajo). |
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Lo mismo para las páginas de Facebook que cada iglesia conecte (ver abajo). |
+| `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` | Mostrar las últimas publicaciones de Instagram en la página de cada iglesia que conecte su cuenta (ver abajo). |
 | `DEMO_STREAM_URL` | Link de YouTube/Facebook/Twitch para las transmisiones de la demo. |
 | `HTTP_PORT` / `HTTPS_PORT` | Cambiar los puertos 80 / 443. |
 
@@ -115,6 +116,17 @@ Cada minuto, la API revisa los canales que cada iglesia registró en **Configura
   4. Mientras la app esté en modo desarrollo, solo pueden conectar su página las personas con un rol en la app (agrégalas como evaluadores). Para abrirlo a todas las iglesias, pide en la revisión de la app el acceso avanzado a `pages_show_list` y `pages_read_engagement`; Meta exige además verificar el negocio.
 
   Si cambia `JWT_SECRET`, las páginas conectadas dejan de funcionar y cada iglesia tiene que volver a conectarla.
+
+### Publicaciones de Instagram (opcional)
+
+Cada iglesia puede conectar su cuenta de Instagram en **Configuración → Conectar con Instagram**, y sus 4 últimas publicaciones (fotos, videos, reels o carruseles) aparecen en su página pública. La cuenta tiene que ser profesional (de empresa o de creador): Instagram no da acceso a las personales, pero se puede pasar a profesional gratis desde la app de Instagram.
+
+1. En [Meta for Developers](https://developers.facebook.com/apps/) crea una app (puede ser la misma de Facebook) y agrega el producto *Instagram → API con inicio de sesión de Instagram*.
+2. En *Configurar el inicio de sesión para empresas*, agrega como URI de redirección `https://TU-DOMINIO/api/church/instagram/callback`.
+3. Copia el identificador y la clave secreta **de la app de Instagram** (no los de Facebook, son otros) en `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET`.
+4. Mientras la app esté en modo desarrollo, solo pueden conectar su cuenta quienes estén agregados como evaluadores de Instagram en la app. Para abrirlo a todas las iglesias, pide en la revisión de la app el acceso avanzado a `instagram_business_basic`.
+
+Kahal guarda el token cifrado, lo renueva solo antes de que venza (dura 60 días) y consulta Instagram como mucho cada 30 minutos por iglesia. Si cambia `JWT_SECRET`, cada iglesia tiene que volver a conectar la cuenta.
 
 ### Detrás de Nginx Proxy Manager (opcional)
 
