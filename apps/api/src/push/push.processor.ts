@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { Job, UnrecoverableError } from 'bullmq';
 import * as webpush from 'web-push';
 import { PrismaService } from '../prisma/prisma.service';
 import { PUSH_QUEUE, PushJob } from './push.service';
@@ -33,6 +33,8 @@ export class PushProcessor extends WorkerHost {
         return;
       }
       this.logger.warn(`Falló una notificación (${status ?? 'sin respuesta'}): ${err}`);
+      // 400, 403 y 413 no se arreglan reintentando (datos inválidos o claves VAPID distintas). El dispositivo se resuscribe al abrir la app.
+      if (status === 400 || status === 403 || status === 413) throw new UnrecoverableError(String(err));
       throw err;
     }
   }

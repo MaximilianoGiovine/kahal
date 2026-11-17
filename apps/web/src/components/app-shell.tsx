@@ -31,7 +31,7 @@ import { api, ApiError } from '@/lib/api';
 import { accessQuery, billingQuery } from '@/lib/billing';
 import { churchRequestsQuery } from '@/lib/church-requests';
 import { dayLabel, fullName, roleNames } from '@/lib/format';
-import { disablePush, syncPush } from '@/lib/push';
+import { detachPush, syncPush } from '@/lib/push';
 import { can } from '@/lib/permissions';
 import { SessionProvider, useMe, useSession } from '@/lib/session';
 import type { Me } from '@/lib/types';
@@ -251,7 +251,7 @@ function Sidebar() {
 
   async function logout() {
     // Sin esto, el teléfono seguiría recibiendo los avisos de la persona que cerró sesión.
-    await disablePush().catch(() => {});
+    await detachPush().catch(() => {});
     await api('/auth/logout', { method: 'POST' }).catch(() => {});
     qc.clear();
     router.replace('/login');
