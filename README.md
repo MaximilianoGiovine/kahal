@@ -228,3 +228,5 @@ En la **[guía de instalación](docs/INSTALACION.md)** está el paso a paso con 
 <p align="center">
   <sub>Hecho para que cada iglesia dedique menos tiempo a administrar y más a su gente.</sub>
 </p>
+
+
