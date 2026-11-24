@@ -324,6 +324,7 @@ function Sidebar() {
           <>
             <p className="px-3.5 pt-6 pb-2 text-[11px] font-medium tracking-wider text-subtle uppercase">Plataforma</p>
             {link({ href: '/app/admin', label: 'Iglesias', icon: Building2, badge: pendingRequests })}
+            {link({ href: '/app/admin/suscripciones', label: 'Suscripciones', icon: CreditCard })}
             {link({ href: '/app/admin/noticias', label: 'Noticias y avisos', icon: Newspaper })}
             {link({ href: '/app/admin/metricas', label: 'Registros', icon: BarChart3 })}
             {link({ href: '/app/admin/avales', label: 'Avales', icon: FileSignature })}

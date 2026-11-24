@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Headers, HttpCode, Post, Query, RawBodyRequest, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, Patch, Post, Query, RawBodyRequest, Req } from '@nestjs/common';
 import { Permission } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
-import { AllowWhenBlocked, ChurchId, Public, RequirePermissions } from '../common/decorators';
-import { CheckoutDto } from './billing.dto';
+import { AllowWhenBlocked, ChurchId, Public, RequirePermissions, SuperAdminOnly } from '../common/decorators';
+import { AdminBillingUpdateDto, CheckoutDto } from './billing.dto';
 import { BillingService } from './billing.service';
 
 @AllowWhenBlocked()
@@ -45,6 +45,41 @@ export class BillingController {
   async cancel(@ChurchId() churchId: string) {
     await this.billing.cancelForChurch(churchId);
     return this.billing.overview(churchId);
+  }
+
+  // --- Super admin: todas las iglesias ---
+
+  @SuperAdminOnly()
+  @Get('admin/billing')
+  adminOverview() {
+    return this.billing.adminOverview();
+  }
+
+  @SuperAdminOnly()
+  @Get('admin/billing/churches/:id/subscriptions')
+  adminHistory(@Param('id') id: string) {
+    return this.billing.adminHistory(id);
+  }
+
+  @SuperAdminOnly()
+  @Patch('admin/billing/churches/:id')
+  adminUpdate(@Param('id') id: string, @Body() dto: AdminBillingUpdateDto) {
+    return this.billing.adminUpdate(id, dto);
+  }
+
+  @SuperAdminOnly()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('admin/billing/churches/:id/refresh')
+  @HttpCode(200)
+  adminRefresh(@Param('id') id: string) {
+    return this.billing.adminRefresh(id);
+  }
+
+  @SuperAdminOnly()
+  @Post('admin/billing/churches/:id/cancel')
+  @HttpCode(200)
+  adminCancel(@Param('id') id: string) {
+    return this.billing.adminCancel(id);
   }
 
   @Public()
