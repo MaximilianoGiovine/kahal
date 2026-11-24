@@ -30,6 +30,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { accessQuery, billingQuery } from '@/lib/billing';
+import { SupportWhatsapp } from '@/components/support-whatsapp';
 import { churchRequestsQuery } from '@/lib/church-requests';
 import { dayLabel, fullName, roleNames } from '@/lib/format';
 import { detachPush, syncPush } from '@/lib/push';
@@ -200,6 +201,7 @@ function Shell({ children }: { children: ReactNode }) {
 function BlockedScreen() {
   const { me } = useSession();
   const admin = can.churchSettings(me);
+  const { data: billing } = useQuery({ ...billingQuery, enabled: admin });
   return (
     <Card className="mx-auto mt-10 max-w-lg p-6 text-center">
       <CreditCard className="mx-auto size-8 text-accent-ink" />
@@ -213,6 +215,7 @@ function BlockedScreen() {
           Mi perfil
         </ButtonLink>
       </div>
+      {admin && <SupportWhatsapp phone={billing?.supportWhatsapp} className="mt-5 border-t border-border pt-4" />}
     </Card>
   );
 }
