@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img/banner.svg" alt="Kahal: toda tu iglesia, en un solo lugar" width="100%">
+  <img src="docs/img/banner.png" alt="Kahal: toda tu iglesia, en un solo lugar" width="100%">
 </p>
 
 <p align="center">
