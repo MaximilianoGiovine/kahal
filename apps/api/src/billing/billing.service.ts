@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { ChurchSubscription, PaymentGateway, SubscriptionStatus, UserStatus } from '@prisma/client';
+import { Church, ChurchSubscription, PaymentGateway, SubscriptionStatus, UserStatus } from '@prisma/client';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CheckoutDto } from './billing.dto';
+import { AdminBillingUpdateDto, CheckoutDto } from './billing.dto';
 import { GatewayClient, MercadoPagoGateway, PayPalGateway } from './gateways';
 import { planForTimezone } from './plans';
 
@@ -17,6 +17,22 @@ const RETRY_DAYS = 10;
 /** Anticipación del aviso de bloqueo. */
 const NOTICE_DAYS = 7;
 const ACCESS_CACHE_MS = 30_000;
+
+const ACCESS_CHURCH = { billingExempt: true, billingGraceUntil: true, deletionScheduledFor: true, timezone: true } as const;
+type AccessChurch = Pick<Church, keyof typeof ACCESS_CHURCH>;
+type Access = { blocked: boolean; until: Date | null };
+
+/** Resumen para el super admin: lo que más importa decidir aparece primero. */
+export type AdminBillingState = 'BLOCKED' | 'LAPSED' | 'PAUSED' | 'GRACE' | 'NO_GATEWAY' | 'ACTIVE' | 'EXEMPT' | 'CLOSING';
+
+/** La suscripción que tuvo la iglesia: una cancelada sin llegar a pagarse no cuenta. */
+function currentOf<T extends Pick<ChurchSubscription, 'status' | 'currentPeriodEnd' | 'lastPaymentAt'>>(subscriptions: T[]) {
+  return (
+    subscriptions.find((s) => s.status === SubscriptionStatus.ACTIVE || s.status === SubscriptionStatus.PAUSED) ??
+    subscriptions.find((s) => s.status === SubscriptionStatus.CANCELLED && (s.currentPeriodEnd || s.lastPaymentAt)) ??
+    null
+  );
+}
 
 @Injectable()
 export class BillingService {
@@ -59,26 +75,24 @@ export class BillingService {
   }
 
   /** `until` es la fecha en que se bloqueará si nada cambia; sin fecha, no hay bloqueo a la vista. */
-  async access(churchId: string): Promise<{ blocked: boolean; until: Date | null }> {
-    const church = await this.prisma.church.findUnique({
-      where: { id: churchId },
-      select: { billingExempt: true, billingGraceUntil: true, deletionScheduledFor: true, timezone: true },
-    });
+  async access(churchId: string): Promise<Access> {
+    const church = await this.prisma.church.findUnique({ where: { id: churchId }, select: ACCESS_CHURCH });
     if (!church) throw new NotFoundException('Iglesia no encontrada');
+    const subscriptions = await this.prisma.churchSubscription.findMany({ where: { churchId }, select: { status: true, currentPeriodEnd: true } });
+    return this.accessOf(church, subscriptions);
+  }
+
+  /** Cálculo sin consultas, para poder evaluar todas las iglesias a la vez. */
+  private accessOf(church: AccessChurch, subscriptions: Pick<ChurchSubscription, 'status' | 'currentPeriodEnd'>[]): Access {
     // Con la baja pedida ya no se cobra, y la iglesia tiene que poder exportar antes del borrado.
     if (church.billingExempt || church.deletionScheduledFor) return { blocked: false, until: null };
     const now = Date.now();
-    const subscriptions = await this.prisma.churchSubscription.findMany({
-      where: { churchId, status: { not: SubscriptionStatus.PENDING } },
-      select: { status: true, currentPeriodEnd: true },
-    });
-    const renewing = subscriptions.some(
-      (s) => s.status === SubscriptionStatus.ACTIVE && (!s.currentPeriodEnd || s.currentPeriodEnd.getTime() > now),
-    );
+    const settled = subscriptions.filter((s) => s.status !== SubscriptionStatus.PENDING);
+    const renewing = settled.some((s) => s.status === SubscriptionStatus.ACTIVE && (!s.currentPeriodEnd || s.currentPeriodEnd.getTime() > now));
     if (renewing) return { blocked: false, until: null };
     const covered = [
       church.billingGraceUntil?.getTime() ?? 0,
-      ...subscriptions.map((s) => {
+      ...settled.map((s) => {
         const end = s.currentPeriodEnd?.getTime() ?? 0;
         return s.status === SubscriptionStatus.ACTIVE ? end + RETRY_DAYS * DAY_MS : end;
       }),
@@ -102,11 +116,7 @@ export class BillingService {
     const church = await this.church(churchId);
     const plan = planForTimezone(church.timezone);
     const subscriptions = await this.prisma.churchSubscription.findMany({ where: { churchId }, orderBy: { createdAt: 'desc' } });
-    // Una suscripción cancelada sin llegar a pagarse no es la que tuvo la iglesia.
-    const current =
-      subscriptions.find((s) => s.status === SubscriptionStatus.ACTIVE || s.status === SubscriptionStatus.PAUSED) ??
-      subscriptions.find((s) => s.status === SubscriptionStatus.CANCELLED && (s.currentPeriodEnd || s.lastPaymentAt)) ??
-      null;
+    const current = currentOf(subscriptions);
     return {
       plan: { gateway: plan.gateway, label: plan.label, currency: plan.currency, minAmount: plan.minAmount, available: this.available(plan.gateway) },
       access: await this.access(churchId),
@@ -211,6 +221,122 @@ export class BillingService {
     const open = await this.prisma.churchSubscription.findMany({ where: { churchId, status: { in: OPEN } }, orderBy: { createdAt: 'asc' } });
     for (const subscription of open) await this.sync(subscription);
     return this.overview(churchId);
+  }
+
+  // --- Super admin ---
+
+  async adminOverview() {
+    const [churches, subscriptions] = await Promise.all([
+      this.prisma.church.findMany({
+        select: { id: true, name: true, slug: true, city: true, active: true, createdAt: true, billingExemptNote: true, ...ACCESS_CHURCH },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.churchSubscription.findMany({ where: { churchId: { not: null } }, orderBy: { createdAt: 'desc' } }),
+    ]);
+    const byChurch = new Map<string, ChurchSubscription[]>();
+    for (const s of subscriptions) byChurch.set(s.churchId!, [...(byChurch.get(s.churchId!) ?? []), s]);
+
+    const rows = churches.map((church) => {
+      const list = byChurch.get(church.id) ?? [];
+      const access = this.accessOf(church, list);
+      const current = currentOf(list);
+      const plan = planForTimezone(church.timezone);
+      const state: AdminBillingState = church.deletionScheduledFor
+        ? 'CLOSING'
+        : church.billingExempt
+          ? 'EXEMPT'
+          : access.blocked
+            ? 'BLOCKED'
+            : current?.status === SubscriptionStatus.ACTIVE
+              ? access.until
+                ? 'LAPSED'
+                : 'ACTIVE'
+              : current?.status === SubscriptionStatus.PAUSED
+                ? 'PAUSED'
+                : access.until
+                  ? 'GRACE'
+                  : 'NO_GATEWAY';
+      return {
+        id: church.id,
+        name: church.name,
+        slug: church.slug,
+        city: church.city,
+        active: church.active,
+        createdAt: church.createdAt,
+        timezone: church.timezone,
+        gateway: plan.gateway,
+        gatewayAvailable: this.available(plan.gateway),
+        billingExempt: church.billingExempt,
+        billingExemptNote: church.billingExemptNote,
+        billingGraceUntil: church.billingGraceUntil,
+        deletionScheduledFor: church.deletionScheduledFor,
+        state,
+        access,
+        pending: list.some((s) => s.status === SubscriptionStatus.PENDING),
+        current: current && {
+          gateway: current.gateway,
+          amount: Number(current.amount),
+          currency: current.currency,
+          status: current.status,
+          currentPeriodEnd: current.currentPeriodEnd,
+          lastPaymentAt: current.lastPaymentAt,
+        },
+      };
+    });
+
+    // Lo que entra cada mes por las suscripciones al día, por moneda.
+    const monthly: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.state === 'ACTIVE' && r.current) monthly[r.current.currency] = (monthly[r.current.currency] ?? 0) + r.current.amount;
+    }
+    return { churches: rows, monthly };
+  }
+
+  async adminHistory(churchId: string) {
+    await this.church(churchId);
+    const list = await this.prisma.churchSubscription.findMany({ where: { churchId }, orderBy: { createdAt: 'desc' } });
+    return list.map((s) => ({
+      id: s.id,
+      gateway: s.gateway,
+      externalId: s.externalId,
+      amount: Number(s.amount),
+      currency: s.currency,
+      status: s.status,
+      currentPeriodEnd: s.currentPeriodEnd,
+      lastPaymentAt: s.lastPaymentAt,
+      cancelledAt: s.cancelledAt,
+      createdAt: s.createdAt,
+    }));
+  }
+
+  async adminUpdate(churchId: string, dto: AdminBillingUpdateDto) {
+    const church = await this.church(churchId);
+    const note = dto.billingExemptNote?.trim();
+    await this.prisma.church.update({
+      where: { id: church.id },
+      data: {
+        ...(dto.billingExempt !== undefined
+          ? // Al cambiar la exención, el próximo aviso de falta de pago vuelve a enviarse si corresponde.
+            { billingExempt: dto.billingExempt, billingNoticeAt: null, ...(dto.billingExempt ? {} : { billingExemptNote: null }) }
+          : {}),
+        ...(note !== undefined ? { billingExemptNote: note || null } : {}),
+        ...(dto.billingGraceUntil !== undefined ? { billingGraceUntil: dto.billingGraceUntil ? new Date(dto.billingGraceUntil) : null, billingNoticeAt: null } : {}),
+      },
+    });
+    this.blockedCache.delete(church.id);
+    if (dto.billingExempt && dto.cancelSubscriptions) await this.cancelForChurch(church.id);
+    return { ok: true };
+  }
+
+  async adminRefresh(churchId: string) {
+    await this.refresh(churchId);
+    return { ok: true };
+  }
+
+  async adminCancel(churchId: string) {
+    await this.church(churchId);
+    await this.cancelForChurch(churchId);
+    return { ok: true };
   }
 
   // --- Avisos de las pasarelas ---

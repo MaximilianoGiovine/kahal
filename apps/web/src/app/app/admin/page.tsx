@@ -42,10 +42,6 @@ export default function AdminChurchesPage() {
     invalidate: [['admin']],
     onSuccess: () => setClosing(null),
   });
-  const exempt = useAction(({ id, billingExempt }: { id: string; billingExempt: boolean }) => api(`/admin/churches/${id}`, { method: 'PATCH', body: { billingExempt } }), {
-    success: 'Iglesia actualizada',
-    invalidate: [['admin']],
-  });
   const cancelClosing = useAction((id: string) => api(`/admin/churches/${id}/deletion`, { method: 'DELETE' }), { success: 'Baja cancelada', invalidate: [['admin']] });
 
   if (!isSuperAdmin) return <ErrorState error={new Error('Solo disponible para super administradores')} />;
@@ -122,9 +118,9 @@ export default function AdminChurchesPage() {
                         <Button size="sm" variant="ghost" onClick={() => toggle.mutate({ id: c.id, active: !c.active })}>
                           {c.active ? 'Deshabilitar' : 'Habilitar'}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => exempt.mutate({ id: c.id, billingExempt: !c.billingExempt })}>
-                          {c.billingExempt ? 'Exigir pago' : 'Eximir de pago'}
-                        </Button>
+                        <Link href="/app/admin/suscripciones" className="inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium hover:bg-surface-2">
+                          Suscripción
+                        </Link>
                         {c.deletionScheduledFor ? (
                           <Button size="sm" variant="ghost" onClick={() => cancelClosing.mutate(c.id)}>
                             Cancelar baja

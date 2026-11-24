@@ -276,6 +276,8 @@ model Church {
   deletionScheduledFor DateTime?
   /// No necesita suscripción: iglesias de demostración o acuerdos especiales.
   billingExempt        Boolean        @default(false)
+  /// Por qué se eximió: solo lo ve el super admin.
+  billingExemptNote    String?
   /// Hasta cuándo puede funcionar sin suscripción. Las iglesias nuevas no tienen plazo.
   billingGraceUntil    DateTime?
   /// Último aviso de falta de pago; se limpia al regularizarse.
