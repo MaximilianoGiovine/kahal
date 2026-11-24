@@ -92,6 +92,7 @@ services:
       PAYPAL_PLAN_ID: ${PAYPAL_PLAN_ID:-P-30S80125LY932633YNLW7NKY}
       PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
       PAYPAL_API_URL: ${PAYPAL_API_URL:-https://api-m.paypal.com}
+      SUPPORT_WHATSAPP: ${SUPPORT_WHATSAPP:-}
     volumes:
       - uploads:/data/uploads
     depends_on:

@@ -36,6 +36,11 @@ export class BillingService {
     return gateway === PaymentGateway.MERCADOPAGO ? this.mercadoPago : this.payPal;
   }
 
+  /** WhatsApp de contacto para iglesias que no pueden pagar: solo dígitos, con código de país. */
+  private supportWhatsapp() {
+    return this.config.get<string>('SUPPORT_WHATSAPP')?.replace(/\D/g, '') || null;
+  }
+
   private publicUrl() {
     return this.config.get<string>('PUBLIC_URL')?.replace(/\/+$/, '') || '';
   }
@@ -105,6 +110,7 @@ export class BillingService {
     return {
       plan: { gateway: plan.gateway, label: plan.label, currency: plan.currency, minAmount: plan.minAmount, available: this.available(plan.gateway) },
       access: await this.access(churchId),
+      supportWhatsapp: this.supportWhatsapp(),
       current: current && {
         gateway: current.gateway,
         amount: Number(current.amount),

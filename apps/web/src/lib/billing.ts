@@ -21,6 +21,14 @@ export interface Billing {
   } | null;
   access: BillingAccess;
   pending: boolean;
+  /** Número para iglesias sin medios para aportar; null si no está configurado. */
+  supportWhatsapp: string | null;
+}
+
+const NO_MEANS_MESSAGE = 'Hola, mi iglesia carece de los medios para apoyar el proyecto Kahal.';
+
+export function supportWhatsappUrl(phone: string) {
+  return `https://wa.me/${phone}?text=${encodeURIComponent(NO_MEANS_MESSAGE)}`;
 }
 
 export const billingQuery = { queryKey: ['billing'], queryFn: () => api<Billing>('/billing') };

@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { ChurchClosure } from '@/components/church-closure';
 import { ConfirmDialog } from '@/components/dialog';
+import { SupportWhatsapp } from '@/components/support-whatsapp';
 import { Badge, Button, Card, CardHeader, ErrorState, Field, Input, Loading, PageHeader } from '@/components/ui';
 import { api } from '@/lib/api';
 import { accessQuery, billingQuery, type Billing, type SubscriptionStatus } from '@/lib/billing';
@@ -106,6 +107,7 @@ export default function SubscriptionPage() {
             </div>
           )}
           <CheckoutForm key={`${data.current?.status}:${data.current?.amount}`} billing={data} defaultEmail={me.email} />
+          {data.current?.status !== 'ACTIVE' && <SupportWhatsapp phone={data.supportWhatsapp} className="glass rounded-2xl p-4" />}
           {data.access.blocked && church && <ChurchClosure church={{ slug: church.slug, deletionScheduledFor: null }} />}
         </div>
       )}
