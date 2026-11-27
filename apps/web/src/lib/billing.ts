@@ -30,9 +30,9 @@ export interface Billing {
  * Texto del recordatorio que ve quien administra la iglesia cuando la donación está por vencer.
  * `{dias}` se reemplaza por los días que faltan ("1 día", "5 días").
  */
-export const REMINDER_MESSAGE = `Valoramos la colaboración y el compromiso que han tomado al apoyar y ser parte de este hermoso proyecto que es Kahal. Por eso, queremos recordarles que los fondos donados a la aplicación son utilizados pura y exclusivamente para sostener sus propios gastos operativos.
+export const REMINDER_MESSAGE = `Valoramos la colaboración y el compromiso que han tomado al apoyar y ser parte de este hermoso proyecto que es Kahal. Por eso, queremos recordarles que los fondos aportados a la aplicación son utilizados pura y exclusivamente para sostener sus propios gastos operativos.
 
-Queremos recordarles por este medio que en {dias} vence el aporte con el que se han comprometido. A través de su donación mensual, hemos podido sostener Kahal y entregarlo de manera gratuita a otras congregaciones que no tienen la capacidad de pagar por una aplicación como esta.
+Queremos recordarles por este medio que en {dias} vence el aporte con el que se han comprometido. A través de su apoyo mensual, hemos podido sostener Kahal y entregarlo de manera gratuita a otras congregaciones que no tienen la capacidad de pagar por una aplicación como esta.
 
 Para renovar su compromiso, les pedimos enviar al número de WhatsApp el importe con el que van a participar.
 
@@ -48,7 +48,7 @@ export function daysLeftLabel(until: string) {
 export const WHATSAPP_MESSAGES = {
   registration: (church: string) => `Hola, acabo de solicitar el alta de la iglesia ${church} en Kahal y quiero coordinar la donación para activarla.`,
   activation: (church: string) => `Hola, quiero coordinar la donación para activar la iglesia ${church} en Kahal.`,
-  renewal: (church: string) => `Hola, quiero coordinar la donación mensual de la iglesia ${church} en Kahal.`,
+  renewal: (church: string) => `Hola, quiero coordinar el apoyo mensual de la iglesia ${church} en Kahal.`,
 };
 
 export function whatsappUrl(phone: string, message: string) {
