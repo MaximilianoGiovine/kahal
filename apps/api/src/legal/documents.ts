@@ -40,8 +40,8 @@ export const RETENTION = {
 export const PRIVACY: LegalDocument = {
   key: 'privacy',
   title: 'Política de Privacidad',
-  version: '1.2',
-  effectiveDate: '2026-11-16',
+  version: '1.3',
+  effectiveDate: '2026-11-27',
   sections: [
     {
       title: '1. Quién trata tus datos',
@@ -60,7 +60,7 @@ export const PRIVACY: LegalDocument = {
         'Mensajes del chat en vivo: lo que escribes en el chat de una transmisión, con tu nombre y la hora. Cuando la transmisión termina, la conversación queda guardada en el registro de la iglesia. Los mensajes que se quitaron figuran solo como quitados, sin su texto.',
         'Peticiones de oración: el texto de tu pedido, tu nombre y si elegiste compartirlo con la congregación o mostrar tu nombre. Lo ve el equipo de oración de tu iglesia y, si lo compartes, la congregación. Un pedido de oración puede revelar datos de salud u otros datos sensibles: escribe solo lo que quieras que lean.',
         'Datos técnicos: cookies necesarias para mantener tu sesión y, si activas los avisos, el identificador de tu dispositivo para enviarlos. No usamos publicidad ni herramientas de seguimiento de terceros.',
-        'Cuando esté habilitada la suscripción: datos de quien la gestiona, importe, moneda, fechas y estado de los pagos, e identificadores que entrega la pasarela. Los números de tarjeta los trata la pasarela y Kahal no los recibe.',
+        'Aportes de las iglesias: quién los coordina, el importe, la moneda y las fechas que registra Kahal. Se coordinan por WhatsApp, que trata esas conversaciones según sus propias condiciones. Kahal no cobra a través de la aplicación ni recibe en ella datos de tarjetas o cuentas bancarias.',
         'Quien solicita el alta de una iglesia aporta además los datos del formulario y su aceptación del contrato, incluidos la dirección IP y el navegador usados, como constancia.',
         'Si quien administra la iglesia conecta su cuenta de Instagram: el identificador y el nombre de usuario de la cuenta, quién la conectó, la credencial de acceso que entrega Instagram, que guardamos cifrada, y una copia temporal de sus últimas publicaciones. Usamos esa credencial solo para mostrar esas publicaciones en la página de la iglesia. No publicamos nada en Instagram ni accedemos a los mensajes ni a los seguidores.',
         'Si quien administra la iglesia conecta su página de Facebook: el identificador y el nombre de la página, quién la conectó y la credencial de acceso a la página que entrega Facebook, que guardamos cifrada. Al conectarla, Facebook nos muestra las páginas que administra esa persona para que elija la de la iglesia: no guardamos las demás. Usamos esa credencial solo para saber cuándo la página transmite en vivo y mostrar la transmisión en la iglesia. No publicamos nada en Facebook ni accedemos al perfil, los contactos ni los mensajes de nadie.',
@@ -76,7 +76,7 @@ export const PRIVACY: LegalDocument = {
     {
       title: '4. Para qué los usamos',
       paragraphs: [
-        'Para crear y proteger tu cuenta; para que tu iglesia gestione su membresía, actividades, citas, contenido y finanzas; para enviarte avisos y correos del servicio; para gestionar la suscripción de las iglesias; para responder consultas, y para cumplir obligaciones legales o defender derechos en caso de reclamo.',
+        'Para crear y proteger tu cuenta; para que tu iglesia gestione su membresía, actividades, citas, contenido y finanzas; para enviarte avisos y correos del servicio; para gestionar los aportes de las iglesias; para responder consultas, y para cumplir obligaciones legales o defender derechos en caso de reclamo.',
         'No vendemos tus datos ni los usamos para publicidad. No tomamos decisiones automatizadas que te afecten de forma significativa.',
       ],
     },
@@ -84,7 +84,7 @@ export const PRIVACY: LegalDocument = {
       title: '5. Quién puede verlos',
       paragraphs: [
         'Dentro de tu iglesia, las personas con permisos según su rol. Quienes administran Kahal pueden acceder cuando sea necesario para soporte, seguridad o por obligación legal.',
-        `Proveedores que hacen posible el servicio: alojamiento (${OPERATOR.hosting}), correo electrónico, almacenamiento de archivos y las pasarelas de pago de cada país; Google o Apple si ingresas con ellos; Meta (Facebook e Instagram) si tu iglesia conecta su página o su cuenta; los servicios de avisos de Apple, Google o Mozilla si los activas, YouTube, Facebook o Twitch si abres una transmisión, e Instagram si ves las publicaciones de la iglesia, ya que esas plataformas pueden recibir tus datos de navegación.`,
+        `Proveedores que hacen posible el servicio: alojamiento (${OPERATOR.hosting}), correo electrónico, almacenamiento de archivos y WhatsApp para coordinar los aportes de las iglesias; Google o Apple si ingresas con ellos; Meta (Facebook e Instagram) si tu iglesia conecta su página o su cuenta; los servicios de avisos de Apple, Google o Mozilla si los activas, YouTube, Facebook o Twitch si abres una transmisión, e Instagram si ves las publicaciones de la iglesia, ya que esas plataformas pueden recibir tus datos de navegación.`,
         'Algunos proveedores pueden estar fuera de tu país, en lugares con un nivel de protección diferente. Al aceptar esta política, autorizas esas transferencias en la medida necesaria para prestar el servicio.',
         'También podemos entregar datos si lo ordena una autoridad competente.',
       ],
@@ -96,7 +96,7 @@ export const PRIVACY: LegalDocument = {
         `Solicitudes de alta y cuentas sin terminar: ${RETENTION.unfinishedDays} días. Se borran las solicitudes sin resolver o ya resueltas, las cuentas pendientes o rechazadas y las cuentas creadas por una iglesia que nunca se usaron.`,
         `Iglesias: al pedir la baja hay ${RETENTION.churchGraceDays} días para cancelarla o exportar la información. Después se borran sus datos y archivos.`,
         `Constancia del contrato de una iglesia: ${RETENTION.agreementYears} años desde que finaliza la relación, para atender posibles reclamos. Si la solicitud se rechaza o vence, se borra con ella.`,
-        'Datos de suscripción y pagos: el tiempo que exijan las normas fiscales y contables, aunque se borre la iglesia.',
+        'Datos de aportes y pagos: el tiempo que exijan las normas fiscales y contables, aunque se borre la iglesia.',
         'Conexión con la página de Facebook o la cuenta de Instagram: hasta que la iglesia la desconecte o se borre la iglesia. Al desconectarla, se borran la credencial y las publicaciones guardadas.',
         'Chats de las transmisiones y peticiones de oración: hasta que la iglesia los elimine o se borre la iglesia. Puedes quitar tus mensajes del chat mientras esté abierto y eliminar tus peticiones cuando quieras.',
         `Copias de seguridad: lo borrado puede permanecer en ellas hasta ${RETENTION.backupMonths} meses, protegido y sin uso activo, hasta que se reemplacen.`,
@@ -138,8 +138,8 @@ export const PRIVACY: LegalDocument = {
 export const CONTRACT: LegalDocument = {
   key: 'contract',
   title: 'Contrato de uso de Kahal para iglesias',
-  version: '1.1',
-  effectiveDate: '2026-11-06',
+  version: '1.2',
+  effectiveDate: '2026-11-27',
   sections: [
     {
       title: '1. Partes y aceptación',
@@ -157,12 +157,13 @@ export const CONTRACT: LegalDocument = {
       ],
     },
     {
-      title: '3. Suscripción',
+      title: '3. Aporte mensual',
       paragraphs: [
-        'El uso de Kahal requiere una suscripción mensual a cargo de la Iglesia. La Iglesia elige voluntariamente el importe, que no puede ser inferior a 20.000 pesos argentinos si paga con Mercado Pago ni a 15 dólares estadounidenses si paga con PayPal, y puede cambiarlo para los períodos siguientes. Todos los importes dan acceso a las mismas funciones. El pago retribuye el servicio y no constituye una donación.',
-        'El cobro se hace cada mes por adelantado, a través de pasarelas de pago de terceros, que tienen sus propias condiciones: Mercado Pago, en pesos argentinos, para las iglesias de Argentina, y PayPal, en dólares estadounidenses, para las de otros países. Kahal no recibe ni guarda los números de tarjeta.',
-        'La Iglesia puede cancelar la suscripción en cualquier momento: la cancelación rige para el período siguiente y no da derecho a devolver lo ya pagado, salvo el derecho de arrepentimiento u otro que la ley le reconozca. Kahal avisará con al menos 30 días si cambia los importes mínimos o estas condiciones.',
-        'Una Iglesia nueva debe activar la suscripción para empezar a usar el servicio. Si vence un período sin que se acredite el pago, Kahal puede bloquear temporalmente el acceso de la Iglesia y de todos sus usuarios, tras avisar a quien la administra. El acceso se restablece al acreditarse el pago de un nuevo período, y los meses bloqueados no generan deuda. Si el bloqueo continúa durante 90 días, Kahal puede dar por terminado el contrato y aplicar la baja prevista en la cláusula 6. Mientras Kahal no ofrezca un medio de pago para el país de la Iglesia, puede usar el servicio sin abonar la suscripción.',
+        'El uso de Kahal requiere un aporte mensual a cargo de la Iglesia, cuyo importe se acuerda voluntariamente con Kahal. Todos los importes dan acceso a las mismas funciones. El aporte retribuye el servicio y no constituye una donación.',
+        'La Iglesia coordina cada aporte directamente con Kahal, por WhatsApp u otro medio que Kahal indique. Kahal no cobra a través de la aplicación ni recibe en ella datos de tarjetas o cuentas bancarias.',
+        'Una Iglesia nueva empieza a usar el servicio cuando Kahal la activa, tras acreditarse su primer aporte. Cada aporte acreditado extiende la activación por el período acordado, y antes de que venza Kahal lo recordará a quien administra la Iglesia.',
+        'Si vence la activación sin que se acredite un nuevo aporte, Kahal puede bloquear temporalmente el acceso de la Iglesia y de todos sus usuarios. El acceso se restablece al acreditarse un nuevo aporte, y los meses bloqueados no generan deuda. Si el bloqueo continúa durante 90 días, Kahal puede dar por terminado el contrato y aplicar la baja prevista en la cláusula 6.',
+        'La Iglesia puede dejar de aportar en cualquier momento. Lo ya aportado no se devuelve, salvo el derecho de arrepentimiento u otro que la ley le reconozca. Kahal avisará con al menos 30 días si cambia estas condiciones.',
       ],
     },
     {
@@ -184,8 +185,8 @@ export const CONTRACT: LegalDocument = {
     {
       title: '6. Plazo y baja',
       paragraphs: [
-        'El contrato no tiene plazo fijo. Quien administra la Iglesia puede pedir la baja desde la configuración, y Kahal puede resolverlo con 30 días de aviso, o de inmediato si hay un incumplimiento grave o un riesgo legal o de seguridad. La falta de pago se rige por la cláusula 3.',
-        `Desde el pedido de baja hay ${RETENTION.churchGraceDays} días para cancelarla o exportar la información. Si la Iglesia está bloqueada por falta de pago, para exportar debe primero pagar un nuevo período. Vencido ese plazo, Kahal borra los datos y archivos de la Iglesia, sin perjuicio de que permanezcan hasta ${RETENTION.backupMonths} meses en copias de seguridad.`,
+        'El contrato no tiene plazo fijo. Quien administra la Iglesia puede pedir la baja desde la configuración, y Kahal puede resolverlo con 30 días de aviso, o de inmediato si hay un incumplimiento grave o un riesgo legal o de seguridad. La falta de aporte se rige por la cláusula 3.',
+        `Desde el pedido de baja hay ${RETENTION.churchGraceDays} días para cancelarla o exportar la información. Si la Iglesia está bloqueada por falta de aporte, para exportar debe primero acreditar un nuevo aporte. Vencido ese plazo, Kahal borra los datos y archivos de la Iglesia, sin perjuicio de que permanezcan hasta ${RETENTION.backupMonths} meses en copias de seguridad.`,
         `Kahal conserva la constancia de este contrato durante ${RETENTION.agreementYears} años desde que termina, para atender posibles reclamos.`,
       ],
     },

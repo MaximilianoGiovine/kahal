@@ -1,9 +1,8 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Patch, Post, Query, RawBodyRequest, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { Permission } from '@prisma/client';
-import { Throttle } from '@nestjs/throttler';
-import { Request } from 'express';
-import { AllowWhenBlocked, ChurchId, Public, RequirePermissions, SuperAdminOnly } from '../common/decorators';
-import { AdminBillingUpdateDto, CheckoutDto } from './billing.dto';
+import { AllowWhenBlocked, ChurchId, CurrentUser, Public, RequirePermissions, SuperAdminOnly } from '../common/decorators';
+import { AuthUser } from '../common/auth-user';
+import { AdminBillingUpdateDto, RecordDonationDto } from './billing.dto';
 import { BillingService } from './billing.service';
 
 @AllowWhenBlocked()
@@ -23,28 +22,11 @@ export class BillingController {
     return this.billing.overview(churchId);
   }
 
-  @RequirePermissions(Permission.CHURCH_SETTINGS)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @Post('billing/checkout')
-  checkout(@ChurchId() churchId: string, @Body() dto: CheckoutDto) {
-    return this.billing.checkout(churchId, dto);
-  }
-
-  /** Al volver de la pasarela, sin esperar a que llegue su aviso. */
-  @RequirePermissions(Permission.CHURCH_SETTINGS)
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Post('billing/refresh')
-  @HttpCode(200)
-  refresh(@ChurchId() churchId: string) {
-    return this.billing.refresh(churchId);
-  }
-
-  @RequirePermissions(Permission.CHURCH_SETTINGS)
-  @Post('billing/cancel')
-  @HttpCode(200)
-  async cancel(@ChurchId() churchId: string) {
-    await this.billing.cancelForChurch(churchId);
-    return this.billing.overview(churchId);
+  /** El formulario de alta ofrece coordinar la donación por WhatsApp antes de tener cuenta. */
+  @Public()
+  @Get('public/billing/contact')
+  contact() {
+    return this.billing.contact();
   }
 
   // --- Super admin: todas las iglesias ---
@@ -56,50 +38,27 @@ export class BillingController {
   }
 
   @SuperAdminOnly()
-  @Get('admin/billing/churches/:id/subscriptions')
+  @Get('admin/billing/churches/:id/donations')
   adminHistory(@Param('id') id: string) {
     return this.billing.adminHistory(id);
+  }
+
+  @SuperAdminOnly()
+  @Post('admin/billing/churches/:id/donations')
+  recordDonation(@Param('id') id: string, @Body() dto: RecordDonationDto, @CurrentUser() user: AuthUser) {
+    return this.billing.recordDonation(id, dto, user.id);
+  }
+
+  /** Corrige el historial: no cambia la fecha de activación. */
+  @SuperAdminOnly()
+  @Delete('admin/billing/churches/:id/donations/:donationId')
+  deleteDonation(@Param('id') id: string, @Param('donationId') donationId: string) {
+    return this.billing.deleteDonation(id, donationId);
   }
 
   @SuperAdminOnly()
   @Patch('admin/billing/churches/:id')
   adminUpdate(@Param('id') id: string, @Body() dto: AdminBillingUpdateDto) {
     return this.billing.adminUpdate(id, dto);
-  }
-
-  @SuperAdminOnly()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Post('admin/billing/churches/:id/refresh')
-  @HttpCode(200)
-  adminRefresh(@Param('id') id: string) {
-    return this.billing.adminRefresh(id);
-  }
-
-  @SuperAdminOnly()
-  @Post('admin/billing/churches/:id/cancel')
-  @HttpCode(200)
-  adminCancel(@Param('id') id: string) {
-    return this.billing.adminCancel(id);
-  }
-
-  @Public()
-  @Post('public/billing/webhooks/mercadopago')
-  @HttpCode(200)
-  async mercadoPago(
-    @Query('data.id') dataId: string | undefined,
-    @Headers('x-request-id') requestId: string | undefined,
-    @Headers('x-signature') signature: string | undefined,
-    @Body() body: { type?: string },
-  ) {
-    await this.billing.handleMercadoPago({ dataId, requestId, signature, type: body?.type });
-    return { ok: true };
-  }
-
-  @Public()
-  @Post('public/billing/webhooks/paypal')
-  @HttpCode(200)
-  async payPal(@Req() req: RawBodyRequest<Request>) {
-    await this.billing.handlePayPal(req.headers, req.rawBody);
-    return { ok: true };
   }
 }

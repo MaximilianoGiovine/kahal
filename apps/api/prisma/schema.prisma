@@ -278,9 +278,9 @@ model Church {
   billingExempt        Boolean        @default(false)
   /// Por qué se eximió: solo lo ve el super admin.
   billingExemptNote    String?
-  /// Hasta cuándo puede funcionar sin suscripción. Las iglesias nuevas no tienen plazo.
-  billingGraceUntil    DateTime?
-  /// Último aviso de falta de pago; se limpia al regularizarse.
+  /// Hasta cuándo está activa. Lo fija el super admin al registrar cada donación; sin fecha, la iglesia espera su activación.
+  billingActiveUntil   DateTime?
+  /// Último aviso de vencimiento; se limpia al registrar una donación.
   billingNoticeAt      DateTime?
   /// Opción de Configuración: habilita las sedes en los filtros y formularios.
   campusesEnabled      Boolean        @default(false)
@@ -317,6 +317,7 @@ model Church {
   churchRequests ChurchRequest[]
   agreements     ChurchAgreement[]
   subscriptions  ChurchSubscription[]
+  donations      ChurchDonation[]
   facebookPage   FacebookPage?
   chatMessages   LiveChatMessage[]
   chatLogs       LiveChatLog[]
@@ -996,7 +997,30 @@ model ActivityLog {
   @@index([churchId, createdAt])
 }
 
-/// Suscripción de una iglesia en una pasarela. Se conserva tras borrar la iglesia, por obligaciones fiscales.
+/// Donación mensual que el super admin registra a mano tras coordinarla con la iglesia.
+/// Se conserva tras borrar la iglesia, por obligaciones fiscales.
+model ChurchDonation {
+  id           String    @id @default(cuid())
+  churchId     String?
+  church       Church?   @relation(fields: [churchId], references: [id], onDelete: SetNull)
+  churchName   String
+  /// Opcional: se puede activar sin registrar el importe.
+  amount       Decimal?  @db.Decimal(12, 2)
+  currency     Currency?
+  receivedAt   DateTime  @default(now())
+  /// Fecha de activación que dejó esta donación.
+  coversUntil  DateTime
+  /// Solo la ve el super admin.
+  note         String?
+  recordedById String?
+  createdAt    DateTime  @default(now())
+
+  @@index([churchId, receivedAt])
+  @@index([receivedAt])
+}
+
+/// Suscripción de una iglesia en una pasarela (Mercado Pago o PayPal), que ya no se usan.
+/// Se conserva como historial y por obligaciones fiscales.
 model ChurchSubscription {
   id               String             @id @default(cuid())
   churchId         String?

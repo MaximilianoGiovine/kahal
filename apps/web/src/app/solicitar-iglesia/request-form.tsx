@@ -1,13 +1,16 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, HeartHandshake } from 'lucide-react';
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
+import { Dialog } from '@/components/dialog';
 import { LegalSections } from '@/components/legal-document';
 import { RegionFields } from '@/components/region-fields';
+import { WhatsappButton } from '@/components/whatsapp-button';
 import { Button, ButtonLink, Checkbox, Field, Input, Textarea } from '@/components/ui';
 import { api } from '@/lib/api';
+import { contactQuery, WHATSAPP_MESSAGES } from '@/lib/billing';
 import { slugify } from '@/lib/format';
 import { legalDocumentQuery } from '@/lib/legal';
 
@@ -15,7 +18,10 @@ export function RequestForm() {
   const [slug, setSlug] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
+  /** Nombre de la iglesia de la solicitud enviada. */
+  const [done, setDone] = useState<string | null>(null);
+  const [popup, setPopup] = useState(false);
+  const { data: contact } = useQuery(contactQuery);
   const { data: contract, error: contractError, refetch: reloadContract } = useQuery(legalDocumentQuery('contract'));
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -49,7 +55,8 @@ export function RequestForm() {
           contractVersion: contract?.version,
         },
       });
-      setDone(true);
+      setDone(String(fd.get('name')));
+      setPopup(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo enviar la solicitud');
     } finally {
@@ -62,10 +69,27 @@ export function RequestForm() {
       <div className="flex flex-col items-center py-4 text-center">
         <CheckCircle2 className="size-12 text-success" />
         <p className="mt-4 font-medium">¡Recibimos tu solicitud!</p>
-        <p className="mt-1 text-sm text-muted">Te vamos a avisar por email cuando esté revisada. Vas a ingresar con la contraseña que elegiste.</p>
-        <ButtonLink href="/" variant="secondary" className="mt-6">
-          Volver al inicio
-        </ButtonLink>
+        <p className="mt-1 text-sm text-muted">
+          Te vamos a avisar por email cuando esté revisada. Vas a ingresar con la contraseña que elegiste, y la iglesia se activa cuando coordinemos su donación mensual.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <WhatsappButton phone={contact?.whatsapp} message={WHATSAPP_MESSAGES.registration(done)} label="Coordinar la donación" />
+          <ButtonLink href="/" variant="secondary">
+            Volver al inicio
+          </ButtonLink>
+        </div>
+        <Dialog open={popup && !!contact?.whatsapp} onClose={() => setPopup(false)} title="Un paso más para activar tu iglesia" size="sm">
+          <div className="flex flex-col items-center text-center">
+            <HeartHandshake className="size-10 text-accent-ink" />
+            <p className="mt-3 text-sm text-muted">
+              Kahal se sostiene con la donación mensual de cada iglesia. Escríbenos por WhatsApp para coordinarla: cuando la recibamos, activamos todas las funciones de tu iglesia.
+            </p>
+            <WhatsappButton phone={contact?.whatsapp} message={WHATSAPP_MESSAGES.registration(done)} label="Coordinar por WhatsApp" className="mt-5 w-full" />
+            <button type="button" onClick={() => setPopup(false)} className="mt-3 text-sm text-muted hover:text-fg">
+              Más tarde
+            </button>
+          </div>
+        </Dialog>
       </div>
     );
   }

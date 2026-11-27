@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ChurchRequestStatus, Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
@@ -20,7 +21,16 @@ export class ChurchRequestsService {
     private readonly mail: MailService,
     private readonly push: PushService,
     private readonly agreements: AgreementsService,
+    private readonly config: ConfigService,
   ) {}
+
+  /** La iglesia aprobada empieza sin activar: se activa al coordinar la donación por WhatsApp. */
+  private activationHint() {
+    const whatsapp = this.config.get<string>('SUPPORT_WHATSAPP')?.replace(/\D/g, '');
+    return whatsapp
+      ? ` Para activar todas las funciones, coordina la donación mensual por WhatsApp: <a href="https://wa.me/${whatsapp}">wa.me/${whatsapp}</a>.`
+      : ' Para activar todas las funciones, coordina la donación mensual con el equipo de Kahal.';
+  }
 
   async submit(dto: SubmitChurchRequestDto, origin: { ipAddress?: string; userAgent?: string }) {
     if (dto.contractVersion !== CONTRACT.version) {
@@ -140,7 +150,7 @@ export class ChurchRequestsService {
       html: mailLayout(
         church.name,
         '¡Tu iglesia fue aprobada!',
-        `Hola ${escapeHtml(request.adminFirstName)}, ya puedes ingresar a Kahal con este email y la contraseña que elegiste en la solicitud.`,
+        `Hola ${escapeHtml(request.adminFirstName)}, ya puedes ingresar a Kahal con este email y la contraseña que elegiste en la solicitud.${this.activationHint()}`,
       ),
     });
     return church;
