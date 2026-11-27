@@ -2,7 +2,6 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ChurchRequestStatus, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { BillingService } from '../billing/billing.service';
 import { AuthUser, coversAll, effectivePermissions } from '../common/auth-user';
 import { StorageService } from '../files/storage.service';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
@@ -22,7 +21,6 @@ export class DeletionService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly mail: MailService,
-    private readonly billing: BillingService,
   ) {}
 
   // --- Cuentas ---
@@ -96,13 +94,11 @@ export class DeletionService {
       where: { id: churchId },
       data: { deletionRequestedAt: new Date(now), deletionScheduledFor: scheduledFor },
     });
-    // Si falla aquí, se reintenta antes de borrar la iglesia.
-    await this.billing.cancelForChurch(churchId).catch((e) => this.logger.error(`No se pudo cancelar la suscripción de ${churchId}: ${e instanceof Error ? e.message : e}`));
     await this.notifyAdmins(
       churchId,
       church.name,
       'Baja de la iglesia programada',
-      `Se pidió la baja de ${escapeHtml(church.name)}. Sus datos y archivos se borrarán a partir del ${scheduledFor.toISOString().slice(0, 10)}. La suscripción se canceló, así que no habrá más cobros. Hasta entonces, quien administre la iglesia puede cancelar la baja desde Configuración y exportar la información.`,
+      `Se pidió la baja de ${escapeHtml(church.name)}. Sus datos y archivos se borrarán a partir del ${scheduledFor.toISOString().slice(0, 10)}. Hasta entonces, quien administre la iglesia puede cancelar la baja desde Configuración y exportar la información.`,
     );
     return updated;
   }
@@ -113,7 +109,7 @@ export class DeletionService {
     await this.assertCanCloseChurch(churchId, actor);
     const updated = await this.prisma.church.update({ where: { id: churchId }, data: { deletionRequestedAt: null, deletionScheduledFor: null } });
     if (church.deletionScheduledFor) {
-      await this.notifyAdmins(churchId, church.name, 'Baja cancelada', `Se canceló la baja de ${escapeHtml(church.name)}. La iglesia sigue funcionando con normalidad. Si tenía una suscripción, hay que activarla de nuevo.`);
+      await this.notifyAdmins(churchId, church.name, 'Baja cancelada', `Se canceló la baja de ${escapeHtml(church.name)}. La iglesia sigue funcionando con normalidad.`);
     }
     return updated;
   }
@@ -134,8 +130,6 @@ export class DeletionService {
 
   /** Borra la iglesia. La constancia del contrato queda, ya sin vínculo, hasta que venza su plazo. */
   private async purgeChurch(id: string, name: string, now: Date) {
-    // Sin esto, la pasarela seguiría cobrando a una iglesia que ya no existe.
-    await this.billing.cancelForChurch(id);
     await this.notifyAdmins(id, name, 'Iglesia eliminada', `Los datos de ${escapeHtml(name)} se borraron de Kahal según la baja solicitada.`);
     const retainUntil = new Date(now);
     retainUntil.setFullYear(retainUntil.getFullYear() + RETENTION.agreementYears);

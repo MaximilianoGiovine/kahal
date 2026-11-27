@@ -103,16 +103,15 @@ Una misma instalación atiende a muchas iglesias, cada una con sus datos aislado
 ### 📊 Nuevos registros
 El super admin ve cuántas cuentas nuevas se crean por día y la tasa de crecimiento, en total o por iglesia.
 
-### 💳 Suscripción de las iglesias
-Quien administra la iglesia elige su importe mensual en **Suscripción** y sigue el pago en la pasarela: Mercado Pago para Argentina (desde ARS 20.000) y PayPal para los demás países (desde USD 15). Sin sus variables, la pasarela no se ofrece y sus iglesias no se bloquean.
+### 💝 Donaciones de las iglesias
+Kahal se sostiene con una donación mensual de cada iglesia, que se coordina a mano por WhatsApp: no hay pasarelas de pago en la app.
 
-Una iglesia sin suscripción vigente queda bloqueada hasta pagar, salvo las exentas desde el panel de super admin. Las que ya existían al activar esto tienen 30 días.
+- Al enviar la solicitud de alta, una ventana invita a escribir por WhatsApp para coordinar la donación.
+- Una iglesia aprobada queda **sin activar** hasta que el super admin registra su primera donación en **Donaciones**, indicando hasta cuándo queda activa (1, 3, 6 o 12 meses, o una fecha). Mientras tanto, sus usuarios solo ven el aviso para coordinarla.
+- Cada donación registrada extiende la activación. Siete días antes del vencimiento, quien administra la iglesia ve una ventana que le recuerda preparar la donación y recibe un correo; al vencer, la iglesia queda bloqueada hasta la próxima donación, sin perder datos.
+- El super admin puede eximir iglesias, corregir la fecha de activación y quitar donaciones del historial.
 
-Para activarlas:
-
-- **Comunes:** define `PUBLIC_URL` con la dirección pública en `https`.
-- **Mercado Pago:** define `MERCADOPAGO_ACCESS_TOKEN`. Registra el webhook `https://TU-DOMINIO/api/public/billing/webhooks/mercadopago` con el evento de suscripciones, y copia su clave en `MERCADOPAGO_WEBHOOK_SECRET`. No hace falta crear un plan: cada importe es distinto.
-- **PayPal:** el id de cliente y el plan ya vienen definidos; el plan debe ser mensual, en USD y sin período de prueba. Define `PAYPAL_CLIENT_SECRET`. Registra el webhook `https://TU-DOMINIO/api/public/billing/webhooks/paypal` con los eventos `BILLING.SUBSCRIPTION.*` y `PAYMENT.SALE.*`, y copia su id en `PAYPAL_WEBHOOK_ID`.
+Define `SUPPORT_WHATSAPP` con tu número (código de país y solo dígitos) para mostrar los botones de WhatsApp, y `PUBLIC_URL` para los enlaces de los correos. Las iglesias que ya existían al pasar a donaciones tienen al menos 30 días de activación.
 
 ### 🌐 Presencia de cada iglesia
 - Página pública con la descripción, los datos de contacto, los canales, las próximas actividades y el aviso de transmisión en vivo.

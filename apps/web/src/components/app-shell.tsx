@@ -9,7 +9,7 @@ import {
   Building2,
   CalendarClock,
   CalendarDays,
-  CreditCard,
+  HeartHandshake,
   HandCoins,
   HandHeart,
   History,
@@ -29,8 +29,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError } from '@/lib/api';
-import { accessQuery, billingQuery } from '@/lib/billing';
-import { SupportWhatsapp } from '@/components/support-whatsapp';
+import { accessQuery, billingQuery, daysLeftLabel, REMINDER_MESSAGE, WHATSAPP_MESSAGES } from '@/lib/billing';
+import { WhatsappButton } from '@/components/whatsapp-button';
+import { Dialog } from './dialog';
 import { churchRequestsQuery } from '@/lib/church-requests';
 import { dayLabel, fullName, roleNames } from '@/lib/format';
 import { detachPush, syncPush } from '@/lib/push';
@@ -65,7 +66,7 @@ const ADMIN: NavItem[] = [
   { href: '/app/miembros', label: 'Miembros', icon: Users, show: can.people },
   { href: '/app/finanzas', label: 'Finanzas', icon: HandCoins, show: can.financeRead },
   { href: '/app/actividad', label: 'Registro', icon: History, show: can.activity },
-  { href: '/app/suscripcion', label: 'Suscripción', icon: CreditCard, show: can.churchSettings },
+  { href: '/app/donacion', label: 'Donación', icon: HeartHandshake, show: can.churchSettings },
   { href: '/app/configuracion', label: 'Configuración', icon: Settings, show: can.settings },
 ];
 
@@ -114,7 +115,7 @@ function Shell({ children }: { children: ReactNode }) {
 
   const { data: access, isLoading: accessLoading } = useQuery({ ...accessQuery, enabled: !isSuperAdmin && !!church });
   const blocked = !!access?.blocked;
-  const freePath = pathname === '/app/perfil' || pathname.startsWith('/app/suscripcion');
+  const freePath = pathname === '/app/perfil' || pathname.startsWith('/app/donacion');
 
   const needsChurch = isSuperAdmin && !church && !pathname.startsWith('/app/admin') && !pathname.startsWith('/app/articulos/kahal/') && pathname !== '/app/perfil';
 
@@ -173,7 +174,7 @@ function Shell({ children }: { children: ReactNode }) {
 
       <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12">
         {pathname !== '/app/perfil' && !blocked && <PushPrompt />}
-        {!freePath && !blocked && <SubscriptionNotice />}
+        {!blocked && <DonationReminder />}
         {needsChurch ? <ChurchPicker /> : accessLoading && !freePath ? <Loading /> : blocked && !freePath ? <BlockedScreen /> : children}
       </main>
 
@@ -199,41 +200,71 @@ function Shell({ children }: { children: ReactNode }) {
 
 /** El servidor ya rechaza las solicitudes: esto explica qué pasa y qué se puede hacer. */
 function BlockedScreen() {
-  const { me } = useSession();
+  const { me, church } = useSession();
   const admin = can.churchSettings(me);
+  const { data: access } = useQuery(accessQuery);
   const { data: billing } = useQuery({ ...billingQuery, enabled: admin });
+  const pending = access?.activated === false;
+  const name = church?.name ?? '';
   return (
     <Card className="mx-auto mt-10 max-w-lg p-6 text-center">
-      <CreditCard className="mx-auto size-8 text-accent-ink" />
-      <h1 className="font-display mt-3 text-xl font-semibold">Acceso bloqueado temporalmente</h1>
+      <HeartHandshake className="mx-auto size-8 text-accent-ink" />
+      <h1 className="font-display mt-3 text-xl font-semibold">{pending ? 'Tu iglesia está pendiente de activación' : 'Acceso bloqueado temporalmente'}</h1>
       <p className="mt-2 text-sm text-muted">
-        {admin ? 'Tu iglesia necesita una suscripción activa para usar Kahal. Los datos se conservan y el acceso se restablece al pagar.' : 'Tu iglesia necesita renovar su suscripción. Habla con quien la administra. Tu cuenta y tus datos se conservan.'}
+        {admin
+          ? pending
+            ? 'Kahal se sostiene con la donación mensual de cada iglesia. Escríbenos por WhatsApp para coordinarla y activamos todas las funciones de tu iglesia.'
+            : 'Venció la donación mensual de tu iglesia. Escríbenos por WhatsApp para coordinar la próxima: el acceso se restablece al registrarla y los datos se conservan.'
+          : pending
+            ? 'Tu iglesia todavía no está activa en Kahal. Quien la administra está coordinando la activación. Tu cuenta y tus datos se conservan.'
+            : 'Tu iglesia necesita renovar su donación mensual. Habla con quien la administra. Tu cuenta y tus datos se conservan.'}
       </p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
-        {admin && <ButtonLink href="/app/suscripcion">Activar la suscripción</ButtonLink>}
+        {admin && (
+          <WhatsappButton phone={billing?.supportWhatsapp} message={pending ? WHATSAPP_MESSAGES.activation(name) : WHATSAPP_MESSAGES.renewal(name)} label="Coordinar por WhatsApp" />
+        )}
         <ButtonLink href="/app/perfil" variant="secondary">
           Mi perfil
         </ButtonLink>
       </div>
-      {admin && <SupportWhatsapp phone={billing?.supportWhatsapp} className="mt-5 border-t border-border pt-4" />}
     </Card>
   );
 }
 
-/** Solo para quien gestiona la iglesia, y solo si su pasarela ya está habilitada. */
-function SubscriptionNotice() {
+/** Clave para no repetir el recordatorio el mismo día por el mismo vencimiento. */
+const reminderKey = (churchId: string, until: string) => `kahal:donation-reminder:${churchId}:${until}`;
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** Ventana emergente para quien gestiona la iglesia cuando la donación está por vencer: una vez por día. */
+function DonationReminder() {
   const { me, church, isSuperAdmin } = useSession();
-  const { data } = useQuery({ ...billingQuery, enabled: !isSuperAdmin && !!church && can.churchSettings(me) });
-  const lapsed = data?.current?.status === 'ACTIVE' && !!data.access.until;
-  if (!data?.plan.available || (data.current?.status === 'ACTIVE' && !lapsed)) return null;
+  const admin = !isSuperAdmin && !!church && can.churchSettings(me);
+  const { data: access } = useQuery({ ...accessQuery, enabled: admin });
+  const { data: billing } = useQuery({ ...billingQuery, enabled: admin && !!access?.reminder });
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!admin || !church || !access?.reminder || !access.until) return;
+    if (localStorage.getItem(reminderKey(church.id, access.until)) !== today()) setOpen(true);
+  }, [admin, church, access?.reminder, access?.until]);
+
+  if (!open || !church || !access?.until) return null;
+  const close = () => {
+    localStorage.setItem(reminderKey(church.id, access.until!), today());
+    setOpen(false);
+  };
   return (
-    <Link href="/app/suscripcion" className="glass mb-5 flex items-center gap-3 rounded-2xl p-4 text-sm transition hover:bg-surface-2">
-      <CreditCard className="size-5 shrink-0 text-accent-ink" />
-      <span>
-        <span className="font-medium">{lapsed ? 'No pudimos cobrar tu suscripción.' : data.current?.status === 'PAUSED' ? 'Los cobros de tu suscripción están pausados.' : 'Tu iglesia aún no tiene una suscripción activa.'}</span>{' '}
-        <span className="text-muted">{data.access.until ? `Actívala antes del ${dayLabel(data.access.until, 'long')} para evitar el bloqueo.` : 'Elige tu importe mensual y actívala.'}</span>
-      </span>
-    </Link>
+    <Dialog open onClose={close} title="Tu donación está por vencer" size="sm">
+      <div className="flex flex-col items-center text-center">
+        <HeartHandshake className="size-10 text-accent-ink" />
+        <p className="mt-3 text-left text-sm whitespace-pre-line text-muted">{REMINDER_MESSAGE.replaceAll('{dias}', daysLeftLabel(access.until))}</p>
+        <p className="mt-3 text-xs text-subtle">Vence el {dayLabel(access.until, 'long')}.</p>
+        <WhatsappButton phone={billing?.supportWhatsapp} message={WHATSAPP_MESSAGES.renewal(church.name)} label="Coordinar por WhatsApp" className="mt-5 w-full" />
+        <button type="button" onClick={close} className="mt-3 text-sm text-muted hover:text-fg">
+          Entendido
+        </button>
+      </div>
+    </Dialog>
   );
 }
 
@@ -324,7 +355,7 @@ function Sidebar() {
           <>
             <p className="px-3.5 pt-6 pb-2 text-[11px] font-medium tracking-wider text-subtle uppercase">Plataforma</p>
             {link({ href: '/app/admin', label: 'Iglesias', icon: Building2, badge: pendingRequests })}
-            {link({ href: '/app/admin/suscripciones', label: 'Suscripciones', icon: CreditCard })}
+            {link({ href: '/app/admin/donaciones', label: 'Donaciones', icon: HeartHandshake })}
             {link({ href: '/app/admin/noticias', label: 'Noticias y avisos', icon: Newspaper })}
             {link({ href: '/app/admin/metricas', label: 'Registros', icon: BarChart3 })}
             {link({ href: '/app/admin/avales', label: 'Avales', icon: FileSignature })}

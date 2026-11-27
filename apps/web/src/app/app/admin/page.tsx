@@ -118,8 +118,8 @@ export default function AdminChurchesPage() {
                         <Button size="sm" variant="ghost" onClick={() => toggle.mutate({ id: c.id, active: !c.active })}>
                           {c.active ? 'Deshabilitar' : 'Habilitar'}
                         </Button>
-                        <Link href="/app/admin/suscripciones" className="inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium hover:bg-surface-2">
-                          Suscripción
+                        <Link href="/app/admin/donaciones" className="inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium hover:bg-surface-2">
+                          Donaciones
                         </Link>
                         {c.deletionScheduledFor ? (
                           <Button size="sm" variant="ghost" onClick={() => cancelClosing.mutate(c.id)}>

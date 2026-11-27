@@ -4,7 +4,7 @@ import { AuthUser } from '../common/auth-user';
 import { ALLOW_WHEN_BLOCKED, IS_PUBLIC } from '../common/decorators';
 import { BillingService } from './billing.service';
 
-/** Sin suscripción vigente, la iglesia solo conserva lo necesario para pagar y para ejercer derechos sobre sus cuentas. */
+/** Sin activación vigente, la iglesia solo conserva lo necesario para coordinar la donación y ejercer derechos sobre sus cuentas. */
 @Injectable()
 export class SubscriptionGuard implements CanActivate {
   constructor(
@@ -19,6 +19,6 @@ export class SubscriptionGuard implements CanActivate {
     const user: AuthUser | undefined = ctx.switchToHttp().getRequest().user;
     if (!user || user.isSuperAdmin || !user.churchId) return true;
     if (!(await this.billing.isBlocked(user.churchId))) return true;
-    throw new HttpException({ statusCode: HttpStatus.PAYMENT_REQUIRED, code: 'SUBSCRIPTION_REQUIRED', message: 'Tu iglesia necesita una suscripción activa para usar Kahal' }, HttpStatus.PAYMENT_REQUIRED);
+    throw new HttpException({ statusCode: HttpStatus.PAYMENT_REQUIRED, code: 'SUBSCRIPTION_REQUIRED', message: 'Tu iglesia necesita estar activa para usar Kahal' }, HttpStatus.PAYMENT_REQUIRED);
   }
 }

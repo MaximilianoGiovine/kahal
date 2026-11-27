@@ -53,7 +53,7 @@ export function ChurchClosure({ church }: { church: Pick<Church, 'slug' | 'delet
       {confirming && (
         <DeleteConfirm
           title="Pedir la baja de la iglesia"
-          description="La iglesia dejará de aparecer en público y no admitirá registros nuevos, y su suscripción se cancelará. Pasados 30 días se borrará todo de forma definitiva. Exporta antes lo que debas conservar. Solo quien administra la iglesia puede hacerlo."
+          description="La iglesia dejará de aparecer en público y no admitirá registros nuevos. Pasados 30 días se borrará todo de forma definitiva. Exporta antes lo que debas conservar. Solo quien administra la iglesia puede hacerlo."
           word={church.slug}
           askPassword={me.hasPassword}
           confirmLabel="Programar la baja"
