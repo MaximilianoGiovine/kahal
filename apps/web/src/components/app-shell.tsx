@@ -254,7 +254,7 @@ function DonationReminder() {
     setOpen(false);
   };
   return (
-    <Dialog open onClose={close} title="Tu donación está por vencer" size="sm">
+    <Dialog open onClose={close} title="Tu apoyo está por vencer" size="sm">
       <div className="flex flex-col items-center text-center">
         <HeartHandshake className="size-10 text-accent-ink" />
         <p className="mt-3 text-left text-sm whitespace-pre-line text-muted">{REMINDER_MESSAGE.replaceAll('{dias}', daysLeftLabel(access.until))}</p>
