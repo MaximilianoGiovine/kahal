@@ -213,11 +213,11 @@ function BlockedScreen() {
       <p className="mt-2 text-sm text-muted">
         {admin
           ? pending
-            ? 'Kahal se sostiene con la donación mensual de cada iglesia. Escríbenos por WhatsApp para coordinarla y activamos todas las funciones de tu iglesia.'
-            : 'Venció la donación mensual de tu iglesia. Escríbenos por WhatsApp para coordinar la próxima: el acceso se restablece al registrarla y los datos se conservan.'
+            ? 'Kahal se sostiene con el apoyo mensual de cada iglesia. Escríbenos por WhatsApp para coordinarlo y activamos todas las funciones de tu iglesia.'
+            : 'Venció el apoyo mensual de tu iglesia. Escríbenos por WhatsApp para coordinar el próximo: el acceso se restablece al registrarlo y los datos se conservan.'
           : pending
             ? 'Tu iglesia todavía no está activa en Kahal. Quien la administra está coordinando la activación. Tu cuenta y tus datos se conservan.'
-            : 'Tu iglesia necesita renovar su donación mensual. Habla con quien la administra. Tu cuenta y tus datos se conservan.'}
+            : 'Tu iglesia necesita renovar su apoyo mensual. Habla con quien la administra. Tu cuenta y tus datos se conservan.'}
       </p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
         {admin && (
