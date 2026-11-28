@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Church, UserStatus } from '@prisma/client';
+import { Church, ChurchDonation, UserStatus } from '@prisma/client';
 import { escapeHtml, MailService, mailLayout } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminBillingUpdateDto, RecordDonationDto } from './billing.dto';
@@ -13,6 +13,19 @@ const ACCESS_CACHE_MS = 30_000;
 
 const ACCESS_CHURCH = { billingExempt: true, billingActiveUntil: true, deletionScheduledFor: true } as const;
 type AccessChurch = Pick<Church, keyof typeof ACCESS_CHURCH>;
+
+const ADMIN_CHURCH = {
+  id: true,
+  name: true,
+  slug: true,
+  city: true,
+  active: true,
+  createdAt: true,
+  defaultCurrency: true,
+  billingExemptNote: true,
+  ...ACCESS_CHURCH,
+} as const;
+type AdminChurch = Pick<Church, keyof typeof ADMIN_CHURCH>;
 
 export interface Access {
   blocked: boolean;
@@ -116,44 +129,51 @@ export class BillingService {
     monthStart.setUTCDate(1);
     monthStart.setUTCHours(0, 0, 0, 0);
     const [churches, lastDonations, thisMonth] = await Promise.all([
-      this.prisma.church.findMany({
-        select: { id: true, name: true, slug: true, city: true, active: true, createdAt: true, defaultCurrency: true, billingExemptNote: true, ...ACCESS_CHURCH },
-        orderBy: { name: 'asc' },
-      }),
+      this.prisma.church.findMany({ select: ADMIN_CHURCH, orderBy: { name: 'asc' } }),
       this.prisma.churchDonation.findMany({ where: { churchId: { not: null } }, orderBy: { receivedAt: 'desc' }, distinct: ['churchId'] }),
       this.prisma.churchDonation.groupBy({ by: ['currency'], where: { receivedAt: { gte: monthStart }, amount: { not: null } }, _sum: { amount: true } }),
     ]);
     const last = new Map(lastDonations.map((d) => [d.churchId!, d]));
-
-    const rows = churches.map((church) => {
-      const access = this.accessOf(church);
-      const donation = last.get(church.id);
-      return {
-        id: church.id,
-        name: church.name,
-        slug: church.slug,
-        city: church.city,
-        active: church.active,
-        createdAt: church.createdAt,
-        defaultCurrency: church.defaultCurrency,
-        billingExempt: church.billingExempt,
-        billingExemptNote: church.billingExemptNote,
-        billingActiveUntil: church.billingActiveUntil,
-        deletionScheduledFor: church.deletionScheduledFor,
-        state: stateOf(church, access),
-        access,
-        lastDonation: donation && {
-          amount: donation.amount === null ? null : Number(donation.amount),
-          currency: donation.currency,
-          receivedAt: donation.receivedAt,
-        },
-      };
-    });
+    const rows = churches.map((church) => this.adminRow(church, last.get(church.id)));
 
     // Lo donado en el mes en curso, por moneda.
     const monthly: Record<string, number> = {};
     for (const g of thisMonth) if (g.currency && g._sum.amount) monthly[g.currency] = Number(g._sum.amount);
     return { churches: rows, monthly };
+  }
+
+  /** La misma fila del resumen, para una sola iglesia: la usa su ficha. */
+  async adminChurch(churchId: string) {
+    const [church, donation] = await Promise.all([
+      this.prisma.church.findUnique({ where: { id: churchId }, select: ADMIN_CHURCH }),
+      this.prisma.churchDonation.findFirst({ where: { churchId }, orderBy: { receivedAt: 'desc' } }),
+    ]);
+    if (!church) throw new NotFoundException('Iglesia no encontrada');
+    return this.adminRow(church, donation ?? undefined);
+  }
+
+  private adminRow(church: AdminChurch, donation?: ChurchDonation) {
+    const access = this.accessOf(church);
+    return {
+      id: church.id,
+      name: church.name,
+      slug: church.slug,
+      city: church.city,
+      active: church.active,
+      createdAt: church.createdAt,
+      defaultCurrency: church.defaultCurrency,
+      billingExempt: church.billingExempt,
+      billingExemptNote: church.billingExemptNote,
+      billingActiveUntil: church.billingActiveUntil,
+      deletionScheduledFor: church.deletionScheduledFor,
+      state: stateOf(church, access),
+      access,
+      lastDonation: donation && {
+        amount: donation.amount === null ? null : Number(donation.amount),
+        currency: donation.currency,
+        receivedAt: donation.receivedAt,
+      },
+    };
   }
 
   async adminHistory(churchId: string) {
