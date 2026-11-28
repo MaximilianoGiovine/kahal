@@ -79,7 +79,7 @@ export function Card({ className, ...props }: ComponentProps<'div'>) {
 
 export function CardHeader({ title, description, action }: { title: ReactNode; description?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-border px-5 py-4">
       <div className="min-w-0">
         <h2 className="font-display font-semibold text-fg">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}

@@ -14,6 +14,7 @@ import {
   HandHeart,
   History,
   Home,
+  LayoutDashboard,
   LogOut,
   Megaphone,
   Menu,
@@ -354,7 +355,8 @@ function Sidebar() {
         {isSuperAdmin && (
           <>
             <p className="px-3.5 pt-6 pb-2 text-[11px] font-medium tracking-wider text-subtle uppercase">Plataforma</p>
-            {link({ href: '/app/admin', label: 'Iglesias', icon: Building2, badge: pendingRequests })}
+            {link({ href: '/app/admin', label: 'Resumen', icon: LayoutDashboard })}
+            {link({ href: '/app/admin/iglesias', label: 'Iglesias', icon: Building2, badge: pendingRequests })}
             {link({ href: '/app/admin/donaciones', label: 'Donaciones', icon: HeartHandshake })}
             {link({ href: '/app/admin/noticias', label: 'Noticias y avisos', icon: Newspaper })}
             {link({ href: '/app/admin/metricas', label: 'Registros', icon: BarChart3 })}
@@ -388,7 +390,7 @@ function ChurchPicker() {
             </p>
           </Card>
         ))}
-        <Link href="/app/admin" className="text-sm font-medium text-accent-ink hover:underline">
+        <Link href="/app/admin/iglesias" className="text-sm font-medium text-accent-ink hover:underline">
           Administrar iglesias →
         </Link>
       </div>

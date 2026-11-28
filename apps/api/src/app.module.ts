@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ActivityModule } from './activity/activity.module';
+import { AdminModule } from './admin/admin.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
@@ -83,6 +84,7 @@ import { UsersModule } from './users/users.module';
     PrayersModule,
     LegalModule,
     BillingModule,
+    AdminModule,
   ],
   controllers: [HealthController, DashboardController],
   providers: [

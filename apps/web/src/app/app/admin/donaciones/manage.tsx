@@ -26,7 +26,8 @@ const endOfDay = (value: string) => new Date(`${value}T23:59:59`).toISOString();
 const MONTHS = [1, 3, 6, 12];
 
 export function ManageDonations({ church: c, onClose }: { church: AdminBillingChurch; onClose: () => void }) {
-  const invalidate = [['admin', 'billing'], ['admin', 'churches']];
+  // La activación se ve también en el resumen y en la ficha de la iglesia.
+  const invalidate = [['admin', 'billing'], ['admin', 'churches'], ['admin', 'overview']];
   const history = useQuery({
     queryKey: ['admin', 'billing', c.id, 'donations'],
     queryFn: () => api<AdminDonation[]>(`/admin/billing/churches/${c.id}/donations`),
